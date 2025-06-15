@@ -47,7 +47,7 @@
                                this.style.backgroundColor='#269c35';
                                this.style.borderColor='#37db79';">
                   <i class="fab fa-google fa-lg"></i>
-                  Sign in with Google - CI/CD test
+                  Sign in with Google - CI/CD test -
                 </a>
               </div>
               @endif
