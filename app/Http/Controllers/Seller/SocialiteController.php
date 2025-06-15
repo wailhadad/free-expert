@@ -73,7 +73,7 @@ class SocialiteController extends Controller
                 'username' => $googleUser->getName(),
                 'photo' => $googleUser->getAvatar(),
                 'google_id' => $googleUser->getId(),
-                'status' => 1,
+                'status' => 0,
                 'password' => bcrypt(Str::random(16)),
                 'email_verified_at' => now(),
                 'show_email_addresss' => 1,
