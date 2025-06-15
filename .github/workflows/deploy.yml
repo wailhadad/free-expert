@@ -1,0 +1,37 @@
+name: Deploy to Lightsail
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.INSTANCE_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            
+            cd /var/www/html
+            
+            # If .git folder doesn't exist, clone the repository
+            if [ ! -d ".git" ]; then
+              sudo rm -rf /var/www/html/{*,.*}
+    
+              sudo git clone https://github.com/wailhadad/free-expert.git .
+            else
+              sudo git reset --hard
+              sudo git pull origin master
+            fi
+
+            # Install Composer dependencies
+            sudo composer install --no-interaction --prefer-dist --optimize-autoloader
+
+            # Run database migrations
+            sudo php artisan migrate --force
