@@ -49,7 +49,13 @@ class SellerController extends Controller
 
         $queryResult['breadcrumb'] = $misc->getBreadcrumb();
 
-        $queryResult['bs'] = Basic::query()->where('google_recaptcha_status','google_login_status','facebook_login_status')->first();
+        $queryResult['bs'] = Basic::select(
+            'google_recaptcha_status',
+            'google_login_status',
+            'facebook_login_status'
+        )
+            ->first();
+
         return view('seller.auth.register', $queryResult);
     }
     //create
