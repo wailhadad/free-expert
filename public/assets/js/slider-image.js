@@ -1,6 +1,7 @@
 Dropzone.options.sliderDropzone = {
   paramName: 'slider_image',
   url: imgUpUrl,
+    maxFilesize: 20, // MB
   method: 'post',
   success: function (file, response) {
     // remove error message if exist
