@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 use Mews\Purifier\Facades\Purifier;
-use PDF;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class OrderController extends Controller
 {
@@ -159,7 +159,16 @@ class OrderController extends Controller
             $arrData['packageTitle'] = $package->name;
         }
 
-        PDF::loadView('frontend.service.invoice', $arrData)->save(public_path($fileLocation));
+//        $websiteInfo = Basic::query()->first();
+//        $arrData['websiteInfo'] = $websiteInfo;
+
+        PDF::loadView('frontend.service.invoice', $arrData)
+            ->setPaper('a4')
+//            ->setOptions([
+//                'isRemoteEnabled'      => true,
+//                'isHtml5ParserEnabled' => true,
+//            ])
+        ->save(public_path($fileLocation));
 
         return $invoiceName;
     }

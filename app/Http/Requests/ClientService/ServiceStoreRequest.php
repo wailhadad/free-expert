@@ -28,15 +28,23 @@ class ServiceStoreRequest extends FormRequest
    */
   public function rules()
   {
-    $ruleArray = [
-      'slider_images' => 'required',
-      'thumbnail_image' => [
-        'required',
-        new ImageMimeTypeRule(),
-        'dimensions:min_width=330,max_width=330,min_width=255,min_height=255'
-      ],
-      'service_status' => 'required|numeric'
-    ];
+      $ruleArray = [
+          'slider_images' => 'required',
+
+          // thumbnail only if present
+          'thumbnail_image' => $this->hasFile('thumbnail_image')
+              ? [
+                  'image',
+                  new ImageMimeTypeRule(),
+                  'mimes:jpeg,png,gif',
+                  'max:10248',                          // 10 MB
+                  'dimensions:min_width=10,max_width=2048,
+                                 min_height=40,max_height=2048',
+              ]
+              : [],
+
+          'service_status'  => 'required|numeric',
+      ];
 
     $languages = Language::all();
 

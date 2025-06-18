@@ -6,8 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>{{ __('Invoice') }}</title>
-  <link rel="stylesheet" href="{{ asset('assets/css/pdf.css') }}">
+  <link rel="stylesheet" href="{{ public_path('assets/css/pdf.css') }}">
   <style>
+    {!! file_get_contents(public_path('assets/css/pdf.css')) !!}
     body {
       font-family: DejaVu Sans, serif;
     }
@@ -20,10 +21,10 @@
       <tr>
         <td>
           @if (!empty($websiteInfo->logo))
-            <img loading="lazy" src="{{ asset('assets/img/' . $websiteInfo->logo) }}" height="40"
+            <img loading="lazy" src="{{ public_path('assets/img/' . $websiteInfo->logo) }}" height="40"
               class="d-inline-block">
           @else
-            <img loading="lazy" src="{{ asset('assets/admin/img/noimage.jpg') }}" height="40" class="d-inline-block">
+            <img loading="lazy" src="{{ public_path('assets/admin/img/noimage.jpg') }}" height="40" class="d-inline-block">
           @endif
         </td>
         <td class="text-right strong invoice-heading">{{ __('INVOICE') }}</td>

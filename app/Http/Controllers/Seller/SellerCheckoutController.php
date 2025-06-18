@@ -365,7 +365,7 @@ class SellerCheckoutController extends Controller
                 'expire_date' => Carbon::parse($request['expire_date']),
                 'is_trial' => 0,
                 'trial_days' => 0,
-                'conversation_id' => $request->has('conversation_id') ? $request->input('conversation_id') : null
+                'conversation_id' => $request['conversation_id'] ?? null,
             ]);
         }
         return $seller;

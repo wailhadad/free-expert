@@ -27,13 +27,21 @@ class ServiceUpdateRequest extends FormRequest
    */
   public function rules()
   {
-    $ruleArray = [
-      'thumbnail_image' => $this->hasFile('thumbnail_image') ? [
-        'dimensions:min_width=330,max_width=330,min_width=255,min_height=255',
-        new ImageMimeTypeRule()
-      ]  : '',
-      'service_status' => 'required|numeric'
-    ];
+      $ruleArray = [
+          // thumbnail only if a new file was uploaded
+          'thumbnail_image' => $this->hasFile('thumbnail_image')
+              ? [
+                  'image',
+                  new ImageMimeTypeRule(),
+                  'mimes:jpeg,png,gif',
+                  'max:10248',                          // 10 MB
+                  'dimensions:min_width=10,max_width=2048,
+                                 min_height=40,max_height=2048',
+              ]
+              : [],
+
+          'service_status'  => 'required|numeric',
+      ];
 
     $languages = Language::all();
 
