@@ -130,16 +130,26 @@ class ServiceController extends Controller
         ->select('services.id', 'services.seller_id', 'services.thumbnail_image', 'service_contents.title', 'service_contents.slug', 'services.average_rating', 'services.package_lowest_price', 'services.quote_btn_status')
         ->when($sort, function (Builder $query, $sort) {
           if ($sort == 'new') {
-            return $query->orderBy('services.created_at', 'desc');
+            return $query
+                ->orderByDesc('services.is_featured')
+		->orderBy('services.created_at', 'desc');
           } else if ($sort == 'old') {
-            return $query->orderBy('services.created_at', 'asc');
+            return $query
+                ->orderByDesc('services.is_featured')		
+		->orderBy('services.created_at', 'asc');
           } else if ($sort == 'ascending') {
-            return $query->orderBy('services.package_lowest_price', 'asc');
+            return $query
+                ->orderByDesc('services.is_featured')
+		->orderBy('services.package_lowest_price', 'asc');
           } else if ($sort == 'descending') {
-            return $query->orderBy('services.package_lowest_price', 'desc');
+            return $query
+		->orderByDesc('services.is_featured')
+		->orderBy('services.package_lowest_price', 'desc');
           }
         }, function (Builder $query) {
-          return $query->orderByDesc('services.id');
+          return $query
+                ->orderByDesc('services.is_featured')
+		->orderByDesc('services.id');
         })
         ->paginate($paginate_count);
       // review
