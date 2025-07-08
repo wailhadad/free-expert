@@ -869,7 +869,7 @@ CREATE TABLE `offline_gateways` (
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 
---
+----
 -- Dumping data for table `offline_gateways`
 --
 
