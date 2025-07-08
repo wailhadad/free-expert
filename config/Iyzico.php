@@ -1,25 +1,8 @@
 <?php
 
-namespace Config;
-
-use App\Models\PaymentGateway\OnlineGateway;
-//use App\PaymentGateway;
-
-class Iyzipay
-{
-  public static function options()
-  {
-    $data = OnlineGateway::where('keyword', 'iyzico')->first();
-    $information = json_decode($data->information, true);
-
-    $options = new \Iyzipay\Options();
-    $options->setApiKey($information['api_key']);
-    $options->setSecretKey($information['secrect_key']);
-    if ($information['sandbox_status'] == 1) {
-      $options->setBaseUrl("https://sandbox-api.iyzipay.com");
-    } else {
-      $options->setBaseUrl("https://api.iyzipay.com"); // production mode
-    }
-    return $options;
-  }
-}
+return [
+    // Place any static config values here if needed, e.g.:
+    // 'api_key' => env('IYZIPAY_API_KEY'),
+    // 'secret_key' => env('IYZIPAY_SECRET_KEY'),
+    // 'sandbox' => env('IYZIPAY_SANDBOX', true),
+];

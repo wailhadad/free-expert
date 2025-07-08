@@ -14,6 +14,7 @@ use App\Models\ClientService\ServiceOrder;
 use App\Models\ClientService\ServiceOrderMessage;
 use App\Models\ClientService\ServiceReview;
 use App\Models\Language;
+use App\Models\Seller;
 use App\Models\PaymentGateway\OfflineGateway;
 use App\Models\PaymentGateway\OnlineGateway;
 use Carbon\Carbon;
@@ -76,72 +77,128 @@ class OrderController extends Controller
 
     public function updatePaymentStatus(Request $request, $id)
     {
+        // Set execution time limit for this operation
+        set_time_limit(120);
+        
         $order = ServiceOrder::query()->find($id);
+        if (!$order) {
+            Session::flash('error', 'Order not found!');
+            return redirect()->back();
+        }
+        
+        $oldPaymentStatus = $order->payment_status;
+        $newPaymentStatus = $request['payment_status'];
 
-        if ($request['payment_status'] == 'completed') {
+        if ($newPaymentStatus == 'completed') {
             $order->update([
                 'payment_status' => 'completed'
             ]);
             $statusMsg = 'Your payment is complete.';
-            // generate an invoice in pdf format
-            $invoice = $this->generateInvoice($order);
-            // then, update the invoice field info in database
-            $order->update([
-                'invoice' => $invoice
-            ]);
-        } else if ($request['payment_status'] == 'pending') {
-
+            
+            // Generate invoice immediately to ensure it works
+            try {
+                $invoice = $this->generateInvoice($order);
+                $order->update([
+                    'invoice' => $invoice
+                ]);
+                
+                \Log::info('OrderInvoice: PDF generated successfully', [
+                    'order_id' => $order->id,
+                    'invoice' => $invoice
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('OrderInvoice: PDF generation failed', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage()
+                ]);
+                // Continue without invoice if generation fails
+            }
+        } else if ($newPaymentStatus == 'pending') {
             if ($order->invoice) {
-
-                @unlink(public_path('assets/file/invoices/service/' . $order->invoice));
+                @unlink(public_path('assets/file/invoices/order-invoices/' . $order->invoice));
             }
             $order->update([
                 'payment_status' => 'pending',
                 'invoice' => null,
             ]);
-
             $statusMsg = 'payment is pending.';
         } else {
             if ($order->invoice) {
-                @unlink(public_path('assets/file/invoices/service/' . $order->invoice));
+                @unlink(public_path('assets/file/invoices/order-invoices/' . $order->invoice));
             }
             $order->update([
                 'payment_status' => 'rejected',
                 'invoice' => null
             ]);
-
             $statusMsg = 'payment has been rejected.';
         }
 
-        $mailData = [];
+        // Send email immediately to ensure it works
+        try {
+            $mailData = [
+                'subject' => 'Notification of payment status',
+                'body' => 'Hi ' . $order->name . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg,
+                'recipient' => $order->email_address,
+                'sessionMessage' => 'Payment status updated & mail has been sent successfully!',
+            ];
 
-        if (isset($invoice)) {
-            $mailData['invoice'] = public_path('assets/file/invoices/service/' . $invoice);
+            // Add invoice attachment if available
+            if (isset($invoice) && $invoice) {
+                $mailData['invoice'] = public_path('assets/file/invoices/order-invoices/' . $invoice);
+            }
+
+            // Check SMTP configuration before sending
+            $smtpInfo = \App\Models\BasicSettings\Basic::select('smtp_status', 'smtp_host', 'from_mail')->first();
+            if ($smtpInfo && $smtpInfo->smtp_status == 1) {
+                \App\Http\Helpers\BasicMailer::sendMail($mailData);
+                \Log::info('OrderPayment: Email sent via SMTP', [
+                    'order_id' => $order->id,
+                    'recipient' => $order->email_address,
+                    'smtp_host' => $smtpInfo->smtp_host
+                ]);
+            } else {
+                \Log::warning('OrderPayment: SMTP not configured, email not sent', [
+                    'order_id' => $order->id,
+                    'recipient' => $order->email_address,
+                    'smtp_status' => $smtpInfo ? $smtpInfo->smtp_status : 'null'
+                ]);
+            }
+            
+            \Log::info('OrderPayment: Email sent successfully', [
+                'order_id' => $order->id,
+                'recipient' => $order->email_address
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('OrderPayment: Email sending failed', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage()
+            ]);
         }
 
-        $mailData['subject'] = 'Notification of payment status';
-
-        $mailData['body'] = 'Hi ' . $order->name . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg;
-
-        $mailData['recipient'] = $order->email_address;
-
-        $mailData['sessionMessage'] = 'Payment status updated & mail has been sent successfully!';
-
-        BasicMailer::sendMail($mailData);
-
+        Session::flash('success', 'Payment status updated successfully!');
         return redirect()->back();
     }
 
     public function generateInvoice($order)
     {
-
+        // Set execution time limit for PDF generation
+        set_time_limit(120);
+        
+        // Increase memory limit for PDF generation
+        ini_set('memory_limit', '256M');
+        
         $invoiceName = $order->order_number . '.pdf';
-        $directory = './assets/file/invoices/service/';
+        $directory = './assets/file/invoices/order-invoices/';
 
         @mkdir(public_path($directory), 0775, true);
 
         $fileLocation = $directory . $invoiceName;
         $arrData['orderInfo'] = $order;
+
+        // Get website info for logo and title
+        $websiteInfo = \App\Models\BasicSettings\Basic::first();
+        $arrData['orderInfo']->logo = $websiteInfo->logo;
+        $arrData['orderInfo']->website_title = $websiteInfo->website_title;
 
         // get language
         $language = Language::query()->where('is_default', '=', 1)->first();
@@ -159,18 +216,37 @@ class OrderController extends Controller
             $arrData['packageTitle'] = $package->name;
         }
 
-//        $websiteInfo = Basic::query()->first();
-//        $arrData['websiteInfo'] = $websiteInfo;
+        \Log::info('OrderInvoice: Starting PDF generation', [
+            'order_id' => $order->id,
+            'file_location' => public_path($fileLocation)
+        ]);
 
-        PDF::loadView('frontend.service.invoice', $arrData)
-            ->setPaper('a4')
-//            ->setOptions([
-//                'isRemoteEnabled'      => true,
-//                'isHtml5ParserEnabled' => true,
-//            ])
-        ->save(public_path($fileLocation));
+        try {
+            Pdf::loadView('frontend.service.invoice', $arrData)
+                ->setPaper('a4')
+                ->setOptions([
+                    'isRemoteEnabled' => false, // Disable remote resources for faster generation
+                    'isHtml5ParserEnabled' => true,
+                    'isFontSubsettingEnabled' => true,
+                    'defaultFont' => 'DejaVu Sans',
+                ])
+                ->save(public_path($fileLocation));
 
-        return $invoiceName;
+            \Log::info('OrderInvoice: PDF generated successfully', [
+                'order_id' => $order->id,
+                'file_location' => public_path($fileLocation),
+                'file_exists' => file_exists(public_path($fileLocation))
+            ]);
+
+            return $invoiceName;
+        } catch (\Exception $e) {
+            \Log::error('OrderInvoice: PDF generation failed', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+                'file_location' => public_path($fileLocation)
+            ]);
+            throw $e;
+        }
     }
 
     public function show($id)
@@ -249,6 +325,32 @@ class OrderController extends Controller
         $orderMsg->file_name = isset($fileName) ? $fileName : null;
         $orderMsg->file_original_name = isset($fileOriginalName) ? $fileOriginalName : null;
         $orderMsg->save();
+
+        // Get order details for notification
+        $order = ServiceOrder::findOrFail($id);
+        $seller = Auth::guard('seller')->user();
+        
+        // Send notification to user using NotificationService for real-time delivery
+        if ($order->user_id) {
+            $user = \App\Models\User::find($order->user_id);
+            if ($user) {
+                $notificationService = new \App\Services\NotificationService();
+                $notificationService->sendRealTime($user, [
+                    'type' => 'chat',
+                    'title' => 'New Message from Seller',
+                    'message' => "You have received a new message from {$seller->username} regarding order #{$order->order_number}",
+                    'url' => route('user.service_order.message', ['id' => $order->id]),
+                    'icon' => 'fas fa-comment',
+                    'extra' => [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'seller_name' => $seller->username,
+                        'message_preview' => $request->filled('msg') ? substr($request->msg, 0, 100) : 'File attachment',
+                        'has_attachment' => $request->hasFile('attachment')
+                    ],
+                ]);
+            }
+        }
 
         event(new MessageStored());
 

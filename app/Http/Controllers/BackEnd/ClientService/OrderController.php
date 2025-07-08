@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 use Mews\Purifier\Facades\Purifier;
-use PDF;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class OrderController extends Controller
 {
@@ -122,24 +122,139 @@ class OrderController extends Controller
 
   public function updatePaymentStatus(Request $request, $id)
   {
+    // Set execution time limit for this operation
+    set_time_limit(120);
+    
     $order = ServiceOrder::query()->find($id);
+    if (!$order) {
+      Session::flash('error', 'Order not found!');
+      return redirect()->back();
+    }
+    
+    $oldPaymentStatus = $order->payment_status;
+    $newPaymentStatus = $request['payment_status'];
 
-    if ($request['payment_status'] == 'completed') {
+    // Get service and package details for notifications (optimized queries)
+    $service = $order->service()->first();
+    $package = $order->package()->first();
+    $serviceName = $service ? $service->content()->where('language_id', 1)->pluck('title')->first() : 'Unknown Service';
+    $packageName = $package ? $package->name : 'Basic Package';
+
+    // Prepare detailed notification data
+    $notificationData = [
+      'order_id' => $order->id,
+      'order_number' => $order->order_number,
+      'service_name' => $serviceName,
+      'service_id' => $order->service_id,
+      'order_status' => $order->order_status,
+      'payment_status' => $newPaymentStatus,
+      'amount' => $order->grand_total,
+      'currency' => $order->currency_symbol,
+      'customer_name' => $order->name,
+      'package_name' => $packageName,
+      'payment_method' => $order->payment_method,
+      'gateway_type' => $order->gateway_type,
+      'old_payment_status' => $oldPaymentStatus,
+    ];
+
+    if ($newPaymentStatus == 'completed') {
       $order->update([
         'payment_status' => 'completed'
       ]);
       $statusMsg = 'Your payment is complete.';
-      // generate an invoice in pdf format
-      $invoice = $this->generateInvoice($order);
-      // then, update the invoice field info in database
-      $order->update([
-        'invoice' => $invoice
-      ]);
-    } else if ($request['payment_status'] == 'pending') {
+      
+      // Generate invoice immediately to ensure it works
+      try {
+        $invoice = $this->generateInvoice($order);
+        $order->update([
+          'invoice' => $invoice
+        ]);
+        
+        \Log::info('AdminOrderInvoice: PDF generated successfully', [
+          'order_id' => $order->id,
+          'invoice' => $invoice
+        ]);
+      } catch (\Exception $e) {
+        \Log::error('AdminOrderInvoice: PDF generation failed', [
+          'order_id' => $order->id,
+          'error' => $e->getMessage()
+        ]);
+        // Continue without invoice if generation fails
+      }
 
+      // Send notifications immediately to ensure they work
+      try {
+        // Notify user about payment completion
+        $user = \App\Models\User::find($order->user_id);
+        if ($user) {
+          $user->notify(new \App\Notifications\OrderNotification([
+            'title' => 'Payment Completed',
+            'message' => "Payment for order #{$order->order_number} ({$serviceName}) has been completed successfully. Amount: {$order->currency_symbol}{$order->grand_total}",
+            'url' => route('user.service_order.details', ['id' => $order->id]),
+            'icon' => 'fas fa-credit-card',
+            'extra' => $notificationData,
+          ]));
+        }
+
+        // Notify seller about payment completion
+        if ($order->seller_id) {
+          $seller = Seller::find($order->seller_id);
+          if ($seller) {
+            $notificationData['seller_name'] = $seller->username;
+            $seller->notify(new \App\Notifications\OrderNotification([
+              'title' => 'Payment Received',
+              'message' => "Payment received for order #{$order->order_number} ({$serviceName}). Amount: {$order->currency_symbol}{$order->grand_total}",
+              'url' => route('seller.service_order.details', ['id' => $order->id]),
+              'icon' => 'fas fa-credit-card',
+              'extra' => $notificationData,
+            ]));
+          }
+        }
+
+        // Send email to customer
+        $mailData = [
+          'subject' => 'Notification of payment status',
+          'body' => 'Hi ' . $order->name . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg,
+          'recipient' => $order->email_address,
+          'sessionMessage' => 'Payment status updated & mail has been sent successfully!',
+        ];
+
+        // Add invoice attachment if available
+        if (isset($invoice) && $invoice) {
+          $mailData['invoice'] = public_path('assets/file/invoices/order-invoices/' . $invoice);
+        }
+
+        // Check SMTP configuration before sending
+        $smtpInfo = \App\Models\BasicSettings\Basic::select('smtp_status', 'smtp_host', 'from_mail')->first();
+        if ($smtpInfo && $smtpInfo->smtp_status == 1) {
+          BasicMailer::sendMail($mailData);
+          \Log::info('AdminOrderPayment: Email sent via SMTP', [
+            'order_id' => $order->id,
+            'recipient' => $order->email_address,
+            'smtp_host' => $smtpInfo->smtp_host
+          ]);
+        } else {
+          \Log::warning('AdminOrderPayment: SMTP not configured, email not sent', [
+            'order_id' => $order->id,
+            'recipient' => $order->email_address,
+            'smtp_status' => $smtpInfo ? $smtpInfo->smtp_status : 'null'
+          ]);
+        }
+        
+        \Log::info('AdminOrderPayment: Notifications and email sent successfully', [
+          'order_id' => $order->id,
+          'status' => 'completed'
+        ]);
+      } catch (\Exception $e) {
+        \Log::error('AdminOrderPayment: Notifications/Email sending failed', [
+          'order_id' => $order->id,
+          'error' => $e->getMessage()
+        ]);
+      }
+
+    } else if ($newPaymentStatus == 'pending') {
       if ($order->invoice) {
-
-        @unlink(public_path('assets/file/invoices/service/' . $order->invoice));
+        @unlink(public_path('assets/file/invoices/order-invoices/' . $order->invoice));
       }
       $order->update([
         'payment_status' => 'pending',
@@ -147,9 +262,45 @@ class OrderController extends Controller
       ]);
 
       $statusMsg = 'payment is pending.';
+
+      // Send notifications immediately
+      try {
+        // Notify user about payment pending
+        $user = \App\Models\User::find($order->user_id);
+        if ($user) {
+          $user->notify(new \App\Notifications\OrderNotification([
+            'title' => 'Payment Pending',
+            'message' => "Payment for order #{$order->order_number} ({$serviceName}) is now pending. Amount: {$order->currency_symbol}{$order->grand_total}",
+            'url' => route('user.service_order.details', ['id' => $order->id]),
+            'icon' => 'fas fa-clock',
+            'extra' => $notificationData,
+          ]));
+        }
+
+        // Send email to customer
+        $mailData = [
+          'subject' => 'Notification of payment status',
+          'body' => 'Hi ' . $order->name . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg,
+          'recipient' => $order->email_address,
+          'sessionMessage' => 'Payment status updated & mail has been sent successfully!',
+        ];
+
+        BasicMailer::sendMail($mailData);
+        
+        \Log::info('AdminOrderPayment: Notifications and email sent successfully', [
+          'order_id' => $order->id,
+          'status' => 'pending'
+        ]);
+      } catch (\Exception $e) {
+        \Log::error('AdminOrderPayment: Notifications/Email sending failed', [
+          'order_id' => $order->id,
+          'error' => $e->getMessage()
+        ]);
+      }
+
     } else {
       if ($order->invoice) {
-        @unlink(public_path('assets/file/invoices/service/' . $order->invoice));
+        @unlink(public_path('assets/file/invoices/order-invoices/' . $order->invoice));
       }
       $order->update([
         'payment_status' => 'rejected',
@@ -157,37 +308,90 @@ class OrderController extends Controller
       ]);
 
       $statusMsg = 'payment has been rejected.';
+
+      // Send notifications immediately
+      try {
+        // Notify user about payment rejection
+        $user = \App\Models\User::find($order->user_id);
+        if ($user) {
+          $user->notify(new \App\Notifications\OrderNotification([
+            'title' => 'Payment Rejected',
+            'message' => "Payment for order #{$order->order_number} ({$serviceName}) has been rejected. Please contact support for assistance.",
+            'url' => route('user.service_order.details', ['id' => $order->id]),
+            'icon' => 'fas fa-times-circle',
+            'extra' => $notificationData,
+          ]));
+        }
+
+        // Notify seller about payment rejection
+        if ($order->seller_id) {
+          $seller = Seller::find($order->seller_id);
+          if ($seller) {
+            $notificationData['seller_name'] = $seller->username;
+            $seller->notify(new \App\Notifications\OrderNotification([
+              'title' => 'Payment Rejected',
+              'message' => "Payment rejected for order #{$order->order_number} ({$serviceName}). Amount: {$order->currency_symbol}{$order->grand_total}",
+              'url' => route('seller.service_order.details', ['id' => $order->id]),
+              'icon' => 'fas fa-times-circle',
+              'extra' => $notificationData,
+            ]));
+          }
+        }
+
+        // Send email to customer
+        $mailData = [
+          'subject' => 'Notification of payment status',
+          'body' => 'Hi ' . $order->name . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg,
+          'recipient' => $order->email_address,
+          'sessionMessage' => 'Payment status updated & mail has been sent successfully!',
+        ];
+
+        BasicMailer::sendMail($mailData);
+        
+        \Log::info('AdminOrderPayment: Notifications and email sent successfully', [
+          'order_id' => $order->id,
+          'status' => 'rejected'
+        ]);
+      } catch (\Exception $e) {
+        \Log::error('AdminOrderPayment: Notifications/Email sending failed', [
+          'order_id' => $order->id,
+          'error' => $e->getMessage()
+        ]);
+      }
     }
 
-    $mailData = [];
-
-    if (isset($invoice)) {
-      $mailData['invoice'] = public_path('assets/file/invoices/service/' . $invoice);
-    }
-
-    $mailData['subject'] = 'Notification of payment status';
-
-    $mailData['body'] = 'Hi ' . $order->name . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg;
-
-    $mailData['recipient'] = $order->email_address;
-
-    $mailData['sessionMessage'] = 'Payment status updated & mail has been sent successfully!';
-
-    BasicMailer::sendMail($mailData);
-
+    Session::flash('success', 'Payment status updated successfully!');
     return redirect()->back();
   }
 
   public function generateInvoice($order)
   {
-
+    // Set execution time limit for PDF generation
+    set_time_limit(120);
+    
+    // Increase memory limit for PDF generation
+    ini_set('memory_limit', '256M');
+    
     $invoiceName = $order->order_number . '.pdf';
-    $directory = './assets/file/invoices/service/';
-
-    @mkdir(public_path($directory), 0775, true);
-
+    $directory = 'assets/file/invoices/order-invoices/';
+    $fullDirectory = public_path($directory);
+    if (!file_exists($fullDirectory)) {
+      mkdir($fullDirectory, 0775, true);
+    }
     $fileLocation = $directory . $invoiceName;
     $arrData['orderInfo'] = $order;
+
+    // Get website info for logo and title
+    $websiteInfo = \App\Models\BasicSettings\Basic::first();
+    $arrData['orderInfo']->logo = $websiteInfo->logo;
+    $arrData['orderInfo']->website_title = $websiteInfo->website_title;
+
+    // Debug: Log the logo value
+    \Log::info('AdminOrderInvoice: Logo debugging', [
+        'logo_from_db' => $websiteInfo->logo,
+        'logo_assigned_to_order' => $arrData['orderInfo']->logo,
+        'website_title' => $websiteInfo->website_title
+    ]);
 
     // get language
     $language = Language::query()->where('is_default', '=', 1)->first();
@@ -205,16 +409,79 @@ class OrderController extends Controller
       $arrData['packageTitle'] = $package->name;
     }
 
-    PDF::loadView('frontend.service.invoice', $arrData)->save(public_path($fileLocation));
+    \Log::info('AdminOrderInvoice: Starting PDF generation', [
+      'order_id' => $order->id,
+      'file_location' => public_path($fileLocation)
+    ]);
 
-    return $invoiceName;
+    try {
+      Pdf::loadView('frontend.service.invoice', $arrData)
+        ->setPaper('a4')
+        ->setOptions([
+          'isRemoteEnabled' => false, // Disable remote resources for faster generation
+          'isHtml5ParserEnabled' => true,
+          'isFontSubsettingEnabled' => true,
+          'defaultFont' => 'DejaVu Sans',
+        ])
+        ->save(public_path($fileLocation));
+
+      \Log::info('AdminOrderInvoice: PDF generated successfully', [
+        'order_id' => $order->id,
+        'file_location' => public_path($fileLocation),
+        'file_exists' => file_exists(public_path($fileLocation))
+      ]);
+
+      return $invoiceName;
+    } catch (\Exception $e) {
+      \Log::error('AdminOrderInvoice: PDF generation failed', [
+        'order_id' => $order->id,
+        'error' => $e->getMessage(),
+        'file_location' => public_path($fileLocation)
+      ]);
+      throw $e;
+    }
   }
 
   public function updateOrderStatus(Request $request, $id)
   {
+    // Set execution time limit for this operation
+    set_time_limit(120);
+    
     $order = ServiceOrder::query()->find($id);
+    if (!$order) {
+      Session::flash('error', 'Order not found!');
+      return redirect()->back();
+    }
+    
+    $oldStatus = $order->order_status;
+    $newStatus = $request['order_status'];
 
-    if ($request['order_status'] == 'completed') {
+    // Get service and package details for notifications (optimized queries)
+    $service = $order->service()->first();
+    $package = $order->package()->first();
+    $serviceName = $service ? $service->content()->where('language_id', 1)->pluck('title')->first() : 'Unknown Service';
+    $packageName = $package ? $package->name : 'Basic Package';
+
+    // Prepare detailed notification data
+    $notificationData = [
+      'order_id' => $order->id,
+      'order_number' => $order->order_number,
+      'service_name' => $serviceName,
+      'service_id' => $order->service_id,
+      'order_status' => $newStatus,
+      'payment_status' => $order->payment_status,
+      'amount' => $order->grand_total,
+      'currency' => $order->currency_symbol,
+      'customer_name' => $order->name,
+      'package_name' => $packageName,
+      'payment_method' => $order->payment_method,
+      'gateway_type' => $order->gateway_type,
+      'old_status' => $oldStatus,
+      'user_id' => $order->user_id,
+      'seller_id' => $order->seller_id,
+    ];
+
+    if ($newStatus == 'completed') {
       $order->update([
         'order_status' => 'completed'
       ]);
@@ -228,6 +495,10 @@ class OrderController extends Controller
           $after_balance = $seller->amount + ($order->grand_total - $order->tax);
           $seller->amount = $after_balance;
           $seller->save();
+          
+          // Add seller info to notification data
+          $notificationData['seller_name'] = $seller->username;
+          $notificationData['seller_earnings'] = $order->grand_total - $order->tax;
         } else {
           $pre_balance = null;
           $after_balance = null;
@@ -237,55 +508,152 @@ class OrderController extends Controller
         $after_balance = null;
       }
 
-      $transaction_data = [];
-      $transaction_data['order_id'] = $order->id;
-      $transaction_data['transcation_type'] = 1;
-      $transaction_data['user_id'] = $order->user_id;
-      $transaction_data['seller_id'] = $order->seller_id;
-      $transaction_data['payment_status'] = $order->payment_status;
-      $transaction_data['payment_method'] = $order->payment_method;
-      $transaction_data['grand_total'] = $order->grand_total;
-      $transaction_data['tax'] = $order->tax;
-      $transaction_data['pre_balance'] = $pre_balance;
-      $transaction_data['after_balance'] = $after_balance;
-      $transaction_data['gateway_type'] = $order->gateway_type;
-      $transaction_data['currency_symbol'] = $order->currency_symbol;
-      $transaction_data['currency_symbol_position'] = $order->currency_symbol_position;
-      storeTransaction($transaction_data);
-      $data = [
-        'life_time_earning' => $order->grand_total,
-        'total_profit' =>  is_null($order->seller_id) ? $order->grand_total : $order->tax,
-      ];
-      storeEarnings($data);
+      // Process transaction data immediately
+      try {
+        $transaction_data = [
+          'order_id' => $order->id,
+          'transcation_type' => 1,
+          'user_id' => $order->user_id,
+          'seller_id' => $order->seller_id,
+          'payment_status' => $order->payment_status,
+          'payment_method' => $order->payment_method,
+          'grand_total' => $order->grand_total,
+          'tax' => $order->tax,
+          'pre_balance' => $pre_balance,
+          'after_balance' => $after_balance,
+          'gateway_type' => $order->gateway_type,
+          'currency_symbol' => $order->currency_symbol,
+          'currency_symbol_position' => $order->currency_symbol_position,
+        ];
+        
+        // Process transaction using existing helper functions
+        storeTransaction($transaction_data);
+        
+        $data = [
+          'life_time_earning' => $order->grand_total,
+          'total_profit' => is_null($order->seller_id) ? $order->grand_total : $order->tax,
+        ];
+        storeEarnings($data);
+        
+        Log::info('AdminOrderStatus: Transaction processed successfully', [
+          'order_id' => $order->id
+        ]);
+      } catch (\Exception $e) {
+        Log::error('AdminOrderStatus: Transaction processing failed', [
+          'order_id' => $order->id,
+          'error' => $e->getMessage()
+        ]);
+      }
 
+      // Send notifications and emails immediately
+      try {
+        // Notify user about order completion
+        $user = \App\Models\User::find($order->user_id);
+        if ($user) {
+          $user->notify(new \App\Notifications\OrderNotification([
+            'title' => 'Order Completed',
+            'message' => "Your order #{$order->order_number} for service: {$serviceName} has been completed successfully!",
+            'url' => route('user.service_order.details', ['id' => $order->id]),
+            'icon' => 'fas fa-check-circle',
+            'extra' => $notificationData,
+          ]));
+        }
 
-      $mailData = [];
-      $mailData['body'] = 'Hi ' . $order->name . ',<br/><br/>We are pleased to inform you that your recent order with order number: #' . $order->order_number . ' has been successfully completed.';
-      $mailData['subject'] = 'Notification of order status';
-      $mailData['recipient'] = $order->email_address;
+        // Notify seller about order completion
+        if ($order->seller_id && isset($seller)) {
+          $earnings = $order->grand_total - $order->tax;
+          $currency = $order->currency_symbol;
+          $seller->notify(new \App\Notifications\OrderNotification([
+            'title' => 'Order Completed',
+            'message' => "Order #{$order->order_number} for service: {$serviceName} has been completed. You earned {$currency}{$earnings}",
+            'url' => route('seller.service_order.details', ['id' => $order->id]),
+            'icon' => 'fas fa-check-circle',
+            'extra' => $notificationData,
+          ]));
+        }
 
-      BasicMailer::sendMail($mailData);
-      $mailData['recipient'] = $seller->email;
+        // Send emails
+        $mailData = [
+          'body' => 'Hi ' . $order->name . ',<br/><br/>We are pleased to inform you that your recent order with order number: #' . $order->order_number . ' has been successfully completed.',
+          'subject' => 'Notification of order status',
+          'recipient' => $order->email_address,
+        ];
 
-      $mailData['body'] = 'Hi ' . $seller->username . ',<br/><br/>We are pleased to inform you that your recent project with order number: #' . $order->order_number . ' has been successfully completed.';
-      $mailData['sessionMessage'] = 'Order status updated & mail has been sent successfully!';
-      BasicMailer::sendMail($mailData);
+        BasicMailer::sendMail($mailData);
+        
+        if ($order->seller_id && isset($seller)) {
+          $mailData['recipient'] = $seller->email;
+          $mailData['body'] = 'Hi ' . $seller->username . ',<br/><br/>We are pleased to inform you that your recent project with order number: #' . $order->order_number . ' has been successfully completed.';
+          $mailData['sessionMessage'] = 'Order status updated & mail has been sent successfully!';
+          BasicMailer::sendMail($mailData);
+        }
+        
+        Log::info('AdminOrderStatus: Notifications and emails sent successfully', [
+          'order_id' => $order->id,
+          'status' => 'completed'
+        ]);
+      } catch (\Exception $e) {
+        Log::error('AdminOrderStatus: Notifications/Email sending failed', [
+          'order_id' => $order->id,
+          'error' => $e->getMessage()
+        ]);
+      }
     } else {
       $order->update([
         'order_status' => 'rejected'
       ]);
 
-      $mailData = [];
-      $mailData['body'] = 'Hi ' . $order->name . ',<br/><br/>We are sorry to inform you that your recent project with order number: #' . $order->order_number . ' has been rejected.';
+      // Send notifications immediately
+      try {
+        // Notify user about order rejection
+        $user = \App\Models\User::find($order->user_id);
+        if ($user) {
+          $user->notify(new \App\Notifications\OrderNotification([
+            'title' => 'Order Rejected',
+            'message' => "Your order #{$order->order_number} for service: {$serviceName} has been rejected. Please contact support for more information.",
+            'url' => route('user.service_order.details', ['id' => $order->id]),
+            'icon' => 'fas fa-times-circle',
+            'extra' => $notificationData,
+          ]));
+        }
 
-      $mailData['subject'] = 'Notification of order status';
+        // Notify seller about order rejection
+        if ($order->seller_id) {
+          $seller = Seller::find($order->seller_id);
+          if ($seller) {
+            $seller->notify(new \App\Notifications\OrderNotification([
+              'title' => 'Order Rejected',
+              'message' => "Order #{$order->order_number} for service: {$serviceName} has been rejected by admin.",
+              'url' => route('seller.service_order.details', ['id' => $order->id]),
+              'icon' => 'fas fa-times-circle',
+              'extra' => $notificationData,
+            ]));
+          }
+        }
 
-      $mailData['recipient'] = $order->email_address;
+        // Send email to customer
+        $mailData = [
+          'body' => 'Hi ' . $order->name . ',<br/><br/>We are sorry to inform you that your recent project with order number: #' . $order->order_number . ' has been rejected.',
+          'subject' => 'Notification of order status',
+          'recipient' => $order->email_address,
+          'sessionMessage' => 'Order status updated & mail has been sent successfully!',
+        ];
 
-      $mailData['sessionMessage'] = 'Order status updated & mail has been sent successfully!';
-
-      BasicMailer::sendMail($mailData);
+        BasicMailer::sendMail($mailData);
+        
+        Log::info('AdminOrderStatus: Notifications and emails sent successfully', [
+          'order_id' => $order->id,
+          'status' => 'rejected'
+        ]);
+      } catch (\Exception $e) {
+        Log::error('AdminOrderStatus: Notifications/Email sending failed', [
+          'order_id' => $order->id,
+          'error' => $e->getMessage()
+        ]);
+      }
     }
+
+    Session::flash('success', 'Order status updated successfully!');
     return redirect()->back();
   }
 

@@ -394,7 +394,14 @@ class SellerManagementController extends Controller
             $info['payment_method'] = $paymentMethod;
             $lastMemb = $seller->memberships()->orderBy('id', 'DESC')->first();
 
-            $file_name = $this->makeInvoice($info, "membership", $seller, NULL, $package->price, "Stripe", $seller->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb);
+            // Generate invoice in seller-memberships folder
+            $file_name = $this->makeInvoice($info, "membership", $seller, NULL, $package->price, "Stripe", $seller->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb, 'seller-memberships');
+            
+            \Log::info('SellerMembership: Invoice generated', [
+                'invoice_name' => $file_name,
+                'file_location' => public_path('assets/file/invoices/seller-memberships/' . $file_name),
+                'file_exists' => file_exists(public_path('assets/file/invoices/seller-memberships/' . $file_name))
+            ]);
         }
 
         $mailer = new MegaMailer();
@@ -412,6 +419,7 @@ class SellerManagementController extends Controller
             $data['activation_date'] = $activation->toFormattedDateString();
             $data['expire_date'] = Carbon::parse($expire->toFormattedDateString())->format('Y') == '9999' ? 'Lifetime' : $expire->toFormattedDateString();
             $data['membership_invoice'] = $file_name;
+            $data['membership_invoice_path'] = 'seller-memberships';
         }
         if ($mailType != 'admin_removed_current_package' || $mailType != 'admin_removed_next_package') {
             $data['removed_package_title'] = $removedPackage;
@@ -421,8 +429,37 @@ class SellerManagementController extends Controller
             $data['replaced_package'] = $replacedPackage;
         }
 
-        $mailer->mailFromAdmin($data);
-        @unlink(public_path('assets/front/invoices/' . $file_name));
+        \Log::info('SellerMembership: Sending email with data', [
+            'mail_data' => $data,
+            'invoice_path' => isset($file_name) ? public_path('assets/file/invoices/seller-memberships/' . $file_name) : 'No invoice'
+        ]);
+
+        try {
+            $mailer->mailFromAdmin($data);
+            \Log::info('SellerMembership: Email sent successfully');
+            
+            // Check if file still exists after email
+            if (isset($file_name)) {
+                $finalPath = public_path('assets/file/invoices/seller-memberships/' . $file_name);
+                \Log::info('SellerMembership: File check after email', [
+                    'file_exists_after_email' => file_exists($finalPath),
+                    'file_path' => $finalPath
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('SellerMembership: Email sending failed', [
+                'error' => $e->getMessage(),
+                'mail_data' => $data
+            ]);
+            Session::flash('error', 'Email sending failed: ' . $e->getMessage());
+            return back();
+        }
+        
+        // Only delete the file if it exists and email was sent successfully
+        if (isset($file_name) && file_exists(public_path('assets/file/invoices/seller-memberships/' . $file_name))) {
+            @unlink(public_path('assets/file/invoices/seller-memberships/' . $file_name));
+            \Log::info('SellerMembership: Invoice file deleted after email');
+        }
     }
 
     public function addCurrPackage(Request $request)

@@ -39,4 +39,36 @@ class Handler extends ExceptionHandler
       //
     });
   }
+
+  /**
+   * Convert an authentication exception into an unauthenticated response.
+   *
+   * @param  \Illuminate\Http\Request  $request
+   * @param  \Illuminate\Auth\AuthenticationException  $exception
+   * @return \Symfony\Component\HttpFoundation\Response
+   */
+  protected function unauthenticated($request, \Illuminate\Auth\AuthenticationException $exception)
+  {
+    if ($request->expectsJson() || $request->is('api/*') || $request->ajax()) {
+      return response()->json(['message' => $exception->getMessage()], 401);
+    }
+    $guard = data_get($exception->guards(), 0);
+    switch ($guard) {
+      case 'seller':
+        $login = 'seller.login';
+        break;
+      case 'admin':
+        $login = 'admin.login';
+        break;
+      default:
+        $login = 'login';
+        break;
+    }
+    // If the route does not exist, fallback to home
+    try {
+      return redirect()->guest(route($login));
+    } catch (\Exception $e) {
+      return redirect('/');
+    }
+  }
 }

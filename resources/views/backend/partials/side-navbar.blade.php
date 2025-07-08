@@ -1,11 +1,16 @@
+@php
+  $adminUser = Auth::guard('admin')->user();
+  $roleInfo = $adminUser && isset($adminUser->role) ? $adminUser->role : null;
+@endphp
+
 <div class="sidebar sidebar-style-2"
   data-background-color="{{ $settings->admin_theme_version == 'light' ? 'white' : 'dark2' }}">
   <div class="sidebar-wrapper scrollbar scrollbar-inner">
     <div class="sidebar-content">
       <div class="user">
         <div class="avatar-sm float-left mr-2">
-          @if (Auth::guard('admin')->user()->image != null)
-            <img src="{{ asset('assets/img/admins/' . Auth::guard('admin')->user()->image) }}" alt="Admin Image"
+          @if ($adminUser && $adminUser->image != null)
+            <img src="{{ asset('assets/img/admins/' . $adminUser->image) }}" alt="Admin Image"
               class="avatar-img rounded-circle">
           @else
             <img src="{{ asset('assets/img/blank-user.jpg') }}" alt="" class="avatar-img rounded-circle">
@@ -15,7 +20,7 @@
         <div class="info">
           <a data-toggle="collapse" href="#adminProfileMenu" aria-expanded="true">
             <span>
-              {{ Auth::guard('admin')->user()->first_name }}
+              {{ $adminUser ? $adminUser->first_name : '' }}
 
               @if (is_null($roleInfo))
                 <span class="user-level">{{ 'Super Admin' }}</span>
@@ -80,6 +85,12 @@
           </a>
         </li>
 
+        <li class="nav-item {{ request()->routeIs('admin.discussions') ? 'active' : '' }}">
+          <a href="{{ route('admin.discussions') }}">
+            <i class="fas fa-comments"></i>
+            <p>Discussions</p>
+          </a>
+        </li>
 
         {{-- menu builder --}}
         @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Menu Builder', $rolePermissions)))
@@ -118,7 +129,13 @@
 
                 <li class="{{ request()->routeIs('admin.package.index') ? 'active' : '' }}">
                   <a href="{{ route('admin.package.index', ['language' => $defaultLang->code]) }}">
-                    <span class="sub-item">Packages</span>
+                    <span class="sub-item">Seller Packages</span>
+                  </a>
+                </li>
+
+                <li class="{{ request()->routeIs('admin.user_package.index') ? 'active' : '' }}">
+                  <a href="{{ route('admin.user_package.index') }}">
+                    <span class="sub-item">Customer Packages</span>
                   </a>
                 </li>
               </ul>
@@ -128,11 +145,26 @@
 
         {{-- payment log --}}
         @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Subscription Log', $rolePermissions)))
-          <li class="nav-item @if (request()->routeIs('admin.payment-log.index')) active @endif">
-            <a href="{{ route('admin.payment-log.index') }}">
+          <li class="nav-item @if (request()->routeIs('admin.payment-log.index') || request()->routeIs('admin.user_membership.index')) active @endif">
+            <a data-toggle="collapse" href="#subscriptionLogsMenu">
               <i class="fas fa-list-ol"></i>
-              <p>Subscription Log</p>
+              <p>Subscription Logs</p>
+              <span class="caret"></span>
             </a>
+            <div id="subscriptionLogsMenu" class="collapse @if (request()->routeIs('admin.payment-log.index') || request()->routeIs('admin.user_membership.index')) show @endif">
+              <ul class="nav nav-collapse">
+                <li class="@if (request()->routeIs('admin.payment-log.index')) active @endif">
+                  <a href="{{ route('admin.payment-log.index') }}">
+                    <span class="sub-item">Seller Subscriptions</span>
+                  </a>
+                </li>
+                <li class="@if (request()->routeIs('admin.user_membership.index')) active @endif">
+                  <a href="{{ route('admin.user_membership.index') }}">
+                    <span class="sub-item">Customer Subscriptions</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
           </li>
         @endif
 

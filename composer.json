@@ -14,13 +14,14 @@
     "anandsiddharth/laravel-paytm-wallet": "^2.0",
     "anhskohbo/no-captcha": "^3.3",
     "barryvdh/laravel-dompdf": "^1.0",
+    "barryvdh/laravel-snappy": "^1.0",
     "baselrabia/myfatoorah-with-laravel": "^1.0",
     "cartalyst/stripe-laravel": "^14.0",
     "fideloper/proxy": "^4.4",
     "fruitcake/laravel-cors": "^2.0",
     "google/recaptcha": "^1.3",
     "guzzlehttp/guzzle": "^7.0.1",
-    "intervention/image": "^2.7",
+    "intervention/image": "2.7",
     "ixudra/curl": "^6.22",
     "iyzico/iyzipay-php": "^2.0",
     "kreativdev/installer": "^1.0",
@@ -38,6 +39,7 @@
     "pusher/pusher-php-server": "^7.2",
     "razorpay/razorpay": "2.*",
     "simplesoftwareio/simple-qrcode": "~4",
+    "spatie/browsershot": "^5.0",
     "spatie/laravel-cookie-consent": "^3.2"
   },
   "require-dev": {

@@ -4,6 +4,10 @@
 <head>
   {{-- csrf-token for ajax request --}}
   <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="notifiable-id" content="{{ auth('web')->id() }}">
+  <meta name="notifiable-type" content="User">
+  <meta name="pusher-key" content="{{ config('broadcasting.connections.pusher.key') }}">
+  <meta name="pusher-cluster" content="{{ config('broadcasting.connections.pusher.options.cluster') }}">
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -37,6 +41,7 @@
       opacity: {{ $basicInfo->breadcrumb_overlay_opacity }};
     }
   </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 
 <body>
@@ -97,6 +102,10 @@
     @includeIf('frontend.partials.scripts.script-v3')
   @endif
   {{-- additional script --}}
+  <script src="https://js.pusher.com/7.2/pusher.min.js"></script>
+  <script src="{{ asset('assets/js/real-time-notifications.js') }}"></script>
+  @yield('script')
+  @stack('scripts')
 </body>
 
 </html>

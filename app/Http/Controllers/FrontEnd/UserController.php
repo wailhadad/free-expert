@@ -327,6 +327,23 @@ class UserController extends Controller
 
     BasicMailer::sendMail($mailData);
 
+    // Notify all admins about new user registration
+    $admins = \App\Models\Admin::all();
+    foreach ($admins as $admin) {
+      $admin->notify(new \App\Notifications\UserNotification([
+        'title' => 'New User Registration',
+        'message' => "New user '{$request->username}' ({$request->email_address}) has registered",
+        'url' => route('admin.user_management.registered_users'),
+        'icon' => 'fas fa-user-plus',
+        'extra' => [
+          'user_id' => $user->id,
+          'username' => $user->username,
+          'email' => $user->email_address,
+          'registration_date' => $user->created_at,
+        ],
+      ]));
+    }
+
     return redirect()->back();
   }
 
@@ -343,6 +360,23 @@ class UserController extends Controller
       ]);
 
       $request->session()->flash('success', 'Your email address has been verified.');
+
+      // Notify all admins about user email verification
+      $admins = \App\Models\Admin::all();
+      foreach ($admins as $admin) {
+        $admin->notify(new \App\Notifications\UserNotification([
+          'title' => 'User Email Verified',
+          'message' => "User '{$user->username}' has verified their email address",
+          'url' => route('admin.user_management.registered_users'),
+          'icon' => 'fas fa-check-circle',
+          'extra' => [
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'email' => $user->email_address,
+            'verified_at' => $user->email_verified_at,
+          ],
+        ]));
+      }
 
       // after email verification, authenticate this user
       Auth::guard('web')->login($user);
@@ -569,16 +603,49 @@ class UserController extends Controller
       $fileOriginalName = $file->getClientOriginalName();
     }
 
+    $user = Auth::guard('web')->user();
+    $order = ServiceOrder::findOrFail($id);
+    
+    // Check if this order was made by a subuser and if user has permission to use that subuser
+    $subuser_id = null;
+    if ($order->subuser_id && $order->user_id == $user->id) {
+      $subuser = $user->subusers()->find($order->subuser_id);
+      if ($subuser && $subuser->status) {
+        $subuser_id = $subuser->id;
+      }
+    }
+
     $orderMsg = new ServiceOrderMessage();
-    $orderMsg->person_id = Auth::guard('web')->user()->id;
+    $orderMsg->person_id = $user->id;
     $orderMsg->person_type = 'user';
+    $orderMsg->subuser_id = $subuser_id;
     $orderMsg->order_id = $id;
     $orderMsg->message = $request->filled('msg') ? Purifier::clean($request->msg, 'youtube') : NULL;
     $orderMsg->file_name = isset($fileName) ? $fileName : NULL;
     $orderMsg->file_original_name = isset($fileOriginalName) ? $fileOriginalName : NULL;
     $orderMsg->save();
 
-
+    // Send notification to seller using NotificationService for real-time delivery
+    if ($order->seller_id) {
+      $seller = \App\Models\Seller::find($order->seller_id);
+      if ($seller) {
+        $notificationService = new \App\Services\NotificationService();
+        $notificationService->sendRealTime($seller, [
+          'type' => 'chat',
+          'title' => 'New Message from Customer',
+          'message' => "You have received a new message from {$user->name} regarding order #{$order->order_number}",
+          'url' => route('seller.service_order.message', ['id' => $order->id]),
+          'icon' => 'fas fa-comment',
+          'extra' => [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'customer_name' => $user->name,
+            'message_preview' => $request->filled('msg') ? substr($request->msg, 0, 100) : 'File attachment',
+            'has_attachment' => $request->hasFile('attachment')
+          ],
+        ]);
+      }
+    }
 
     event(new MessageStored());
 

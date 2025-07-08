@@ -5,6 +5,8 @@
 
 @php
   $title = $pageHeading->service_details_page_title ?? __('Service Details');
+  $isUser = auth()->guard('web')->check();
+  $userId = $isUser ? auth()->id() : null;
 @endphp
 @section('pageHeading')
   @if (!empty($pageHeading))
@@ -21,9 +23,12 @@
 @endsection
 
 @section('content')
-
+<script>
+window.currentUserType = '{{ $isUser ? 'user' : '' }}';
+window.currentUserId = '{{ $userId ?? '' }}';
+</script>
   {{-- breadcrumb --}}
-  <section class="breadcrumbs-area bg_cover lazyload bg-img header-next"
+  <section class="breadcrumbs-area bg_cover lazyload bg-img header-next" style="margin-top: 140px;"
     data-bg-img="{{ asset('assets/img/' . $breadcrumb) }}">
     <div class="container">
       <div class="row justify-content-center">
@@ -490,8 +495,14 @@
                     <span class="last h6">{{ Carbon\Carbon::parse($seller->created_at)->format('dS M Y') }}</span>
                   </li>
                 </ul>
-                <a href="javaScript:void(0)" class="btn btn-lg btn-primary radius-sm w-100" data-bs-toggle="modal"
-                  data-bs-target="#contactModal" type="button" aria-label="button">{{ __('Contact Now') }}</a>
+                <button type="button" class="btn btn-lg btn-primary w-100" id="contact-now-btn"
+                  data-seller-id="{{ $details->seller_id }}"
+                  data-seller-username="{{ $details->seller->username ?? '' }}"
+                  data-seller-avatar="{{ $details->seller->avatar_url ?? '/assets/img/default-avatar.png' }}"
+                  @if(!$isUser) data-login-required="true" @endif
+                >
+                  <i class="fas fa-comments"></i> Contact Now
+                </button>
 
 
               </div>
@@ -587,66 +598,7 @@
     <button type="submit" id="submitBtn"></button>
   </form>
 
-  <!-- Contact Modal -->
-  <div class="modal contact-modal fade" id="contactModal" tabindex="-1" aria-labelledby="contactModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content">
-        <div class="modal-header align-item-center">
-          <h4 class="modal-title mb-0" id="contactModalLabel">{{ __('Contact Now') }}</h4>
-          <button type="button" class="btn-close m-0" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <form action="{{ route('seller.contact.message') }}" method="POST" id="sellerContactForm">
-            @csrf
-            <input type="hidden" name="seller_email"
-              value="{{ $details->seller_id != 0 ? $seller->recipient_mail : $bs->to_mail }}">
-            <div class="row">
-              <div class="col-lg-6">
-                <div class="form-group mb-20">
-                  <input type="text" class="form-control" placeholder="{{ __('Enter Your Full Name') }}"
-                    name="name">
-                  <p class="text-danger em" id="err_name"></p>
-                </div>
-              </div>
-              <div class="col-lg-6">
-                <div class="form-group mb-20">
-                  <input type="email" class="form-control" placeholder="{{ __('Enter Your Email Address') }}"
-                    name="email">
-                  <p class="text-danger em" id="err_email"></p>
-                </div>
-              </div>
-              <div class="col-lg-12">
-                <div class="form-group mb-20">
-                  <input type="text" class="form-control" placeholder="{{ __('Enter Subject') }}" name="subject">
-                  <p class="text-danger em" id="err_subject"></p>
-                </div>
-              </div>
-              <div class="col-lg-12">
-                <div class="form-group mb-20">
-                  <textarea name="message" class="form-control" placeholder="{{ __('Message') }}"></textarea>
-                  <p class="text-danger em" id="err_message"></p>
-                </div>
-              </div>
-              @if ($bs->google_recaptcha_status == 1)
-                <div class="col-md-12">
-                  <div class="form-group mb-20">
-                    {!! NoCaptcha::renderJs() !!}
-                    {!! NoCaptcha::display() !!}
-                    <p class="text-danger em" id="err_g-recaptcha-response"></p>
-                  </div>
-                </div>
-              @endif
-              <div class="col-lg-12 text-center">
-                <button class="btn btn-lg btn-primary radius-sm" id="sellerSubmitBtn" type="submit"
-                  aria-label="button">{{ __('Send message') }}</button>
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
+  @include('components.direct-chat-modal')
 
 @endsection
 
@@ -654,3 +606,34 @@
   <script src="{{ asset('assets/js/seller-contact.js') }}"></script>
   <script type="text/javascript" src="{{ asset('assets/js/service.js') }}"></script>
 @endsection
+
+@push('scripts')
+<script src="{{ asset('assets/js/direct-chat.js') }}"></script>
+<script>
+document.getElementById('contact-now-btn')?.addEventListener('click', function() {
+  if (this.getAttribute('data-login-required')) {
+    window.location.href = '{{ route('user.login') }}';
+    return;
+  }
+  const sellerId = this.getAttribute('data-seller-id');
+  const sellerName = this.getAttribute('data-seller-username');
+  const sellerAvatar = this.getAttribute('data-seller-avatar');
+  fetch('/direct-chat/start', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+    },
+    body: JSON.stringify({ seller_id: sellerId })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.chat && data.chat.id) {
+      window.openDirectChatModal(data.chat.id, sellerName, sellerAvatar);
+    } else if (data.error) {
+      alert(data.error);
+    }
+  });
+});
+</script>
+@endpush

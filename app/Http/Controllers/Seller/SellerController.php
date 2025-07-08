@@ -275,30 +275,30 @@ class SellerController extends Controller
         $nextPackageCount = Membership::query()->where([
             ['seller_id', Auth::guard('seller')->user()->id],
             ['expire_date', '>=', Carbon::now()->toDateString()]
-        ])->whereYear('start_date', '<>', '9999')->where('status', '<>', 2)->count();
+        ])->whereYear('start_date', '<>', '9999')->where('status', '<>', '2')->count();
         //current package
         $information['current_membership'] = Membership::query()->where([
             ['seller_id', Auth::guard('seller')->user()->id],
             ['start_date', '<=', Carbon::now()->toDateString()],
             ['expire_date', '>=', Carbon::now()->toDateString()]
-        ])->where('status', 1)->whereYear('start_date', '<>', '9999')->first();
+        ])->where('status', '1')->whereYear('start_date', '<>', '9999')->first();
         if ($information['current_membership'] != null) {
             $countCurrMem = Membership::query()->where([
                 ['seller_id', Auth::guard('seller')->user()->id],
                 ['start_date', '<=', Carbon::now()->toDateString()],
                 ['expire_date', '>=', Carbon::now()->toDateString()]
-            ])->where('status', 1)->whereYear('start_date', '<>', '9999')->count();
+            ])->where('status', '1')->whereYear('start_date', '<>', '9999')->count();
             if ($countCurrMem > 1) {
                 $information['next_membership'] = Membership::query()->where([
                     ['seller_id', Auth::guard('seller')->user()->id],
                     ['start_date', '<=', Carbon::now()->toDateString()],
                     ['expire_date', '>=', Carbon::now()->toDateString()]
-                ])->where('status', '<>', 2)->whereYear('start_date', '<>', '9999')->orderBy('id', 'DESC')->first();
+                ])->where('status', '<>', '2')->whereYear('start_date', '<>', '9999')->orderBy('id', 'DESC')->first();
             } else {
                 $information['next_membership'] = Membership::query()->where([
                     ['seller_id', Auth::guard('seller')->user()->id],
                     ['start_date', '>', $information['current_membership']->expire_date]
-                ])->whereYear('start_date', '<>', '9999')->where('status', '<>', 2)->first();
+                ])->whereYear('start_date', '<>', '9999')->where('status', '<>', '2')->first();
             }
             $information['next_package'] = $information['next_membership'] ? Package::query()->where('id', $information['next_membership']->package_id)->first() : null;
         } else {

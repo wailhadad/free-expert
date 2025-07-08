@@ -9,6 +9,10 @@
 
     {{-- csrf-token for ajax request --}}
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="notifiable-id" content="{{ auth('admin')->id() }}">
+    <meta name="notifiable-type" content="Admin">
+    <meta name="pusher-key" content="{{ config('broadcasting.connections.pusher.key') }}">
+    <meta name="pusher-cluster" content="{{ config('broadcasting.connections.pusher.options.cluster') }}">
 
     {{-- title --}}
     <title>{{ __('Admin') . ' | ' . $websiteInfo->website_title }}</title>
@@ -57,6 +61,11 @@
 
     {{-- additional script --}}
     @yield('script')
+
+    <script src="https://js.pusher.com/7.2/pusher.min.js"></script>
+    <script src="{{ asset('assets/js/real-time-notifications.js') }}"></script>
+    @stack('scripts')
+
 </body>
 
 </html>

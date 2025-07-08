@@ -36,30 +36,30 @@ class BuyPlanController extends Controller
         $nextPackageCount = Membership::query()->where([
             ['seller_id', Auth::guard('seller')->user()->id],
             ['expire_date', '>=', Carbon::now()->toDateString()]
-        ])->whereYear('start_date', '<>', '9999')->where('status', '<>', 2)->count();
+        ])->whereYear('start_date', '<>', '9999')->where('status', '<>', '2')->count();
         //current package
         $data['current_membership'] = Membership::query()->where([
             ['seller_id', Auth::guard('seller')->user()->id],
             ['start_date', '<=', Carbon::now()->toDateString()],
             ['expire_date', '>=', Carbon::now()->toDateString()]
-        ])->where('status', 1)->whereYear('start_date', '<>', '9999')->first();
+        ])->where('status', '1')->whereYear('start_date', '<>', '9999')->first();
         if ($data['current_membership'] != null) {
             $countCurrMem = Membership::query()->where([
                 ['seller_id', Auth::guard('seller')->user()->id],
                 ['start_date', '<=', Carbon::now()->toDateString()],
                 ['expire_date', '>=', Carbon::now()->toDateString()]
-            ])->where('status', 1)->whereYear('start_date', '<>', '9999')->count();
+            ])->where('status', '1')->whereYear('start_date', '<>', '9999')->count();
             if ($countCurrMem > 1) {
                 $data['next_membership'] = Membership::query()->where([
                     ['seller_id', Auth::guard('seller')->user()->id],
                     ['start_date', '<=', Carbon::now()->toDateString()],
                     ['expire_date', '>=', Carbon::now()->toDateString()]
-                ])->where('status', '<>', 2)->whereYear('start_date', '<>', '9999')->orderBy('id', 'DESC')->first();
+                ])->where('status', '<>', '2')->whereYear('start_date', '<>', '9999')->orderBy('id', 'DESC')->first();
             } else {
                 $data['next_membership'] = Membership::query()->where([
                     ['seller_id', Auth::guard('seller')->user()->id],
                     ['start_date', '>', $data['current_membership']->expire_date]
-                ])->whereYear('start_date', '<>', '9999')->where('status', '<>', 2)->first();
+                ])->whereYear('start_date', '<>', '9999')->where('status', '<>', '2')->first();
             }
             $data['next_package'] = $data['next_membership'] ? Package::query()->where('id', $data['next_membership']->package_id)->first() : null;
         } else {
@@ -76,7 +76,7 @@ class BuyPlanController extends Controller
         $packageCount = Membership::query()->where([
             ['seller_id', Auth::guard('seller')->user()->id],
             ['expire_date', '>=', Carbon::now()->toDateString()]
-        ])->whereYear('start_date', '<>', '9999')->where('status', '<>', 2)->count();
+        ])->whereYear('start_date', '<>', '9999')->where('status', '<>', '2')->count();
 
         $hasPendingMemb = SellerPermissionHelper::hasPendingMembership(Auth::guard('seller')->user()->id);
 
@@ -99,8 +99,8 @@ class BuyPlanController extends Controller
                 ->first();
         }
         $be = $currentLang->basic_extended;
-        $online = OnlineGateway::query()->where('status', 1)->get();
-        $offline = OfflineGateway::where('status', 1)->orderBy('serial_number', 'asc')->get();
+        $online = OnlineGateway::query()->where('status', '1')->get();
+        $offline = OfflineGateway::where('status', '1')->orderBy('serial_number', 'asc')->get();
         $data['offline'] = $offline;
         $data['payment_methods'] = $online->concat($offline);
 
@@ -108,7 +108,7 @@ class BuyPlanController extends Controller
         $data['membership'] = Membership::query()->where([
             ['seller_id', Auth::guard('seller')->user()->id],
             ['expire_date', '>=', \Carbon\Carbon::now()->format('Y-m-d')]
-        ])->where('status', '<>', 2)->whereYear('start_date', '<>', '9999')
+        ])->where('status', '<>', '2')->whereYear('start_date', '<>', '9999')
             ->latest()
             ->first();
         $data['previousPackage'] = null;

@@ -170,6 +170,7 @@ return [
     Cartalyst\Stripe\Laravel\StripeServiceProvider::class,
     Laravel\Socialite\SocialiteServiceProvider::class,
     Maatwebsite\Excel\ExcelServiceProvider::class,
+    Intervention\Image\ImageServiceProvider::class,
 
     /*
     * Application Service Providers...
@@ -238,7 +239,10 @@ return [
     'Stripe' => Cartalyst\Stripe\Laravel\Facades\Stripe::class,
     'Socialite' => Laravel\Socialite\Facades\Socialite::class,
     'Excel' => Maatwebsite\Excel\Facades\Excel::class,
-
+    'Image' => Intervention\Image\Facades\Image::class,
   ],
+
+  'pusher_app_key' => env('PUSHER_APP_KEY'),
+  'pusher_app_cluster' => env('PUSHER_APP_CLUSTER'),
 
 ];

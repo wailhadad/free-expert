@@ -19,7 +19,7 @@ class SellerPermissionHelper
 
     $currentPackage = Membership::query()->where([
       ['seller_id', '=', $seller_id],
-      ['status', '=', 1],
+      ['status', '=', '1'],
       ['start_date', '<=', Carbon::now()->format('Y-m-d')],
       ['expire_date', '>=', Carbon::now()->format('Y-m-d')]
     ])->first();
@@ -47,7 +47,7 @@ class SellerPermissionHelper
     Config::set('app.timezone', $bs->timezone);
     $currentPackage = Membership::query()->where([
       ['seller_id', '=', $userId],
-      ['status', '=', 1],
+      ['status', '=', '1'],
       ['start_date', '<=', Carbon::now()->format('Y-m-d')],
       ['expire_date', '>=', Carbon::now()->format('Y-m-d')]
     ])->first();
@@ -60,7 +60,7 @@ class SellerPermissionHelper
 
     return Membership::query()->where([
       ['seller_id', '=', $userId],
-      ['status', '=', 1],
+      ['status', '=', '1'],
       ['start_date', '<=', Carbon::now()->format('Y-m-d')],
       ['expire_date', '>=', Carbon::now()->format('Y-m-d')]
     ])->first();
@@ -73,7 +73,7 @@ class SellerPermissionHelper
     if (!$currentPackage) {
       $currentPackage = Membership::query()->where([
         ['seller_id', '=', $userId],
-        ['status', 0]
+        ['status', '0']
       ])->whereYear('start_date', '<>', '9999')->orderBy('id', 'DESC')->first();
       $currentPackage = isset($currentPackage) ? Package::query()->findOrFail($currentPackage->package_id) : null;
     }
@@ -86,7 +86,7 @@ class SellerPermissionHelper
     if (!$currMemb) {
       $currMemb = Membership::query()->where([
         ['seller_id', '=', $userId],
-        ['status', 0],
+        ['status', '0'],
       ])->whereYear('start_date', '<>', '9999')->orderBy('id', 'DESC')->first();
     }
     return isset($currMemb) ? $currMemb : null;
@@ -97,7 +97,7 @@ class SellerPermissionHelper
   {
     $count = Membership::query()->where([
       ['seller_id', '=', $userId],
-      ['status', 0]
+      ['status', '0']
     ])->whereYear('start_date', '<>', '9999')->count();
     return $count > 0 ? true : false;
   }
@@ -110,7 +110,7 @@ class SellerPermissionHelper
       ['seller_id', $userId],
       ['start_date', '<=', Carbon::now()->toDateString()],
       ['expire_date', '>=', Carbon::now()->toDateString()]
-    ])->where('status', '<>', 2)->whereYear('start_date', '<>', '9999');
+    ])->where('status', '<>', '2')->whereYear('start_date', '<>', '9999');
     $nextPackage = null;
     if ($currMemb->first()) {
       $countCurrMem = $currMemb->count();
@@ -120,7 +120,7 @@ class SellerPermissionHelper
         $nextMemb = Membership::query()->where([
           ['seller_id', $userId],
           ['start_date', '>', $currMemb->first()->expire_date]
-        ])->whereYear('start_date', '<>', '9999')->where('status', '<>', 2)->first();
+        ])->whereYear('start_date', '<>', '9999')->where('status', '<>', '2')->first();
       }
       $nextPackage = $nextMemb ? Package::query()->where('id', $nextMemb->package_id)->first() : null;
     }
@@ -135,7 +135,7 @@ class SellerPermissionHelper
       ['seller_id', $userId],
       ['start_date', '<=', Carbon::now()->toDateString()],
       ['expire_date', '>=', Carbon::now()->toDateString()]
-    ])->where('status', '<>', 2)->whereYear('start_date', '<>', '9999');
+    ])->where('status', '<>', '2')->whereYear('start_date', '<>', '9999');
     $nextMemb = null;
     if ($currMemb->first()) {
       $countCurrMem = $currMemb->count();
@@ -145,7 +145,7 @@ class SellerPermissionHelper
         $nextMemb = Membership::query()->where([
           ['seller_id', $userId],
           ['start_date', '>', $currMemb->first()->expire_date]
-        ])->whereYear('start_date', '<>', '9999')->where('status', '<>', 2)->first();
+        ])->whereYear('start_date', '<>', '9999')->where('status', '<>', '2')->first();
       }
     }
     return $nextMemb;

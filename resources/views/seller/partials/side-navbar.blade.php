@@ -222,6 +222,13 @@
           </li>
         @endif
 
+        <li class="nav-item {{ request()->routeIs('seller.discussions') ? 'active' : '' }}">
+          <a href="{{ route('seller.discussions') }}">
+            <i class="fas fa-comments"></i>
+            <p>Discussions</p>
+          </a>
+        </li>
+
         <li
           class="nav-item @if (request()->routeIs('seller.withdraw')) active 
             @elseif (request()->routeIs('seller.withdraw.create'))  active @endif">

@@ -28,6 +28,7 @@ use App\Http\Helpers\BasicMailer;
 use App\Http\Helpers\SellerPermissionHelper;
 use App\Http\Helpers\UploadFile;
 use App\Http\Requests\ClientService\OrderProcessRequest;
+use App\Models\Admin;
 use App\Models\BasicSettings\Basic;
 use App\Models\BasicSettings\MailTemplate;
 use App\Models\ClientService\Form;
@@ -36,9 +37,14 @@ use App\Models\ClientService\ServiceAddon;
 use App\Models\ClientService\ServiceContent;
 use App\Models\ClientService\ServiceOrder;
 use App\Models\ClientService\ServicePackage;
+use App\Models\ClientService\Package;
+use App\Models\Language;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use PDF;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Notifications\OrderNotification;
+use Illuminate\Support\Facades\Session;
+use App\Events\NotificationReceived;
 
 class OrderProcessController extends Controller
 {
@@ -259,6 +265,7 @@ class OrderProcessController extends Controller
     }
     $orderInfo = ServiceOrder::query()->create([
       'user_id' => $data['userId'],
+      'subuser_id' => array_key_exists('subuser_id', $data) ? $data['subuser_id'] : null,
       'seller_id' => $data['seller_id'],
       'order_number' => $data['orderNumber'],
       'name' => $data['name'],
@@ -285,6 +292,79 @@ class OrderProcessController extends Controller
       'conversation_id' => array_key_exists('conversation_id', $data) ? $data['conversation_id'] : null
     ]);
 
+    // Get service and package details for notifications
+    $service = Service::find($data['serviceId']);
+    $package = \App\Models\ClientService\ServicePackage::find($data['packageId']);
+    $serviceName = $service ? $service->content()->where('language_id', 1)->pluck('title')->first() : 'Unknown Service';
+    $packageName = $package ? $package->name : 'Basic Package';
+    
+    // Prepare detailed notification data
+    $notificationData = [
+      'order_id' => $orderInfo->id,
+      'order_number' => $orderInfo->order_number,
+      'service_name' => $serviceName,
+      'service_id' => $data['serviceId'],
+      'order_status' => $data['orderStatus'],
+      'payment_status' => $data['paymentStatus'],
+      'amount' => $data['grandTotal'],
+      'currency' => $data['currencySymbol'],
+      'customer_name' => $data['name'],
+      'package_name' => $packageName,
+      'payment_method' => $data['paymentMethod'],
+      'gateway_type' => $data['gatewayType'],
+    ];
+
+    // Notify seller
+    if ($data['seller_id']) {
+      $seller = \App\Models\Seller::find($data['seller_id']);
+      if ($seller) {
+        $notificationData['seller_name'] = $seller->username;
+        $notifArr = [
+          'title' => 'New Order Received',
+          'message' => "New order #{$orderInfo->order_number} received for service: {$serviceName}\nPackage: {$packageName} - Amount: {$data['currencySymbol']}{$data['grandTotal']}\nStatus: " . ucfirst($data['orderStatus']),
+          'url' => route('seller.service_order.details', ['id' => $orderInfo->id]),
+          'icon' => 'fas fa-shopping-cart',
+          'extra' => $notificationData,
+          'type' => 'order',
+        ];
+        $seller->notify(new OrderNotification($notifArr));
+        // Fire real-time event
+        event(new NotificationReceived($notifArr, 'Seller', $seller->id));
+      }
+    }
+    
+    // Notify all admins
+    $admins = Admin::all();
+    foreach ($admins as $admin) {
+      $notifArr = [
+        'title' => 'New Order Placed',
+        'message' => "New order #{$orderInfo->order_number} placed by {$data['name']} for service: {$serviceName} - Package: {$packageName} - Amount: {$data['currencySymbol']}{$data['grandTotal']} - Payment: " . ucfirst($data['paymentStatus']),
+        'url' => route('admin.service_order.details', ['id' => $orderInfo->id]),
+        'icon' => 'fas fa-shopping-cart',
+        'extra' => $notificationData,
+        'type' => 'order',
+      ];
+      $admin->notify(new OrderNotification($notifArr));
+      // Fire real-time event
+      event(new NotificationReceived($notifArr, 'Admin', $admin->id));
+    }
+    
+    // Notify user
+    $user = \App\Models\User::find($data['userId']);
+    if ($user) {
+      $notifArr = [
+        'title' => 'Order Placed Successfully',
+        'message' => "Your order #{$orderInfo->order_number} for service: {$serviceName} - Package: {$packageName} has been placed successfully. Amount: {$data['currencySymbol']}{$data['grandTotal']} - Payment Status: " . ucfirst($data['paymentStatus']),
+        'url' => route('user.service_order.details', ['id' => $orderInfo->id]),
+        'icon' => 'fas fa-check-circle',
+        'extra' => $notificationData,
+        'type' => 'order',
+      ];
+      $user->notify(new OrderNotification($notifArr));
+      // Fire real-time event
+      event(new NotificationReceived($notifArr, 'User', $user->id));
+    }
+
     return $orderInfo;
   }
 
@@ -299,6 +379,11 @@ class OrderProcessController extends Controller
 
     $arrData['orderInfo'] = $orderInfo;
 
+    // Get website info for logo and title
+    $websiteInfo = \App\Models\BasicSettings\Basic::first();
+    $arrData['orderInfo']->logo = $websiteInfo->logo;
+    $arrData['orderInfo']->website_title = $websiteInfo->website_title;
+
     // get system language
     $misc = new MiscellaneousController();
 
@@ -312,7 +397,7 @@ class OrderProcessController extends Controller
     $package = $orderInfo->package()->first();
     $arrData['packageTitle'] = $package->name;
 
-    PDF::loadView('frontend.service.invoice', $arrData)->save(public_path($fileLocation));
+    Pdf::loadView('frontend.service.invoice', $arrData)->save(public_path($fileLocation));
 
     return $invoiceName;
   }

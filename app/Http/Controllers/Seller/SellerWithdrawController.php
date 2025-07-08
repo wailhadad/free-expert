@@ -170,6 +170,40 @@ class SellerWithdrawController extends Controller
             'currency_symbol_position' => $currencyInfo->base_currency_symbol_position,
         ]);
 
+        // Prepare notification data
+        $notificationData = [
+            'withdraw_id' => $save->withdraw_id,
+            'seller_id' => $save->seller_id,
+            'seller_name' => $seller->username,
+            'amount' => $save->amount,
+            'payable_amount' => $save->payable_amount,
+            'total_charge' => $save->total_charge,
+            'method_name' => $method->name,
+            'status' => 'pending',
+            'requested_at' => $save->created_at,
+        ];
+
+        // Notify seller about withdrawal request
+        $seller->notify(new \App\Notifications\WithdrawalNotification([
+            'title' => 'Withdrawal Request Sent',
+            'message' => "Your withdrawal request #{$save->withdraw_id} has been sent successfully. Amount: {$save->amount} - Payable: {$save->payable_amount}",
+            'url' => route('seller.withdraw.index'),
+            'icon' => 'fas fa-paper-plane',
+            'extra' => $notificationData,
+        ]));
+
+        // Notify all admins about new withdrawal request
+        $admins = \App\Models\Admin::all();
+        foreach ($admins as $admin) {
+            $admin->notify(new \App\Notifications\WithdrawalNotification([
+                'title' => 'New Withdrawal Request',
+                'message' => "New withdrawal request #{$save->withdraw_id} from {$seller->username}. Amount: {$save->amount}",
+                'url' => route('admin.withdraw.withdraw_request'),
+                'icon' => 'fas fa-paper-plane',
+                'extra' => $notificationData,
+            ]));
+        }
+
         Session::flash('success', 'Withdraw Request Send Successfully!');
 
         return response()->json(['status' => 'success'], 200);

@@ -66,6 +66,7 @@
                   </li>
                 @endif
               @endforeach
+              @include('components.notification-bell')
             </ul>
           </div>
           <div class="more-option mobile-item">

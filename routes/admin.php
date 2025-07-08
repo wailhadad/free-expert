@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\BackEnd\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,6 +50,27 @@ Route::prefix('/admin')->middleware('auth:admin', 'Demo')->group(function () {
     Route::post('package/{id}/uploadUpdate', 'BackEnd\PackageController@uploadUpdate')->name('admin.package.uploadUpdate');
     Route::post('package/delete', 'BackEnd\PackageController@delete')->name('admin.package.delete');
     Route::post('package/bulk-delete', 'BackEnd\PackageController@bulkDelete')->name('admin.package.bulk.delete');
+  });
+
+  // User Package Management
+  Route::prefix('user-package')->group(function () {
+    Route::get('packages', 'BackEnd\UserPackageController@index')->name('admin.user_package.index');
+    Route::get('package/create', 'BackEnd\UserPackageController@create')->name('admin.user_package.create');
+    Route::post('package/store', 'BackEnd\UserPackageController@store')->name('admin.user_package.store');
+    Route::get('package/{id}/edit', 'BackEnd\UserPackageController@edit')->name('admin.user_package.edit');
+    Route::post('package/update', 'BackEnd\UserPackageController@update')->name('admin.user_package.update');
+    Route::post('package/delete', 'BackEnd\UserPackageController@delete')->name('admin.user_package.delete');
+    Route::post('package/bulk-delete', 'BackEnd\UserPackageController@bulkDelete')->name('admin.user_package.bulk.delete');
+  });
+
+  // User Membership Management
+  Route::prefix('user-membership')->group(function () {
+    Route::get('memberships', 'BackEnd\UserMembershipController@index')->name('admin.user_membership.index');
+    Route::get('membership/{id}/details', 'BackEnd\UserMembershipController@details')->name('admin.user_membership.details');
+    Route::get('membership/{id}/approve', 'BackEnd\UserMembershipController@approve')->name('admin.user_membership.approve');
+    Route::get('membership/{id}/reject', 'BackEnd\UserMembershipController@reject')->name('admin.user_membership.reject');
+    Route::get('membership/{id}/delete', 'BackEnd\UserMembershipController@delete')->name('admin.user_membership.delete');
+    Route::post('membership/{id}/update-status', 'BackEnd\UserMembershipController@updateStatus')->name('admin.user_membership.update_status');
   });
 
 
@@ -869,7 +891,21 @@ Route::prefix('/admin')->middleware('auth:admin', 'Demo')->group(function () {
 
     Route::post('/remove-image', 'BackEnd\SummernoteController@remove');
   });
+
+  Route::prefix('notifications')->group(function () {
+    Route::get('/dropdown', [NotificationController::class, 'dropdown'])->name('admin.notifications.dropdown');
+    Route::get('/list', [NotificationController::class, 'list'])->name('admin.notifications.list');
+    Route::get('/', [NotificationController::class, 'index'])->name('admin.notifications.index');
+    Route::get('/unread-count', [NotificationController::class, 'unreadCount'])->name('admin.notifications.unread_count');
+    Route::post('/{id}/mark-as-read', [NotificationController::class, 'markAsRead'])->name('admin.notifications.mark_as_read');
+    Route::post('/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('admin.notifications.mark_all_as_read');
+    Route::delete('/{id}', [NotificationController::class, 'destroy'])->name('admin.notifications.destroy');
+    Route::delete('/', [NotificationController::class, 'clearAll'])->name('admin.notifications.clear_all');
 });
+
+Route::get('notifications/list', [\App\Http\Controllers\BackEnd\NotificationController::class, 'list'])->name('admin.notifications.list');
 
 Route::get('/language-management/{id}/check-rtl', 'BackEnd\LanguageController@checkRTL');
 Route::get('/service-management/language/{id}/service-categories', 'BackEnd\ClientService\SubcategoryController@getCategories');
+
+});

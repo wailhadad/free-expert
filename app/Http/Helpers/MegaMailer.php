@@ -100,6 +100,11 @@ class MegaMailer
         } else {
           $mail_subject = $temp->mail_subject;
         }
+        if (empty($data['toMail']) || !filter_var($data['toMail'], FILTER_VALIDATE_EMAIL)) {
+          \Log::error('MegaMailer: Invalid or missing recipient email', $data);
+          Session::flash('error', 'Cannot send email: recipient address is missing or invalid.');
+          return;
+        }
         Mail::send([], [], function (Message $message) use ($data, $be, $body, $mail_subject) {
           $fromMail = $be->from_mail;
           $fromName = $be->from_name;
@@ -109,11 +114,35 @@ class MegaMailer
             ->from($fromMail, $fromName)
             ->html($body, 'text/html');
 
+          // Attach membership invoice (customer/seller) if present
           if (array_key_exists('membership_invoice', $data)) {
-            $message->attach(public_path('assets/front/invoices/' . $data['membership_invoice']), [
-              'as' => 'Invoice',
-              'mime' => 'application/pdf',
-            ]);
+              $folder = isset($data['membership_invoice_path']) ? $data['membership_invoice_path'] : 'user-memberships';
+              $invoicePath = public_path('assets/file/invoices/' . $folder . '/' . $data['membership_invoice']);
+              \Log::info('MegaMailer: Attempting to attach membership invoice', [
+                  'invoice' => $data['membership_invoice'],
+                  'folder' => $folder,
+                  'full_path' => $invoicePath,
+                  'file_exists' => file_exists($invoicePath)
+              ]);
+              if (file_exists($invoicePath)) {
+                  $message->attach($invoicePath, [
+                      'as' => 'Invoice',
+                      'mime' => 'application/pdf',
+                  ]);
+                  \Log::info('MegaMailer: Successfully attached membership invoice');
+              } else {
+                  \Log::error('MegaMailer: Membership invoice file not found', ['path' => $invoicePath]);
+              }
+          }
+          // Attach order invoice if present
+          if (array_key_exists('invoice', $data) && array_key_exists('invoice_path', $data)) {
+              $invoicePath = public_path('assets/file/invoices/' . $data['invoice_path'] . '/' . $data['invoice']);
+              if (file_exists($invoicePath)) {
+                  $message->attach($invoicePath, [
+                      'as' => 'Invoice',
+                      'mime' => 'application/pdf',
+                  ]);
+              }
           }
         });
       } catch (\Exception $e) {

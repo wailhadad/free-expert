@@ -283,6 +283,45 @@ class ServiceController extends Controller
       $serviceContent->save();
     }
 
+    // Get service details for notifications
+    $serviceName = $request['en_title'] ?? 'New Service';
+    $seller = Seller::find($service->seller_id);
+    $sellerName = $seller ? $seller->username : 'Admin';
+
+    // Prepare notification data
+    $notificationData = [
+      'service_id' => $service->id,
+      'service_name' => $serviceName,
+      'seller_id' => $service->seller_id,
+      'seller_name' => $sellerName,
+      'is_featured' => $service->is_featured,
+      'status' => $service->status,
+      'created_at' => $service->created_at,
+    ];
+
+    // Notify all admins about new service
+    $admins = Admin::all();
+    foreach ($admins as $admin) {
+      $admin->notify(new \App\Notifications\ServiceNotification([
+        'title' => 'New Service Created',
+        'message' => "New service '{$serviceName}' has been created by {$sellerName}",
+        'url' => route('admin.service_management.services'),
+        'icon' => 'fas fa-plus-circle',
+        'extra' => $notificationData,
+      ]));
+    }
+
+    // Notify seller about service creation (if not admin)
+    if ($service->seller_id && $service->seller_id != 0) {
+      $seller->notify(new \App\Notifications\ServiceNotification([
+        'title' => 'Service Created Successfully',
+        'message' => "Your service '{$serviceName}' has been created successfully",
+        'url' => route('seller.service_management.services'),
+        'icon' => 'fas fa-check-circle',
+        'extra' => $notificationData,
+      ]));
+    }
+
     $request->session()->flash('success', 'New service added successfully!');
 
     return Response::json(['status' => 'success'], 200);
@@ -445,6 +484,45 @@ class ServiceController extends Controller
       $serviceContent->save();
     }
 
+    // Get service details for notifications
+    $serviceName = $request['en_title'] ?? 'Service';
+    $seller = Seller::find($service->seller_id);
+    $sellerName = $seller ? $seller->username : 'Admin';
+
+    // Prepare notification data
+    $notificationData = [
+      'service_id' => $service->id,
+      'service_name' => $serviceName,
+      'seller_id' => $service->seller_id,
+      'seller_name' => $sellerName,
+      'is_featured' => $service->is_featured,
+      'status' => $service->status,
+      'updated_at' => $service->updated_at,
+    ];
+
+    // Notify all admins about service update
+    $admins = Admin::all();
+    foreach ($admins as $admin) {
+      $admin->notify(new \App\Notifications\ServiceNotification([
+        'title' => 'Service Updated',
+        'message' => "Service '{$serviceName}' has been updated by {$sellerName}",
+        'url' => route('admin.service_management.services'),
+        'icon' => 'fas fa-edit',
+        'extra' => $notificationData,
+      ]));
+    }
+
+    // Notify seller about service update (if not admin)
+    if ($service->seller_id && $service->seller_id != 0) {
+      $seller->notify(new \App\Notifications\ServiceNotification([
+        'title' => 'Service Updated Successfully',
+        'message' => "Your service '{$serviceName}' has been updated successfully",
+        'url' => route('seller.service_management.services'),
+        'icon' => 'fas fa-edit',
+        'extra' => $notificationData,
+      ]));
+    }
+
     $request->session()->flash('success', 'Service updated successfully!');
 
     return Response::json(['status' => 'success'], 200);
@@ -458,6 +536,46 @@ class ServiceController extends Controller
    */
   public function destroy($id)
   {
+    // Get service details before deletion for notifications
+    $service = Service::find($id);
+    if ($service) {
+      $serviceName = $service->content()->where('language_id', 1)->pluck('title')->first() ?? 'Service';
+      $seller = Seller::find($service->seller_id);
+      $sellerName = $seller ? $seller->username : 'Admin';
+
+      // Prepare notification data
+      $notificationData = [
+        'service_id' => $service->id,
+        'service_name' => $serviceName,
+        'seller_id' => $service->seller_id,
+        'seller_name' => $sellerName,
+        'deleted_at' => now(),
+      ];
+
+      // Notify all admins about service deletion
+      $admins = Admin::all();
+      foreach ($admins as $admin) {
+        $admin->notify(new \App\Notifications\ServiceNotification([
+          'title' => 'Service Deleted',
+          'message' => "Service '{$serviceName}' has been deleted by {$sellerName}",
+          'url' => route('admin.service_management.services'),
+          'icon' => 'fas fa-trash',
+          'extra' => $notificationData,
+        ]));
+      }
+
+      // Notify seller about service deletion (if not admin)
+      if ($service->seller_id && $service->seller_id != 0 && $seller) {
+        $seller->notify(new \App\Notifications\ServiceNotification([
+          'title' => 'Service Deleted',
+          'message' => "Your service '{$serviceName}' has been deleted",
+          'url' => route('seller.service_management.services'),
+          'icon' => 'fas fa-trash',
+          'extra' => $notificationData,
+        ]));
+      }
+    }
+
     $this->deleteService($id);
 
     return redirect()->back()->with('success', 'Service deleted successfully!');

@@ -38,6 +38,42 @@ class WithdrawController extends Controller
     public function approve($id)
     {
         $withdraw = Withdraw::where('id', $id)->first();
+        $seller = $withdraw->seller()->first();
+        $method = $withdraw->method()->select('name')->first();
+
+        // Prepare notification data
+        $notificationData = [
+            'withdraw_id' => $withdraw->withdraw_id,
+            'seller_id' => $withdraw->seller_id,
+            'seller_name' => $seller->username,
+            'amount' => $withdraw->amount,
+            'payable_amount' => $withdraw->payable_amount,
+            'total_charge' => $withdraw->total_charge,
+            'method_name' => $method->name,
+            'status' => 'approved',
+            'approved_at' => now(),
+        ];
+
+        // Notify seller about withdrawal approval
+        $seller->notify(new \App\Notifications\WithdrawalNotification([
+            'title' => 'Withdrawal Approved',
+            'message' => "Your withdrawal request #{$withdraw->withdraw_id} has been approved. Amount: {$withdraw->amount} - Payable: {$withdraw->payable_amount}",
+            'url' => route('seller.withdraw.index'),
+            'icon' => 'fas fa-check-circle',
+            'extra' => $notificationData,
+        ]));
+
+        // Notify all admins about withdrawal approval
+        $admins = \App\Models\Admin::all();
+        foreach ($admins as $admin) {
+            $admin->notify(new \App\Notifications\WithdrawalNotification([
+                'title' => 'Withdrawal Approved',
+                'message' => "Withdrawal request #{$withdraw->withdraw_id} from {$seller->username} has been approved. Amount: {$withdraw->amount}",
+                'url' => route('admin.withdraw.withdraw_request'),
+                'icon' => 'fas fa-check-circle',
+                'extra' => $notificationData,
+            ]));
+        }
 
         //mail sending
         // get the website title & mail's smtp information from db
@@ -53,8 +89,6 @@ class WithdrawController extends Controller
         // get the website title info from db
         $website_info = Basic::select('website_title')->first();
 
-        $seller = $withdraw->seller()->first();
-
         // preparing dynamic data
         $sellerName = $seller->username;
         $sellerEmail = $seller->email;
@@ -62,8 +96,6 @@ class WithdrawController extends Controller
         $withdraw_amount = $withdraw->amount;
         $total_charge = $withdraw->total_charge;
         $payable_amount = $withdraw->payable_amount;
-
-        $method = $withdraw->method()->select('name')->first();
 
         $websiteTitle = $website_info->website_title;
 
@@ -103,6 +135,42 @@ class WithdrawController extends Controller
     public function decline($id)
     {
         $withdraw = Withdraw::where('id', $id)->first();
+        $seller = $withdraw->seller()->first();
+        $method = $withdraw->method()->select('name')->first();
+
+        // Prepare notification data
+        $notificationData = [
+            'withdraw_id' => $withdraw->withdraw_id,
+            'seller_id' => $withdraw->seller_id,
+            'seller_name' => $seller->username,
+            'amount' => $withdraw->amount,
+            'payable_amount' => $withdraw->payable_amount,
+            'total_charge' => $withdraw->total_charge,
+            'method_name' => $method->name,
+            'status' => 'declined',
+            'declined_at' => now(),
+        ];
+
+        // Notify seller about withdrawal decline
+        $seller->notify(new \App\Notifications\WithdrawalNotification([
+            'title' => 'Withdrawal Declined',
+            'message' => "Your withdrawal request #{$withdraw->withdraw_id} has been declined. Amount: {$withdraw->amount} has been returned to your balance.",
+            'url' => route('seller.withdraw.index'),
+            'icon' => 'fas fa-times-circle',
+            'extra' => $notificationData,
+        ]));
+
+        // Notify all admins about withdrawal decline
+        $admins = \App\Models\Admin::all();
+        foreach ($admins as $admin) {
+            $admin->notify(new \App\Notifications\WithdrawalNotification([
+                'title' => 'Withdrawal Declined',
+                'message' => "Withdrawal request #{$withdraw->withdraw_id} from {$seller->username} has been declined. Amount: {$withdraw->amount}",
+                'url' => route('admin.withdraw.withdraw_request'),
+                'icon' => 'fas fa-times-circle',
+                'extra' => $notificationData,
+            ]));
+        }
 
         //mail sending
         // get the website title & mail's smtp information from db
@@ -118,14 +186,10 @@ class WithdrawController extends Controller
         // get the website title info from db
         $website_info = Basic::select('website_title')->first();
 
-        $seller = $withdraw->seller()->first();
-
         // preparing dynamic data
         $sellerName = $seller->username;
         $sellerEmail = $seller->email;
         $seller_amount = $seller->amount + $withdraw->amount;
-
-        $method = $withdraw->method()->select('name')->first();
 
         $websiteTitle = $website_info->website_title;
 

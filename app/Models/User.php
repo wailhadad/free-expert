@@ -95,4 +95,57 @@ class User extends Authenticatable
   {
     return $this->hasMany(SupportTicket::class, 'user_id', 'id');
   }
+
+  public function subusers()
+  {
+    return $this->hasMany(Subuser::class, 'user_id');
+  }
+
+  public function userMemberships()
+  {
+    return $this->hasMany(UserMembership::class, 'user_id');
+  }
+
+  public function currentUserMembership()
+  {
+    $currentDate = \App\Http\Helpers\UserPermissionHelper::getCurrentDate();
+    
+    return $this->hasOne(UserMembership::class, 'user_id')
+      ->where('status', '1')
+      ->where('start_date', '<=', $currentDate)
+      ->where('expire_date', '>=', $currentDate);
+  }
+
+  public function hasAgencyPrivileges()
+  {
+    $membership = $this->currentUserMembership;
+    if (!$membership) {
+      return false;
+    }
+    
+    $package = $membership->package;
+    return $package && $package->max_subusers > 0;
+  }
+
+  public function getMaxSubusersAttribute()
+  {
+    $membership = $this->currentUserMembership;
+    if (!$membership) {
+      return 0;
+    }
+    
+    $package = $membership->package;
+    return $package ? $package->max_subusers : 0;
+  }
+
+  public function getCurrentSubusersCountAttribute()
+  {
+    return $this->subusers()->count();
+  }
+
+  public function canCreateSubuser()
+  {
+    return $this->hasAgencyPrivileges() && 
+           $this->current_subusers_count < $this->max_subusers;
+  }
 }

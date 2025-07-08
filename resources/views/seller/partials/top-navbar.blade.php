@@ -29,6 +29,7 @@
     data-background-color="{{ Session::get('seller_theme_version') == 'light' ? 'white2' : 'dark' }}">
     <div class="container-fluid">
       <ul class="navbar-nav topbar-nav ml-md-auto align-items-center">
+        @include('components.notification-bell')
         <form action="{{ route('seller.change_theme') }}" class="form-inline mr-3" method="POST">
 
           @csrf

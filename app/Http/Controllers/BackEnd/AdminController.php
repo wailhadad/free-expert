@@ -28,9 +28,13 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use App\Traits\NotifiesUsers;
+use App\Notifications\OrderNotification;
 
 class AdminController extends Controller
 {
+  use NotifiesUsers;
+
   public function login()
   {
     return view('backend.login');
@@ -456,5 +460,21 @@ class AdminController extends Controller
     })->orderByDesc('id')->paginate(10);
 
     return view('backend.admin.transcation', $info);
+  }
+
+  public function createUser(Request $request)
+  {
+    // Example user creation logic (replace with real fields)
+    $user = User::create([
+      'name' => $request->input('name'),
+      'email' => $request->input('email'),
+      'password' => bcrypt($request->input('password')),
+    ]);
+    // Notify admin
+    $this->notifyUser(auth()->user(), new OrderNotification([
+      'title' => 'New User Created',
+      'message' => 'A new user has been registered.',
+      'url' => route('admin.users.index'),
+    ]));
   }
 }

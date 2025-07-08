@@ -121,17 +121,22 @@ class HomeController extends Controller
   public function pricing()
   {
     $misc = new MiscellaneousController();
-
     $language = $misc->getLanguage();
-
     $queryResult['seoInfo'] = $language->seoInfo()->select('pricing_page_meta_keywords', 'pricing_page_meta_description')->first();
-
     $queryResult['pageHeading'] = $misc->getPageHeading($language);
-
     $queryResult['breadcrumb'] = $misc->getBreadcrumb();
-    $queryResult['monthly_packages'] = Package::where([['status', '1'], ['term', 'monthly']])->get();
-    $queryResult['yearly_packages'] = Package::where([['status', '1'], ['term', 'yearly']])->get();
-    $queryResult['lifetime_packages'] = Package::where([['status', '1'], ['term', 'lifetime']])->where('id', '<>', 999999)->get();
+    $queryResult['user_packages'] = \App\Models\UserPackage::where('status', 1)->orderBy('price', 'ASC')->get();
+
+    // Add current package for logged-in users
+    $currentPackage = null;
+    if (auth('web')->check()) {
+        $currentMembership = \App\Http\Helpers\UserPermissionHelper::userPackage(auth('web')->id());
+        if ($currentMembership) {
+            $currentPackage = \App\Models\UserPackage::find($currentMembership->package_id);
+        }
+    }
+    $queryResult['currentPackage'] = $currentPackage;
+
     return view('frontend.pricing', $queryResult);
   }
 }

@@ -38,4 +38,51 @@ class ServiceOrderMessage extends Model
   {
     return $this->belongsTo(ServiceOrder::class, 'order_id', 'id');
   }
+
+  public function subuser()
+  {
+    return $this->belongsTo(\App\Models\Subuser::class, 'subuser_id', 'id');
+  }
+
+  public function getMessageSenderNameAttribute()
+  {
+    if ($this->subuser) {
+      return $this->subuser->full_name;
+    } elseif ($this->user) {
+      return $this->user->first_name . ' ' . $this->user->last_name;
+    } elseif ($this->admin) {
+      return $this->admin->name;
+    } elseif ($this->seller) {
+      return $this->seller->username;
+    }
+    return 'Unknown';
+  }
+
+  public function getMessageSenderImageAttribute()
+  {
+    if ($this->subuser) {
+      return $this->subuser->image;
+    } elseif ($this->user) {
+      return $this->user->image;
+    } elseif ($this->admin) {
+      return $this->admin->image;
+    } elseif ($this->seller) {
+      return $this->seller->photo;
+    }
+    return null;
+  }
+
+  public function getMessageSenderUsernameAttribute()
+  {
+    if ($this->subuser) {
+      return $this->subuser->username;
+    } elseif ($this->user) {
+      return $this->user->username;
+    } elseif ($this->admin) {
+      return $this->admin->username;
+    } elseif ($this->seller) {
+      return $this->seller->username;
+    }
+    return 'Unknown';
+  }
 }

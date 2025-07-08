@@ -3,6 +3,8 @@
 use App\Http\Controllers\Seller\SellerController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Seller\SocialiteController;
+use App\Http\Controllers\Seller\NotificationController;
+use App\Http\Controllers\FrontEnd\MiscellaneousController;
 
 /*
 |--------------------------------------------------------------------------
@@ -215,7 +217,8 @@ Route::prefix('seller')->middleware('auth:seller', 'EmailStatus:seller', 'Deacti
     Route::get('xendit/cancel', 'Payment\XenditController@cancelPayment')->name('membership.xendit.cancel');
 
     Route::get('/offline/success', 'Front\CheckoutController@offlineSuccess')->name('membership.offline.success');
-    Route::get('/trial/success', 'Front\CheckoutController@trialSuccess')->name('membership.trial.success');
+    // Problem in the trial route
+    // Route::get('/trial/success', 'Front\CheckoutController@trialSuccess')->name('membership.trial.success');
 
     Route::get('/online/success', 'Seller\SellerCheckoutController@onlineSuccess')->name('success.page');
     Route::get('/offline/success', 'Seller\SellerCheckoutController@offlineSuccess')->name('seller.offline-success');
@@ -270,3 +273,27 @@ Route::prefix('seller')->middleware('auth:seller', 'EmailStatus:seller', 'Deacti
     Route::post('bulk/delete/', 'Seller\SupportTicketController@bulk_delete')->name('seller.support_tickets.bulk_delete');
   });
 });
+
+// Seller notifications
+Route::prefix('seller')->middleware(['auth:seller'])->group(function () {
+    Route::get('notifications', [NotificationController::class, 'index'])
+        ->name('seller.notifications.index');
+    Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount'])
+        ->name('seller.notifications.unread_count');
+    Route::post('notifications/{id}/mark-as-read', [NotificationController::class, 'markAsRead'])
+        ->name('seller.notifications.mark_as_read');
+    Route::post('notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])
+        ->name('seller.notifications.mark_all_as_read');
+    Route::delete('notifications/{id}', [NotificationController::class, 'destroy'])
+        ->name('seller.notifications.destroy');
+    Route::delete('notifications', [NotificationController::class, 'clearAll'])
+        ->name('seller.notifications.clear_all');
+    Route::get('notifications/dropdown', [NotificationController::class, 'dropdown'])->name('seller.notifications.dropdown');
+    Route::get('notifications/list', [NotificationController::class, 'list'])->name('seller.notifications.list');
+});
+
+Route::get('seller/discussions', function() {
+    $misc = new MiscellaneousController();
+    $breadcrumb = $misc->getBreadcrumb();
+    return view('seller.discussions', compact('breadcrumb'));
+})->middleware(['auth:seller'])->name('seller.discussions');

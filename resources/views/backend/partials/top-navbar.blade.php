@@ -28,6 +28,7 @@
     data-background-color="{{ $settings->admin_theme_version == 'light' ? 'white2' : 'dark' }}">
     <div class="container-fluid">
       <ul class="navbar-nav topbar-nav ml-md-auto align-items-center">
+        @include('components.notification-bell')
         <form action="{{ route('admin.change_theme') }}" class="form-inline mr-3" method="GET">
           @csrf
           <div class="form-group">
@@ -48,10 +49,11 @@
         </form>
 
         <li class="nav-item dropdown hidden-caret">
+          @php $adminUser = Auth::guard('admin')->user(); @endphp
           <a class="dropdown-toggle profile-pic" data-toggle="dropdown" href="#" aria-expanded="false">
             <div class="avatar-sm">
-              @if (Auth::guard('admin')->user()->image != null)
-                <img src="{{ asset('assets/img/admins/' . Auth::guard('admin')->user()->image) }}" alt="Admin Image"
+              @if ($adminUser && $adminUser->image != null)
+                <img src="{{ asset('assets/img/admins/' . $adminUser->image) }}" alt="Admin Image"
                   class="avatar-img rounded-circle">
               @else
                 <img src="{{ asset('assets/img/blank-user.jpg') }}" alt="" class="avatar-img rounded-circle">
@@ -64,8 +66,8 @@
               <li>
                 <div class="user-box">
                   <div class="avatar-lg">
-                    @if (Auth::guard('admin')->user()->image != null)
-                      <img src="{{ asset('assets/img/admins/' . Auth::guard('admin')->user()->image) }}"
+                    @if ($adminUser && $adminUser->image != null)
+                      <img src="{{ asset('assets/img/admins/' . $adminUser->image) }}"
                         alt="Admin Image" class="avatar-img rounded-circle">
                     @else
                       <img src="{{ asset('assets/img/blank-user.jpg') }}" alt=""
@@ -75,9 +77,9 @@
 
                   <div class="u-text">
                     <h4>
-                      {{ Auth::guard('admin')->user()->first_name . ' ' . Auth::guard('admin')->user()->last_name }}
+                      {{ $adminUser ? $adminUser->first_name . ' ' . $adminUser->last_name : '' }}
                     </h4>
-                    <p class="text-muted">{{ Auth::guard('admin')->user()->email }}</p>
+                    <p class="text-muted">{{ $adminUser ? $adminUser->email : '' }}</p>
                   </div>
                 </div>
               </li>

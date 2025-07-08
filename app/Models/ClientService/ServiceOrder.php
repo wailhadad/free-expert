@@ -44,4 +44,24 @@ class ServiceOrder extends Model
   {
     return $this->hasMany(ServiceOrderMessage::class, 'order_id', 'id');
   }
+
+  public function subuser()
+  {
+    return $this->belongsTo(\App\Models\Subuser::class, 'subuser_id', 'id');
+  }
+
+  public function getOrderCustomerNameAttribute()
+  {
+    return $this->subuser ? $this->subuser->full_name : $this->user->first_name . ' ' . $this->user->last_name;
+  }
+
+  public function getOrderCustomerImageAttribute()
+  {
+    return $this->subuser ? $this->subuser->image : $this->user->image;
+  }
+
+  public function getOrderCustomerUsernameAttribute()
+  {
+    return $this->subuser ? $this->subuser->username : $this->user->username;
+  }
 }

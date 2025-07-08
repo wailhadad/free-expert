@@ -24,7 +24,7 @@ use App\Models\PaymentGateway\OnlineGateway;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
-use PDF;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class PayController extends Controller
 {
@@ -164,7 +164,7 @@ class PayController extends Controller
 
     $fileLocation = $directory . $invoiceName;
 
-    PDF::loadView('backend.invoice.document', $queryResult)->save(public_path($fileLocation));
+    Pdf::loadView('backend.invoice.document', $queryResult)->save(public_path($fileLocation));
 
     return;
   }

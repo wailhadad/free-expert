@@ -41,7 +41,7 @@ class CronJobController extends Controller
                     $nextPacakgeCount = Membership::where([
                         ['seller_id', $seller->id],
                         ['start_date', '>', Carbon::now()->toDateString()]
-                    ])->where('status', '<>', 2)->count();
+                    ])->where('status', '<>', '2')->count();
 
                     if ($nextPacakgeCount == 0) {
                         SubscriptionReminderMail::dispatch($seller, $bs, $remind_member->expire_date);

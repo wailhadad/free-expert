@@ -66,15 +66,24 @@ class SellerCheckoutController extends Controller
 
                 $lastMemb = $seller->memberships()->orderBy('id', 'DESC')->first();
 
-                $file_name = $this->makeInvoice($request->all(), "extend", $seller, $password, $request['price'], $request["payment_method"], $seller->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb);
-                $basicMail = new BasicMailer();
+                $file_name = $this->makeInvoice($request->all(), "extend", $seller, $password, $request['price'], $request["payment_method"], $seller->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb, 'seller-memberships');
+                
+                // Use MegaMailer for consistency
+                $mailer = new \App\Http\Helpers\MegaMailer();
                 $data = [
-                    'invoice' => public_path('assets/front/invoices/' . $file_name),
-                    'recipient' => $seller->email,
-                    'subject' => $subject,
-                    'body' => $body
+                    'toMail' => $seller->email,
+                    'username' => $seller->username,
+                    'package_title' => $package->title,
+                    'package_price' => $bs->base_currency_symbol . number_format($request['price'], 2),
+                    'activation_date' => $lastMemb->start_date,
+                    'expire_date' => $lastMemb->expire_date,
+                    'membership_invoice' => $file_name,
+                    'membership_invoice_path' => 'seller-memberships',
+                    'website_title' => $bs->website_title,
+                    'templateType' => 'seller_membership_invoice',
+                    'mail_subject' => $subject,
                 ];
-                $basicMail->sendMail($data);
+                $mailer->mailFromAdmin($data);
                 Session::forget('request');
                 Session::forget('paymentFor');
                 return redirect()->route('success.page', ['type' => 'free']);

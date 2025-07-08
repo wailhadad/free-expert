@@ -6,6 +6,16 @@
           {{ __('Dashboard') }}
         </a>
       </li>
+      <li>
+        <a href="{{ route('user.notifications') }}" class="{{ request()->routeIs('user.notifications*') ? 'active' : '' }}">
+          {{ __('Notifications') }}
+        </a>
+      </li>
+      <li>
+        <a href="{{ route('user.discussions') }}" class="{{ request()->routeIs('user.discussions') ? 'active' : '' }}">
+          <i class="fas fa-comments"></i> {{ __('Discussions') }}
+        </a>
+      </li>
       @if ($basicInfo->is_service)
         <li>
           <a href="{{ route('user.service_orders') }}"
@@ -31,6 +41,24 @@
           </a>
         </li>
       @endif
+      <li>
+        <a href="{{ route('user.packages.subscription_log') }}" class="{{ request()->routeIs('user.packages.subscription_log') ? 'active' : '' }}">
+          <span>{{ __('Subscription Log') }}</span>
+        </a>
+      </li>
+
+      <!-- Agency Privileges Section -->
+
+      @if(Auth::guard('web')->user() && Auth::guard('web')->user()->hasAgencyPrivileges())
+        <li>
+          <a href="{{ route('user.subusers.index') }}"
+            class="{{ request()->routeIs('user.subusers.*') ? 'active' : '' }}">
+            <i class="fas fa-users"></i> {{ __('Subusers') }}
+            <span class="badge badge-light ml-2">{{ Auth::guard('web')->user()->current_subusers_count }}/{{ Auth::guard('web')->user()->max_subusers }}</span>
+          </a>
+        </li>
+      @endif
+
       <li>
         <a href="{{ route('user.followings') }}" class="{{ request()->routeIs('user.followings') ? 'active' : '' }}">
           {{ __('Following') }}
