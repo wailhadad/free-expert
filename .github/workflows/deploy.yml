@@ -35,3 +35,8 @@ jobs:
 
             # Run database migrations
             sudo php artisan migrate --force
+
+	    php artisan optimize:clear
+	    php artisan cache:clear
+	    php artisan event:clear
+
