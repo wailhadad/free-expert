@@ -209,4 +209,12 @@ class SubuserController extends Controller
         
         return redirect()->route('user.subusers.index');
     }
+
+    public function listJson()
+    {
+        $user = Auth::guard('web')->user();
+        if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
+        $subusers = $user->subusers()->select('id', 'username', 'first_name', 'last_name', 'image')->get();
+        return response()->json(['subusers' => $subusers]);
+    }
 } 

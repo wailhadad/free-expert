@@ -213,8 +213,9 @@ class UserController extends Controller
   public function show($id)
   {
     $user = User::query()->findOrFail($id);
+    $subusers = $user->subusers()->get();
     $information['userInfo'] = $user;
-
+    $information['subusers'] = $subusers;
     return view('backend.end-user.user.details', $information);
   }
 

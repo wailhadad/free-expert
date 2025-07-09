@@ -42,10 +42,17 @@ class DirectChatMessageController extends Controller
             $fileOriginalName = $file->getClientOriginalName();
         }
 
+        $subuserId = null;
+        if ($senderType === 'user') {
+            // Prefer subuser_id from request, fallback to chat
+            $subuserId = $request->input('subuser_id') ?: ($chat->subuser_id ?? null);
+        }
+
         $msg = DirectChatMessage::create([
             'chat_id' => $chatId,
             'sender_id' => $senderId,
             'sender_type' => $senderType,
+            'subuser_id' => $subuserId,
             'message' => $message,
             'file_name' => $fileName,
             'file_original_name' => $fileOriginalName,
@@ -58,19 +65,21 @@ class DirectChatMessageController extends Controller
         if ($senderType === 'user') {
             $seller = $chat->seller;
             $user = $chat->user;
+            // Use subuser from message if present
+            $subuser = $msg->subuser_id ? \App\Models\Subuser::find($msg->subuser_id) : $chat->subuser;
             if ($seller) {
                 $notificationService = new \App\Services\NotificationService();
                 $notificationService->sendRealTime($seller, [
                     'type' => 'direct_chat',
                     'title' => 'New Direct Message from Customer',
-                    'message' => "You have received a new direct message from {$user->username}",
+                    'message' => "You have received a new direct message from " . ($subuser ? $subuser->username : $user->username),
                     'url' => url('/seller/discussions'),
                     'icon' => 'fas fa-comments',
                     'extra' => [
                         'chat_id' => $chat->id,
-                        'user_id' => $user->id,
-                        'user_name' => $user->username,
-                        'user_avatar' => $user->avatar_url ?? null,
+                        'user_id' => $subuser ? $subuser->id : $user->id,
+                        'user_name' => $subuser ? $subuser->username : $user->username,
+                        'user_avatar' => $subuser ? ($subuser->image ? asset('assets/img/subusers/' . $subuser->image) : asset('assets/img/users/profile.jpeg')) : ($user->avatar_url ?? null),
                         'message_preview' => mb_substr($message, 0, 100),
                     ],
                 ]);
@@ -110,16 +119,27 @@ class DirectChatMessageController extends Controller
     public function getMessages($chatId)
     {
         try {
-            $chat = DirectChat::findOrFail($chatId);
+            $chat = DirectChat::with(['subuser'])->findOrFail($chatId);
             $messages = $chat->messages()->orderBy('created_at')->get();
-            $messages = $messages->map(function($msg) {
+            $messages = $messages->map(function($msg) use ($chat) {
                 $sender = null;
                 $avatar = null;
                 $name = null;
                 if ($msg->sender_type === 'user') {
-                    $sender = \App\Models\User::find($msg->sender_id);
-                    $avatar = $sender && isset($sender->image) && $sender->image ? asset('assets/img/users/' . $sender->image) : asset('assets/img/users/profile.jpeg');
-                    $name = $sender ? ($sender->name ?? $sender->username ?? 'User') : 'User';
+                    // If message has subuser_id, show subuser details
+                    if ($msg->subuser_id) {
+                        $sender = \App\Models\Subuser::find($msg->subuser_id);
+                        $avatar = $sender && $sender->image ? asset('assets/img/subusers/' . $sender->image) : asset('assets/img/users/profile.jpeg');
+                        $name = $sender ? $sender->username : 'Subuser';
+                    } elseif ($chat->subuser) {
+                        $sender = $chat->subuser;
+                        $avatar = $sender->image ? asset('assets/img/subusers/' . $sender->image) : asset('assets/img/users/profile.jpeg');
+                        $name = $sender->username;
+                    } else {
+                        $sender = \App\Models\User::find($msg->sender_id);
+                        $avatar = $sender && isset($sender->image) && $sender->image ? asset('assets/img/users/' . $sender->image) : asset('assets/img/users/profile.jpeg');
+                        $name = $sender ? ($sender->name ?? $sender->username ?? 'User') : 'User';
+                    }
                 } elseif ($msg->sender_type === 'seller') {
                     $sender = \App\Models\Seller::find($msg->sender_id);
                     $avatar = $sender && isset($sender->photo) && $sender->photo ? asset('assets/admin/img/seller-photo/' . $sender->photo) : asset('assets/img/users/profile.jpeg');

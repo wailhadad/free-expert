@@ -12,6 +12,7 @@ class DirectChat extends Model
     protected $fillable = [
         'user_id',
         'seller_id',
+        'subuser_id',
     ];
 
     public function user()
@@ -27,5 +28,10 @@ class DirectChat extends Model
     public function messages()
     {
         return $this->hasMany(DirectChatMessage::class, 'chat_id');
+    }
+
+    public function subuser()
+    {
+        return $this->belongsTo(\App\Models\Subuser::class, 'subuser_id');
     }
 }

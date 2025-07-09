@@ -629,7 +629,7 @@ document.getElementById('contact-now-btn')?.addEventListener('click', function()
   .then(res => res.json())
   .then(data => {
     if (data.chat && data.chat.id) {
-      window.openDirectChatModal(data.chat.id, sellerName, sellerAvatar);
+      window.openDirectChatModal(data.chat.id, sellerName, sellerAvatar, data.chat.seller_id);
     } else if (data.error) {
       alert(data.error);
     }

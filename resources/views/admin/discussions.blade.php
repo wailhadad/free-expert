@@ -17,26 +17,39 @@ document.addEventListener('DOMContentLoaded', function() {
       console.log('Admin discussions data:', data);
       const list = document.getElementById('admin-discussions-list');
       list.innerHTML = '';
-      if (!data.chats.length) {
+      // Only show chats with at least one message
+      const nonEmptyChats = data.chats.filter(chat => chat.messages && chat.messages.length > 0);
+      if (!nonEmptyChats.length) {
         list.innerHTML = '<div class="text-muted text-center py-4">No discussions yet.</div>';
         return;
       }
-      data.chats.forEach(chat => {
+      nonEmptyChats.forEach(chat => {
         const user = chat.user;
+        const subuser = chat.subuser;
         const seller = chat.seller;
         const lastMsg = chat.messages && chat.messages.length ? chat.messages[chat.messages.length-1].message : '';
         const item = document.createElement('a');
         item.href = '#';
         item.className = 'list-group-item list-group-item-action d-flex align-items-center gap-3';
+        let userHtml = `<img src="${user?.avatar_url || '/assets/img/default-avatar.png'}" class="rounded-circle" style="width:40px;height:40px;object-fit:cover;">`;
+        let subuserHtml = '';
+        if (subuser) {
+          subuserHtml = `<img src="${subuser.avatar_url || '/assets/img/default-avatar.png'}" class="rounded-circle ms-2" style="width:40px;height:40px;object-fit:cover;">`;
+        }
+        let userLinks = `<a href="/admin/user-management/user/${user?.id}/details" class="username-link">${user?.username || 'User'}</a>`;
+        if (subuser) {
+          userLinks += ` <span class='mx-1'>(as)</span> <a href="/admin/user-management/subuser/${subuser.id}/details" class="username-link">${subuser.username}</a>`;
+        }
         item.innerHTML = `
-          <img src="${user?.avatar_url || '/assets/img/default-avatar.png'}" class="rounded-circle" style="width:40px;height:40px;object-fit:cover;">
+          ${userHtml}
+          ${subuserHtml}
           <span class="mx-2">➔</span>
           <img src="${seller?.avatar_url || '/assets/img/default-avatar.png'}" class="rounded-circle" style="width:40px;height:40px;object-fit:cover;">
           <div class="flex-grow-1">
             <div class="fw-bold">
-              <a href="/admin/user-management/user/${user?.id}/details" class="username-link" target="_blank">${user?.username || 'User'}</a>
+              ${userLinks}
               ➔
-              <a href="/admin/seller-management/seller/${seller?.id}/details?language=en" class="username-link" target="_blank">${seller?.username || 'Seller'}</a>
+              <a href="/admin/seller-management/seller/${seller?.id}/details?language=en" class="username-link">${seller?.username || 'Seller'}</a>
             </div>
             <div class="text-muted small text-truncate">${lastMsg}</div>
           </div>
@@ -47,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
           }
           e.preventDefault();
-          window.openDirectChatModal(chat.id, (user?.username || 'User') + ' ➔ ' + (seller?.username || 'Seller'), user?.avatar_url);
+          window.openDirectChatModal(chat.id, chat.seller?.username, chat.seller?.avatar_url, chat.seller?.id, subuser ? subuser.username : null);
         });
         list.appendChild(item);
       });

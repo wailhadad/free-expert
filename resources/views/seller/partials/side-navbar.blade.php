@@ -13,7 +13,7 @@
         </div>
 
         <div class="info">
-          <a data-toggle="collapse" href="#adminProfileMenu" aria-expanded="true">
+          <a data-bs-toggle="collapse" href="#adminProfileMenu" aria-expanded="true">
             <span>
               {{ Auth::guard('seller')->user()->username }}
               <span class="user-level">Seller</span>
@@ -83,7 +83,7 @@
             @elseif (request()->routeIs('seller.service_management.forms')) active 
             @elseif (request()->routeIs('seller.service_management.form.input')) active 
             @elseif (request()->routeIs('seller.service_management.form.edit_input')) active @endif">
-          <a data-toggle="collapse" href="#service">
+          <a data-bs-toggle="collapse" href="#service">
             <i class="fal fa-headset"></i>
             <p>Service Management</p>
             <span class="caret"></span>
@@ -135,7 +135,7 @@
             @elseif (request()->routeIs('seller.service_order.details')) active 
             @elseif (request()->routeIs('seller.service_order.message')) active 
             @elseif (request()->routeIs('seller.service_orders.report')) active @endif">
-          <a data-toggle="collapse" href="#service_orders">
+          <a data-bs-toggle="collapse" href="#service_orders">
             <i class="far fa-cubes"></i>
             <p>Service Orders</p>
             <span class="caret"></span>
@@ -195,7 +195,7 @@
           <li
             class="nav-item @if (request()->routeIs('seller.qr_codes.generate_code')) active 
     @elseif (request()->routeIs('seller.qr_codes.saved_codes')) active @endif">
-            <a data-toggle="collapse" href="#qr_codes">
+            <a data-bs-toggle="collapse" href="#qr_codes">
               <i class="fal fa-qrcode"></i>
               <p>QR Codes</p>
               <span class="caret"></span>
@@ -232,7 +232,7 @@
         <li
           class="nav-item @if (request()->routeIs('seller.withdraw')) active 
             @elseif (request()->routeIs('seller.withdraw.create'))  active @endif">
-          <a data-toggle="collapse" href="#Withdrawals">
+          <a data-bs-toggle="collapse" href="#Withdrawals">
             <i class="fal fa-donate"></i>
             <p>Withdrawals</p>
             <span class="caret"></span>
@@ -278,7 +278,7 @@
             class="nav-item @if (request()->routeIs('seller.support_tickets')) active
             @elseif (request()->routeIs('seller.support_tickets.message')) active
             @elseif (request()->routeIs('seller.support_ticket.create')) active @endif">
-            <a data-toggle="collapse" href="#support_ticket">
+            <a data-bs-toggle="collapse" href="#support_ticket">
               <i class="la flaticon-web-1"></i>
               <p>Support Tickets</p>
               <span class="caret"></span>

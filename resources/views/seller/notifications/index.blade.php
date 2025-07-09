@@ -86,15 +86,21 @@
                 <div class="notif-card{{ $notification->read_at ? ' read' : '' }} notif-clickable" style="cursor:pointer;"
                     onclick="if(!event.target.closest('button')){window.location.href='{{ $notification->data['url'] ?? '#' }}';}">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="fw-semibold" style="font-size: 1.1rem;">
-                                {{ $notification->data['title'] ?? 'Notification' }}
-                            </div>
-                            <div style="color: #555; font-size: 0.98rem;">
-                                {{ $notification->data['body'] ?? $notification->data['message'] ?? '' }}
-                            </div>
-                            <div style="color: #888; font-size: 0.85rem;">
-                                {{ $notification->created_at->diffForHumans() }}
+                        <div class="d-flex align-items-center gap-3">
+                            <img src="{{ $notification->data['extra']['user_avatar'] ?? '/assets/img/users/profile.jpeg' }}" class="rounded-circle" style="width:40px;height:40px;object-fit:cover;">
+                            <div>
+                                <div class="fw-semibold" style="font-size: 1.1rem;">
+                                    {{ $notification->data['title'] ?? 'Notification' }}
+                                </div>
+                                <div style="color: #555; font-size: 0.98rem;">
+                                    {{ $notification->data['body'] ?? $notification->data['message'] ?? '' }}
+                                    @if(isset($notification->data['extra']['user_name']))
+                                        <span class="fw-bold">{{ $notification->data['extra']['user_name'] }}</span>
+                                    @endif
+                                </div>
+                                <div style="color: #888; font-size: 0.85rem;">
+                                    {{ $notification->created_at->diffForHumans() }}
+                                </div>
                             </div>
                         </div>
                         <div class="notif-actions">

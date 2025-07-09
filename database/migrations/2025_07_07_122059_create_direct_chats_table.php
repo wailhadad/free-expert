@@ -17,10 +17,12 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('seller_id');
+            $table->unsignedBigInteger('subuser_id')->nullable();
             $table->timestamps();
-            $table->unique(['user_id', 'seller_id']);
+            $table->unique(['user_id', 'seller_id', 'subuser_id'], 'direct_chats_user_seller_subuser_unique');
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('seller_id')->references('id')->on('sellers')->onDelete('cascade');
+            $table->foreign('subuser_id')->references('id')->on('subusers')->onDelete('set null');
         });
     }
 

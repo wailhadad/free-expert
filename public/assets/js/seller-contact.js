@@ -42,19 +42,3 @@ $('body').on('submit', '#sellerContactForm', function (e) {
     }
   })
 });
-
-window.openDirectChatModal = function(chatId, partnerName, partnerAvatar) {
-  // Set partner name
-  document.getElementById('direct-chat-partner-name').textContent = partnerName || 'Chat';
-  // Set partner avatar
-  var avatarElem = document.getElementById('direct-chat-partner-avatar');
-  if (avatarElem) {
-    avatarElem.innerHTML = partnerAvatar ? '<img src="' + partnerAvatar + '" style="width:100%;height:100%;object-fit:cover;">' : '';
-  }
-  // Clear previous messages (optional, or you can load chat history here)
-  var messagesElem = document.getElementById('direct-chat-messages');
-  if (messagesElem) messagesElem.innerHTML = '';
-  // Open the modal (Bootstrap 5)
-  var modal = new bootstrap.Modal(document.getElementById('directChatModal'));
-  modal.show();
-};

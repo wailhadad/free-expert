@@ -5,8 +5,8 @@
 
 {{-- core js files --}}
 <script type="text/javascript" src="{{ asset('assets/js/jquery-3.7.1.min.js') }}"></script>
-<script type="text/javascript" src="{{ asset('assets/js/popper.min.js') }}"></script>
-<script type="text/javascript" src="{{ asset('assets/js/bootstrap.min.js') }}"></script>
+<!-- Bootstrap 5 bundle (includes Popper) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 {{-- jQuery ui --}}
 <script type="text/javascript" src="{{ asset('assets/js/jquery-ui.min.js') }}"></script>

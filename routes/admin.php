@@ -783,6 +783,12 @@ Route::prefix('/admin')->middleware('auth:admin', 'Demo')->group(function () {
   });
   // user management route end
 
+  // Admin Subuser management routes
+  Route::prefix('user-management/subuser')->group(function () {
+      Route::get('/{id}/details', 'BackEnd\User\SubuserController@show')->name('admin.user_management.subuser.details');
+      Route::match(['get', 'post'], '/{id}/edit', 'BackEnd\User\SubuserController@edit')->name('admin.user_management.subuser.edit');
+      Route::post('/{id}/delete', 'BackEnd\User\SubuserController@destroy')->name('admin.user_management.subuser.destroy');
+  });
   // seller management route start
   Route::prefix('/seller-management')->middleware('permission:Sellers Management')->group(function () {
     Route::get('/settings', 'BackEnd\SellerManagementController@settings')->name('admin.seller_management.settings');

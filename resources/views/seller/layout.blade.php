@@ -22,6 +22,7 @@
 
   {{-- include styles --}}
   @includeIf('seller.partials.styles')
+  <link rel="stylesheet" href="{{ asset('assets/css/sidebar-fix.css') }}">
 
   {{-- additional style --}}
   @yield('style')

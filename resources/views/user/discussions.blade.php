@@ -27,7 +27,17 @@ document.addEventListener('DOMContentLoaded', function() {
         list.innerHTML = '<div class="text-muted text-center py-4">No discussions yet.</div>';
         return;
       }
-      data.chats.forEach(chat => {
+      // Deduplicate by seller.id, keeping only the most recent chat per seller
+      const seenSellers = new Set();
+      const uniqueChats = [];
+      for (const chat of data.chats) {
+        const sellerId = chat.seller && chat.seller.id;
+        if (sellerId && !seenSellers.has(sellerId)) {
+          seenSellers.add(sellerId);
+          uniqueChats.push(chat);
+        }
+      }
+      uniqueChats.forEach(chat => {
         const seller = chat.seller;
         const lastMsg = chat.messages && chat.messages.length ? chat.messages[chat.messages.length-1].message : '';
         const item = document.createElement('a');
@@ -42,7 +52,10 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         item.addEventListener('click', function(e) {
           e.preventDefault();
-          window.openDirectChatModal(chat.id, seller.username, seller.avatar_url);
+          // Set the correct subuser context before opening the modal
+          console.log('Opening chat with subuser_id:', chat.subuser_id, 'subuser:', chat.subuser);
+          window.currentDirectSubuserId = chat.subuser_id || null;
+          window.openDirectChatModal(chat.id, seller.username, seller.avatar_url, seller.id, chat.subuser_id || null);
         });
         list.appendChild(item);
       });

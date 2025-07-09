@@ -142,4 +142,69 @@
       </div>
     </div>
   </div>
+  {{-- Subusers Section --}}
+  <div class="row mt-4">
+    <div class="col-md-12">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">{{ __('Subusers') }}</div>
+        </div>
+        <div class="card-body">
+          @if (count($subusers) == 0)
+            <div class="text-center text-muted py-4">{{ __('No subusers found for this user.') }}</div>
+          @else
+            <div class="table-responsive">
+              <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>{{ __('Image') }}</th>
+                    <th>{{ __('Username') }}</th>
+                    <th>{{ __('Name') }}</th>
+                    <th>{{ __('Status') }}</th>
+                    <th>{{ __('Created') }}</th>
+                    <th>{{ __('Actions') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @foreach ($subusers as $subuser)
+                  <tr>
+                    <td>
+                      @if($subuser->image)
+                        <img src="{{ asset('assets/img/subusers/' . $subuser->image) }}" alt="{{ $subuser->username }}" class="rounded-circle" width="40" height="40">
+                      @else
+                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                          <i class="fas fa-user text-black"></i>
+                        </div>
+                      @endif
+                    </td>
+                    <td><strong>{{ $subuser->username }}</strong></td>
+                    <td>{{ $subuser->full_name }}</td>
+                    <td>
+                      @if($subuser->status)
+                        <span class="badge badge-success text-black">{{ __('Active') }}</span>
+                      @else
+                        <span class="badge badge-danger text-black">{{ __('Inactive') }}</span>
+                      @endif
+                    </td>
+                    <td>{{ $subuser->created_at->format('M d, Y') }}</td>
+                    <td>
+                      <div class="btn-group" role="group">
+                        <a href="{{ route('admin.user_management.subuser.details', $subuser->id) }}" class="btn btn-sm btn-info" title="{{ __('Details') }}"><i class="fas fa-eye"></i></a>
+                        <a href="{{ route('admin.user_management.subuser.edit', $subuser->id) }}" class="btn btn-sm btn-warning" title="{{ __('Edit') }}"><i class="fas fa-edit"></i></a>
+                        <form action="{{ route('admin.user_management.subuser.destroy', $subuser->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('{{ __('Are you sure you want to delete this subuser?') }}')">
+                          @csrf
+                          <button type="submit" class="btn btn-sm btn-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                  @endforeach
+                </tbody>
+              </table>
+            </div>
+          @endif
+        </div>
+      </div>
+    </div>
+  </div>
 @endsection

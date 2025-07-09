@@ -13,6 +13,7 @@ class DirectChatMessage extends Model
         'chat_id',
         'sender_id',
         'sender_type',
+        'subuser_id',
         'message',
         'read_at',
         'file_name',

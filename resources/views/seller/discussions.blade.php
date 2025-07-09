@@ -17,11 +17,13 @@ document.addEventListener('DOMContentLoaded', function() {
       console.log('Seller discussions data:', data);
       const list = document.getElementById('seller-discussions-list');
       list.innerHTML = '';
-      if (!data.chats.length) {
+      // Only show chats with at least one message
+      const nonEmptyChats = data.chats.filter(chat => chat.messages && chat.messages.length > 0);
+      if (!nonEmptyChats.length) {
         list.innerHTML = '<div class="text-muted text-center py-4">No discussions yet.</div>';
         return;
       }
-      data.chats.forEach(chat => {
+      nonEmptyChats.forEach(chat => {
         const user = chat.user;
         const lastMsg = chat.messages && chat.messages.length ? chat.messages[chat.messages.length-1].message : '';
         const item = document.createElement('a');
@@ -36,7 +38,8 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         item.addEventListener('click', function(e) {
           e.preventDefault();
-          window.openDirectChatModal(chat.id, user?.username, user?.avatar_url);
+          // Show user/subuser details in the chat header for seller view
+          window.openDirectChatModal(chat.id, user?.username, user?.avatar_url, chat.seller?.id, user?.username);
         });
         list.appendChild(item);
       });

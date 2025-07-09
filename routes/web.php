@@ -422,3 +422,15 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
         return view('admin.discussions');
     })->name('admin.discussions');
 });
+
+Route::middleware(['auth:web'])->group(function () {
+    Route::get('user/subusers/json', [\App\Http\Controllers\FrontEnd\SubuserController::class, 'listJson'])->name('user.subusers.json');
+});
+
+// Test route for logging
+Route::get('/test-log', function() {
+    \Log::info('Test log message in English');
+    \Log::warning('Test warning message in English');
+    \Log::error('Test error message in English');
+    return response()->json(['message' => 'Log test completed']);
+});
