@@ -1,0 +1,4 @@
+.sidebar .nav>.nav-item a[data-bs-toggle=collapse][aria-expanded="true"] .caret {
+  -webkit-transform: rotate(-180deg);
+  transform: rotate(-180deg);
+} 
