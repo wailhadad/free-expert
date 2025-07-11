@@ -66,10 +66,17 @@
                   </li>
                 @endif
               @endforeach
-              @include('components.notification-bell')
             </ul>
           </div>
           <div class="more-option mobile-item">
+            <div class="item d-flex align-items-center gap-2">
+              <a href="#searchBox" class="btn-search btn-icon rounded-1" target="_self" aria-label="Search Form"
+                title="Search Form" data-effect="mfp-zoom-in">
+                <i class="far fa-search"></i>
+              </a>
+              @include('components.discussion-envelope')
+              @include('components.notification-bell')
+            </div>
             @if ($basicInfo->is_language == 1)
               <div class="item">
                 <div class="language">
@@ -86,27 +93,23 @@
               </div>
             @endif
             <div class="item">
-              <a href="#searchBox" class="btn-search btn-icon rounded-1" target="_self" aria-label="Search Form"
-                title="Search Form" data-effect="mfp-zoom-in">
-                <i class="far fa-search"></i>
-              </a>
-
-              <div id="searchBox" class="search-box mx-auto mfp-with-anim mfp-hide mt-30">
-                <form action="{{ route('services') }}" method="GET">
-                  <div class="input-inline p-1 border radius-sm">
-                    <input class="form-control border-0 color-light" placeholder="{{ __('Search Service') . '...' }}"
-                      type="text" name="keyword">
-                    <button class="btn-icon radius-sm" type="submit" aria-label="button">
-                      <i class="far fa-search"></i>
-                    </button>
+              @auth('web')
+                <div class="dropdown">
+                  <a class="dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="avatar-sm me-2">
+                      <img src="{{ is_null(Auth::guard('web')->user()->image) ? asset('assets/img/profile.jpg') : asset('assets/img/users/' . Auth::guard('web')->user()->image) }}" alt="user avatar" class="rounded-circle" width="36" height="36">
+                    </span>
+                    <span>{{ Auth::guard('web')->user()->username ?? Auth::guard('web')->user()->first_name }}</span>
+                  </a>
+                  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                    <li><a class="dropdown-item" href="{{ route('user.edit_profile') }}">{{ __('Edit Profile') }}</a></li>
+                    <li><a class="dropdown-item" href="{{ route('user.change_password') }}">{{ __('Change Password') }}</a></li>
+                    <li><a class="dropdown-item" href="{{ route('user.logout') }}">{{ __('Logout') }}</a></li>
+                  </ul>
                   </div>
-                </form>
-              </div>
-            </div>
-            <div class="item">
+              @else
               <div class="dropdown">
-                <button class="btn btn-sm btn-outline rounded-1 dropdown-toggle" type="button"
-                  data-bs-toggle="dropdown" aria-expanded="false">
+                  <button class="btn btn-sm btn-outline rounded-1 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                   <span>{{ __('Seller') }}</span>
                 </button>
                 <ul class="dropdown-menu">
@@ -120,11 +123,8 @@
                   @endauth
                 </ul>
               </div>
-            </div>
-            <div class="item">
               <div class="dropdown">
-                <button class="btn btn-sm btn-primary rounded-1 dropdown-toggle" type="button"
-                  data-bs-toggle="dropdown" aria-expanded="false">
+                  <button class="btn btn-sm btn-primary rounded-1 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                   <span>{{ __('Customer') }}</span>
                 </button>
                 <ul class="dropdown-menu">
@@ -138,6 +138,7 @@
                   @endauth
                 </ul>
               </div>
+              @endauth
             </div>
           </div>
         </nav>

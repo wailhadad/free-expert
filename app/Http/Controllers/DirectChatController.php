@@ -53,6 +53,43 @@ class DirectChatController extends Controller
                 'subuser_id' => $subuserId,
             ]);
             \Log::info('DirectChat chat created/found successfully', ['chat_id' => $chat->id]);
+
+            // Broadcast only if this is a new chat (was just created)
+            if ($chat->wasRecentlyCreated) {
+                // Prepare discussion data for frontend
+                $discussionData = [
+                    'id' => $chat->id,
+                    'user_id' => $chat->user_id,
+                    'seller_id' => $chat->seller_id,
+                    'subuser_id' => $chat->subuser_id,
+                    'created_at' => $chat->created_at,
+                    'updated_at' => $chat->updated_at,
+                    'type' => Auth::guard('web')->check() ? 'user' : (Auth::guard('seller')->check() ? 'seller' : (Auth::guard('admin')->check() ? 'admin' : 'unknown')),
+                ];
+                // Optionally, eager load user/seller/subuser for richer data
+                $chat->load(['user', 'seller', 'subuser']);
+                $discussionData['user'] = $chat->user ? [
+                    'id' => $chat->user->id,
+                    'username' => $chat->user->username,
+                    'avatar_url' => $chat->user->avatar_url ?? asset('assets/img/default-avatar.png'),
+                ] : null;
+                $discussionData['seller'] = $chat->seller ? [
+                    'id' => $chat->seller->id,
+                    'username' => $chat->seller->username,
+                    'avatar_url' => $chat->seller->avatar_url ?? asset('assets/img/default-avatar.png'),
+                ] : null;
+                $discussionData['subuser'] = $chat->subuser ? [
+                    'id' => $chat->subuser->id,
+                    'username' => $chat->subuser->username,
+                    'avatar_url' => $chat->subuser->image ? asset('assets/img/subusers/' . $chat->subuser->image) : asset('assets/img/users/profile.jpeg'),
+                ] : null;
+                // Broadcast via Pusher
+                $pusher = new \Pusher\Pusher(config('broadcasting.connections.pusher.key'), config('broadcasting.connections.pusher.secret'), config('broadcasting.connections.pusher.app_id'), [
+                    'cluster' => config('broadcasting.connections.pusher.options.cluster'),
+                    'useTLS' => true,
+                ]);
+                $pusher->trigger('discussion-channel', 'discussion.started', $discussionData);
+            }
             return response()->json([
                 'chat' => [
                     'id' => $chat->id,
@@ -78,7 +115,33 @@ class DirectChatController extends Controller
     {
         $user = Auth::guard('web')->user();
         if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
-        $chats = DirectChat::with('seller')->where('user_id', $user->id)->latest('updated_at')->get();
+        $chats = DirectChat::with(['seller', 'messages', 'subuser'])->where('user_id', $user->id)->latest('updated_at')->get();
+        $chats = $chats->map(function($chat) use ($user) {
+            // Group unread counts by subuser_id (null for main user)
+            $unreadBySubuser = $chat->messages()
+                ->whereNull('read_at')
+                ->where('sender_type', '!=', 'user')
+                ->get()
+                ->groupBy('subuser_id')
+                ->map(function($msgs, $subuserId) {
+                    return $msgs->count();
+                });
+            $subusers = [];
+            foreach ($unreadBySubuser as $subuserId => $count) {
+                $subuser = $subuserId ? \App\Models\Subuser::find($subuserId) : null;
+                $subusers[] = [
+                    'id' => $subuserId,
+                    'username' => $subuser ? $subuser->username : $user->username,
+                    'avatar_url' => $subuser ? ($subuser->image ? asset('assets/img/subusers/' . $subuser->image) : asset('assets/img/users/profile.jpeg')) : ($user->image ? asset('assets/img/users/' . $user->image) : asset('assets/img/users/profile.jpeg')),
+                    'unread_count' => $count,
+                ];
+            }
+            $globalUnread = $unreadBySubuser->sum();
+            $chatArr = $chat->toArray();
+            $chatArr['subusers'] = $subusers;
+            $chatArr['unread_count'] = $globalUnread;
+            return $chatArr;
+        });
         return response()->json(['chats' => $chats]);
     }
 
@@ -87,9 +150,38 @@ class DirectChatController extends Controller
     {
         $seller = Auth::guard('seller')->user();
         if (!$seller) return response()->json(['error' => 'Unauthorized'], 401);
-        $chats = DirectChat::with(['user', 'subuser'])->where('seller_id', $seller->id)->latest('updated_at')->get();
-        // For each chat, return subuser details if present, else user details
-        $chats = $chats->map(function($chat) {
+        
+        // Get chats that have at least one message
+        $chats = DirectChat::with(['user', 'messages', 'subuser'])
+            ->where('seller_id', $seller->id)
+            ->whereHas('messages') // Only include chats with messages
+            ->latest('updated_at')
+            ->get();
+        
+        $chats = $chats->map(function($chat) use ($seller) {
+            // Group unread counts by subuser_id (null for main user)
+            $unreadBySubuser = $chat->messages()
+                ->whereNull('read_at')
+                ->where('sender_type', '!=', 'seller')
+                ->get()
+                ->groupBy('subuser_id')
+                ->map(function($msgs, $subuserId) {
+                    return $msgs->count();
+                });
+            
+            $subusers = [];
+            foreach ($unreadBySubuser as $subuserId => $count) {
+                $subuser = $subuserId ? \App\Models\Subuser::find($subuserId) : null;
+                $mainUser = $chat->user;
+                $subusers[] = [
+                    'id' => $subuserId,
+                    'username' => $subuser ? $subuser->username : $mainUser->username,
+                    'avatar_url' => $subuser ? ($subuser->image ? asset('assets/img/subusers/' . $subuser->image) : asset('assets/img/users/profile.jpeg')) : ($mainUser->image ? asset('assets/img/users/' . $mainUser->image) : asset('assets/img/users/profile.jpeg')),
+                    'unread_count' => $count,
+                ];
+            }
+            
+            $globalUnread = $unreadBySubuser->sum();
             $lastMsg = $chat->messages->last();
             $user = null;
             $isSubuser = false;
@@ -102,6 +194,7 @@ class DirectChatController extends Controller
             } else {
                 $user = $chat->user;
             }
+            
             return [
                 'id' => $chat->id,
                 'user' => [
@@ -111,6 +204,8 @@ class DirectChatController extends Controller
                         ? ($user->image ? asset('assets/img/subusers/' . $user->image) : asset('assets/img/users/profile.jpeg'))
                         : ($user->image ? asset('assets/img/users/' . $user->image) : asset('assets/img/users/profile.jpeg')),
                 ],
+                'subusers' => $subusers,
+                'unread_count' => $globalUnread,
                 'messages' => $chat->messages,
             ];
         });
@@ -120,9 +215,36 @@ class DirectChatController extends Controller
     // List all chats for admin
     public function listForAdmin()
     {
-        $chats = DirectChat::with(['user', 'seller', 'subuser'])->latest('updated_at')->get();
-        // For each chat, return user, subuser (if any), and seller details
+        // Get chats that have at least one message
+        $chats = DirectChat::with(['user', 'seller', 'subuser', 'messages'])
+            ->whereHas('messages') // Only include chats with messages
+            ->latest('updated_at')
+            ->get();
+        
         $chats = $chats->map(function($chat) {
+            // Group unread counts by subuser_id (null for main user)
+            $unreadBySubuser = $chat->messages()
+                ->whereNull('read_at')
+                ->get()
+                ->groupBy('subuser_id')
+                ->map(function($msgs, $subuserId) {
+                    return $msgs->count();
+                });
+            
+            $subusers = [];
+            foreach ($unreadBySubuser as $subuserId => $count) {
+                $subuser = $subuserId ? \App\Models\Subuser::find($subuserId) : null;
+                $mainUser = $chat->user;
+                $subusers[] = [
+                    'id' => $subuserId,
+                    'username' => $subuser ? $subuser->username : $mainUser->username,
+                    'avatar_url' => $subuser ? ($subuser->image ? asset('assets/img/subusers/' . $subuser->image) : asset('assets/img/users/profile.jpeg')) : ($mainUser->image ? asset('assets/img/users/' . $mainUser->image) : asset('assets/img/users/profile.jpeg')),
+                    'unread_count' => $count,
+                ];
+            }
+            
+            $globalUnread = $unreadBySubuser->sum();
+            
             return [
                 'id' => $chat->id,
                 'user' => $chat->user ? [
@@ -140,9 +262,100 @@ class DirectChatController extends Controller
                     'username' => $chat->seller->username,
                     'avatar_url' => $chat->seller->image ? asset('assets/img/sellers/' . $chat->seller->image) : asset('assets/img/users/profile.jpeg'),
                 ] : null,
+                'subusers' => $subusers,
+                'unread_count' => $globalUnread,
                 'messages' => $chat->messages,
             ];
         });
         return response()->json(['chats' => $chats]);
+    }
+
+    // Get unread direct chat messages count for the authenticated user
+    public function unreadCount()
+    {
+        // Determine which guard is being used
+        if (Auth::guard('web')->check()) {
+            $user = Auth::guard('web')->user();
+            if (!$user) return response()->json(['count' => 0]);
+            $count = \App\Models\DirectChatMessage::whereHas('chat', function($q) use ($user) {
+                $q->where('user_id', $user->id);
+            })->whereNull('read_at')->where('sender_type', '!=', 'user')->count();
+        } elseif (Auth::guard('seller')->check()) {
+            $seller = Auth::guard('seller')->user();
+            if (!$seller) return response()->json(['count' => 0]);
+            $count = \App\Models\DirectChatMessage::whereHas('chat', function($q) use ($seller) {
+                $q->where('seller_id', $seller->id);
+            })->whereNull('read_at')->where('sender_type', '!=', 'seller')->count();
+        } elseif (Auth::guard('admin')->check()) {
+            // Admin can see all unread messages
+            $count = \App\Models\DirectChatMessage::whereNull('read_at')->count();
+        } else {
+            return response()->json(['count' => 0]);
+        }
+        return response()->json(['count' => $count]);
+    }
+
+    // Mark all messages as read for a given chat and subuser (for the authenticated user)
+    public function markSubuserMessagesRead(Request $request)
+    {
+        $chatId = $request->input('chat_id');
+        $subuserId = $request->input('subuser_id'); // can be null for main user
+        if (!$chatId) return response()->json(['error' => 'chat_id required'], 422);
+        
+        // Determine which guard is being used and get the appropriate user/seller
+        if (Auth::guard('web')->check()) {
+            $user = Auth::guard('web')->user();
+            if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
+            $chat = \App\Models\DirectChat::where('id', $chatId)->where('user_id', $user->id)->first();
+            if (!$chat) return response()->json(['error' => 'Chat not found'], 404);
+            $messages = $chat->messages()
+                ->whereNull('read_at')
+                ->where('sender_type', '!=', 'user')
+                ->where('subuser_id', $subuserId)
+                ->get();
+            // Mark related notifications as read
+            $notificationQuery = $user->unreadNotifications()->where('type', 'App\\Notifications\\DirectChatNotification');
+            if ($subuserId) {
+                $notificationQuery->whereJsonContains('data->chat_id', $chatId)->whereJsonContains('data->subuser_id', $subuserId);
+            } else {
+                $notificationQuery->whereJsonContains('data->chat_id', $chatId)->whereNull('data->subuser_id');
+            }
+            $notificationQuery->update(['read_at' => now()]);
+        } elseif (Auth::guard('seller')->check()) {
+            $seller = Auth::guard('seller')->user();
+            if (!$seller) return response()->json(['error' => 'Unauthorized'], 401);
+            $chat = \App\Models\DirectChat::where('id', $chatId)->where('seller_id', $seller->id)->first();
+            if (!$chat) return response()->json(['error' => 'Chat not found'], 404);
+            $messages = $chat->messages()
+                ->whereNull('read_at')
+                ->where('sender_type', '!=', 'seller')
+                ->where('subuser_id', $subuserId)
+                ->get();
+            // Mark related notifications as read
+            $notificationQuery = $seller->unreadNotifications()->where('type', 'App\\Notifications\\DirectChatNotification');
+            if ($subuserId) {
+                $notificationQuery->whereJsonContains('data->chat_id', $chatId)->whereJsonContains('data->subuser_id', $subuserId);
+            } else {
+                $notificationQuery->whereJsonContains('data->chat_id', $chatId)->whereNull('data->subuser_id');
+            }
+            $notificationQuery->update(['read_at' => now()]);
+        } elseif (Auth::guard('admin')->check()) {
+            // Admin can mark any chat as read
+            $chat = \App\Models\DirectChat::where('id', $chatId)->first();
+            if (!$chat) return response()->json(['error' => 'Chat not found'], 404);
+            $messages = $chat->messages()
+                ->whereNull('read_at')
+                ->where('subuser_id', $subuserId)
+                ->get();
+        } else {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        
+        foreach ($messages as $msg) {
+            $msg->read_at = now();
+            $msg->save();
+        }
+        
+        return response()->json(['success' => true]);
     }
 }

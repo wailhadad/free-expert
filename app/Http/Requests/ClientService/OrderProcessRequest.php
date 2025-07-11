@@ -31,8 +31,9 @@ class OrderProcessRequest extends FormRequest
     $inputFields = $form->input()->orderBy('order_no', 'asc')->get();
 
     $ruleArray = [
-      'name' => 'required',
-      'email_address' => 'required|email:rfc,dns',
+      //'name' => 'required',
+      //'email_address' => 'required|email:rfc,dns',
+      'subuser_id' => 'nullable|integer|exists:subusers,id',
       'phone_number' => $this->gateway == 'iyzico' ? 'required' : '',
       'identity_number' => $this->gateway == 'iyzico' ? 'required' : '',
       'city' => $this->gateway == 'iyzico' ? 'required' : '',

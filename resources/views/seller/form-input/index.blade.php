@@ -54,40 +54,12 @@
         <div class="card-body">
           <div class="row">
             <div class="col">
-              <p class="text-warning">
-                {{ '*' . __('Do not create') }} <span class="text-info">{{ __('Name, Email & Phone Number') }}</span>
-                {{ __('input field, it will be in the form by default.') }}<br>
-                {{ '*' . __('Drag & drop to sort the input fields of this form.') }}
-              </p>
+              <!-- Removed default fields and warning message about Name, Email & Phone Number being included by default -->
             </div>
           </div>
 
           <div class="row">
             <div class="col">
-              <div class="ui-state-default ui-state-disabled">
-                <div class="form-group">
-                  <label>{{ __('Name') . '*' }}</label>
-                  <div class="row">
-                    <div class="col-lg-9">
-                      <input type="text" class="form-control" name="name"
-                        placeholder="{{ __('Enter Your Full Name') }}">
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="ui-state-default ui-state-disabled">
-                <div class="form-group">
-                  <label>{{ __('Email Address') . '*' }}</label>
-                  <div class="row">
-                    <div class="col-lg-9">
-                      <input type="email" class="form-control" name="email_address"
-                        placeholder="{{ __('Enter Your Email Address') }}">
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               @if (count($inputFields) > 0)
                 <div id="sort-content">
                   @foreach ($inputFields as $inputField)

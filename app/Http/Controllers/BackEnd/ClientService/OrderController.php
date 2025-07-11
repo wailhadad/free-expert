@@ -212,10 +212,15 @@ class OrderController extends Controller
         }
 
         // Send email to customer
+        // Always send to main user's email_address, even if order has subuser_id
+        $mainUser = $order->user;
+        $recipientEmail = ($mainUser && !empty($mainUser->email_address)) ? $mainUser->email_address : null;
+
+        if ($recipientEmail) {
         $mailData = [
           'subject' => 'Notification of payment status',
           'body' => 'Hi ' . $order->name . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg,
-          'recipient' => $order->email_address,
+            'recipient' => $recipientEmail,
           'sessionMessage' => 'Payment status updated & mail has been sent successfully!',
         ];
 
@@ -230,14 +235,21 @@ class OrderController extends Controller
           BasicMailer::sendMail($mailData);
           \Log::info('AdminOrderPayment: Email sent via SMTP', [
             'order_id' => $order->id,
-            'recipient' => $order->email_address,
+              'recipient' => $recipientEmail,
             'smtp_host' => $smtpInfo->smtp_host
           ]);
         } else {
           \Log::warning('AdminOrderPayment: SMTP not configured, email not sent', [
             'order_id' => $order->id,
-            'recipient' => $order->email_address,
+              'recipient' => $recipientEmail,
             'smtp_status' => $smtpInfo ? $smtpInfo->smtp_status : 'null'
+            ]);
+          }
+        } else {
+          \Log::warning('Order email not sent: No valid recipient email for order', [
+            'order_id' => $order->id,
+            'user_id' => $order->user_id,
+            'subuser_id' => $order->subuser_id,
           ]);
         }
         

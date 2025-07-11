@@ -62,7 +62,11 @@
 }
 .notification-bell .bell-icon-wrapper {
     position: relative;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    width: 32px;
+    justify-content: center;
 }
 .notification-bell .dropdown-toggle {
     font-size: 1.25em;
@@ -79,6 +83,7 @@
 .notification-bell .notif-chevron {
     color: {{ $mainColor }} !important;
     transition: color 0.2s;
+    font-size: 1.15em;
 }
 .notification-bell .dropdown-toggle:hover .fa-bell,
 .notification-bell .dropdown-toggle:focus .fa-bell,
@@ -91,6 +96,8 @@
     filter: none;
     text-shadow: none;
     font-size: 1.15em;
+    width: 1.35em;
+    height: 1.35em;
 }
 .notification-bell .notif-chevron {
     margin-left: 0.12em;
@@ -145,12 +152,12 @@
 }
 .notification-bell .bell-badge {
     position: absolute;
-    top: -0.45em;
-    right: -0.25em;
-    min-width: 1.3em;
-    height: 1.3em;
-    line-height: 1.3em;
-    font-size: 0.95em;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    line-height: 18px;
+    font-size: 12px;
     border-radius: 50%;
     font-weight: 700;
     background: #e11d48;
@@ -162,17 +169,18 @@
     border: 2px solid #fff;
     box-shadow: 0 2px 8px rgba(220,53,69,0.18);
     pointer-events: none;
+    padding: 0 4px;
     transition: background 0.18s, color 0.18s, box-shadow 0.18s;
 }
 @media (max-width: 700px) {
     .notification-bell .bell-badge {
-        font-size: 0.85em;
-        min-width: 1em;
-        height: 1em;
-        line-height: 1em;
+        font-size: 10px;
+        min-width: 14px;
+        height: 14px;
+        line-height: 14px;
         border-width: 1.5px;
-        top: -0.3em;
-        right: -0.2em;
+        top: -4px;
+        right: -4px;
     }
 }
 /* Move seller/admin dropdown to the left */
@@ -313,9 +321,9 @@ li.notification-bell-wrapper .dropdown-menu .dropdown-divider {
         $bs = DB::table('basic_settings')->select('pusher_key', 'pusher_cluster')->first();
     @endphp
 <!-- Notification bell and dropdown, Alpine.js only, no Bootstrap dropdown attributes -->
-<li class="nav-item notification-bell-wrapper @if(in_array($guard, ['seller','admin'])) seller-admin @endif" style="list-style:none;" x-data="{ open: false }" @click.away="open = false">
+<li class="nav-item notification-bell-wrapper notification-bell @if(in_array($guard, ['seller','admin'])) seller-admin @endif" style="list-style:none;" x-data="{ open: false }" @click.away="open = false">
     <a class="nav-link position-relative d-flex align-items-center" href="#" @click.prevent="open = !open" aria-expanded="false" tabindex="0">
-        <span class="bell-icon-wrapper" style="position:relative;display:inline-block;">
+        <span class="bell-icon-wrapper">
             @if($isUser)
                 <svg xmlns="http://www.w3.org/2000/svg" width="1.15em" height="1.15em" fill="none" stroke="{{ $mainColor }}" stroke-width="1.7" class="bi bi-bell fs-5" viewBox="0 0 16 16" style="vertical-align:middle;">
                     <path d="M8 16a2 2 0 0 0 1.985-1.75H6.015A2 2 0 0 0 8 16zm.104-14.804A1.5 1.5 0 0 0 5.5 2c0 .628-.134 1.197-.356 1.684C4.21 4.68 3 6.07 3 8v3.086l-.707.707A1 1 0 0 0 3 13h10a1 1 0 0 0 .707-1.707L13 11.086V8c0-1.93-1.21-3.32-2.144-4.316A3.01 3.01 0 0 0 10.5 2a1.5 1.5 0 0 0-2.396-.804z"/>

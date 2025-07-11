@@ -53,8 +53,8 @@ class OrderProcessController extends Controller
     $allData = [
       'userId' => Auth::guard('web')->user()->id,
       'orderNumber' => uniqid(),
-      'name' => $request['name'],
-      'emailAddress' => $request['email_address']
+      'name' => Auth::guard('web')->user()->first_name . ' ' . Auth::guard('web')->user()->last_name,
+      'emailAddress' => Auth::guard('web')->user()->email ?? '',
     ];
 
     // get service-package information
@@ -148,6 +148,17 @@ class OrderProcessController extends Controller
     } else {
       $allData['infos'] = null;
     }
+
+    // Set subuser_id for all order types (both quote and payment gateway)
+    $selected_service = Service::where('id', $allData['serviceId'])->select('seller_id')->first();
+    $allData['seller_id'] = $selected_service->seller_id == 0 ? null : $selected_service->seller_id;
+    $allData['subuser_id'] = $request->filled('subuser_id') ? $request->input('subuser_id') : null;
+    \Log::info('Order Process - subuser_id received:', [
+      'raw_input' => $request->input('subuser_id'),
+      'filled_check' => $request->filled('subuser_id'),
+      'final_value' => $allData['subuser_id']
+    ]);
+
     if ($request['quote_btn_status'] == 1) {
       $allData['currencyText'] = null;
       $allData['currencyTextPosition'] = null;
@@ -159,8 +170,6 @@ class OrderProcessController extends Controller
       $allData['gatewayType'] = null;
       $allData['paymentStatus'] = 'pending';
       $allData['orderStatus'] = 'pending';
-      $selected_service = Service::where('id', $allData['serviceId'])->select('seller_id')->first();
-      $allData['seller_id'] = $selected_service->seller_id == 0 ? null : $selected_service->seller_id;
       // store service order information in database
       $this->storeData($allData);
 
@@ -257,6 +266,10 @@ class OrderProcessController extends Controller
 
   public function storeData($data)
   {
+    \Log::info('StoreData - subuser_id being saved:', [
+      'subuser_id' => $data['subuser_id'] ?? null,
+      'data_keys' => array_keys($data)
+    ]);
     if (!is_null($data['seller_id'])) {
       $currentMembership = SellerPermissionHelper::userPackage($data['seller_id']);
       $seller_membership_id = $currentMembership->id;
@@ -265,7 +278,7 @@ class OrderProcessController extends Controller
     }
     $orderInfo = ServiceOrder::query()->create([
       'user_id' => $data['userId'],
-      'subuser_id' => array_key_exists('subuser_id', $data) ? $data['subuser_id'] : null,
+      'subuser_id' => $data['subuser_id'] ?? null,
       'seller_id' => $data['seller_id'],
       'order_number' => $data['orderNumber'],
       'name' => $data['name'],

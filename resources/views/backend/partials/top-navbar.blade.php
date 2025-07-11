@@ -28,6 +28,7 @@
     data-background-color="{{ $settings->admin_theme_version == 'light' ? 'white2' : 'dark' }}">
     <div class="container-fluid">
       <ul class="navbar-nav topbar-nav ml-md-auto align-items-center">
+        @include('components.discussion-envelope')
         @include('components.notification-bell')
         <form action="{{ route('admin.change_theme') }}" class="form-inline mr-3" method="GET">
           @csrf

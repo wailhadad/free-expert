@@ -177,8 +177,21 @@
                           </td>
                           <td>{{ '#' . $order->order_number }}</td>
 
-                          @php $customerName = $order->name; @endphp
-                          <td>{{ $customerName }}</td>
+                          <td>
+                            @if ($order->subuser)
+                              <a href="{{ route('admin.user_management.user.details', ['id' => $order->user->id]) }}" style="font-size: 16px; font-weight: 500;">
+                                {{ $order->user->username }}
+                              </a>
+                              <span class="mx-1" style="font-size: 16px; font-weight: 500;"> as </span>
+                              <a href="{{ route('admin.user_management.subuser.details', ['id' => $order->subuser->id]) }}" style="font-size: 16px; font-weight: 500;">
+                                ({{ $order->subuser->username }})
+                              </a>
+                            @else
+                              <a href="{{ route('admin.user_management.user.details', ['id' => $order->user->id]) }}" style="font-size: 16px; font-weight: 500;">
+                                {{ $order->user->username }}
+                              </a>
+                            @endif
+                          </td>
                           <td>
                             @if (!is_null($order->seller_id))
                               <a
@@ -292,50 +305,29 @@
                             @endif
                           </td>
                           <td>
-                            <div class="dropdown">
+                            <div class="dropdown position-static">
                               <button class="btn btn-sm btn-secondary dropdown-toggle" type="button"
-                                id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
+                                id="dropdownMenuButton{{ $order->id }}" data-bs-toggle="dropdown" aria-haspopup="true"
                                 aria-expanded="false">
                                 {{ __('Select') }}
                               </button>
-
-                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                                <a href="{{ route('admin.service_order.details', ['id' => $order->id]) }}"
-                                  class="dropdown-item">
-                                  {{ __('Details') }}
-                                </a>
-
+                              <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton{{ $order->id }}">
+                                <li><a href="{{ route('admin.service_order.details', ['id' => $order->id]) }}" class="dropdown-item">{{ __('Details') }}</a></li>
                                 @if (!is_null($order->receipt))
-                                  <a href="#" class="dropdown-item" data-toggle="modal"
-                                    data-target="#receiptModal-{{ $order->id }}">
-                                    {{ __('Receipt') }}
-                                  </a>
+                                  <li><a href="#" class="dropdown-item" data-toggle="modal" data-target="#receiptModal-{{ $order->id }}">{{ __('Receipt') }}</a></li>
                                 @endif
-
                                 @if (!is_null($order->invoice))
-                                  <a href="{{ asset('assets/file/invoices/service/' . $order->invoice) }}"
-                                    class="dropdown-item" target="_blank">
-                                    {{ __('Invoice') }}
-                                  </a>
+                                  <li><a href="{{ asset('assets/file/invoices/service/' . $order->invoice) }}" class="dropdown-item" target="_blank">{{ __('Invoice') }}</a></li>
                                 @endif
-
-                                <a href="{{ route('admin.service_order.message', ['id' => $order->id]) }}"
-                                  class="dropdown-item">
-                                  {{ __('Chat with customer') }}
-                                </a>
-                                <a href="{{ '#emailModal-' . $order->id }}" data-toggle="modal"
-                                  class="dropdown-item">
-                                  {{ __('Send via Mail') }}
-                                </a>
-                                <form class="deleteForm d-block"
-                                  action="{{ route('admin.service_order.delete', ['id' => $order->id]) }}"
-                                  method="post">
-                                  @csrf
-                                  <button type="submit" class="deleteBtn">
-                                    {{ __('Delete') }}
-                                  </button>
-                                </form>
-                              </div>
+                                <li><a href="{{ route('admin.service_order.message', ['id' => $order->id]) }}" class="dropdown-item">{{ __('Chat with customer') }}</a></li>
+                                <li><a href="{{ '#emailModal-' . $order->id }}" data-toggle="modal" class="dropdown-item">{{ __('Send via Mail') }}</a></li>
+                                <li>
+                                  <form class="deleteForm d-block" action="{{ route('admin.service_order.delete', ['id' => $order->id]) }}" method="post">
+                                    @csrf
+                                    <button type="submit" class="deleteBtn dropdown-item">{{ __('Delete') }}</button>
+                                  </form>
+                                </li>
+                              </ul>
                             </div>
                           </td>
                         </tr>

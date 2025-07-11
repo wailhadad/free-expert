@@ -45,6 +45,26 @@ window.currentUserId = '{{ $userId }}';
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* File preview styling */
+.selected-file {
+  transition: all 0.2s ease;
+}
+
+.selected-file:hover {
+  background-color: #f8f9fa !important;
+}
+
+.selected-file .btn-outline-danger {
+  border-width: 1px;
+  padding: 0.25rem 0.5rem;
+}
+
+.selected-file .btn-outline-danger:hover {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: white;
+}
 </style>
 @endpush
 <div class="modal fade" id="directChatModal" tabindex="-1" aria-labelledby="directChatModalLabel" aria-hidden="true">
@@ -84,6 +104,12 @@ window.currentUserId = '{{ $userId }}';
           @endif
         </form>
         @endif
+        <!-- File preview area -->
+        <div id="direct-chat-file-preview" class="w-100 mt-2 d-none">
+          <div class="selected-files-container">
+            <!-- Selected files will be displayed here -->
+          </div>
+        </div>
         <div class="progress mt-2 d-none" id="direct-chat-upload-progress">
           <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
         </div>

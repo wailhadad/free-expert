@@ -62,4 +62,41 @@
 
 <script src="{{ asset('assets/js/real-time-notifications.js') }}"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script> 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+<style>
+.notification-bell .bell-icon-wrapper .notif-unread-badge.bell-badge {
+    position: absolute !important;
+    top: -6px !important;
+    right: -6px !important;
+    min-width: 18px !important;
+    height: 18px !important;
+    line-height: 18px !important;
+    font-size: 12px !important;
+    border-radius: 50% !important;
+    font-weight: 700 !important;
+    background: #e11d48 !important;
+    color: #fff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 2 !important;
+    border: 2px solid #fff !important;
+    box-shadow: 0 2px 8px rgba(220,53,69,0.18) !important;
+    pointer-events: none !important;
+    padding: 0 4px !important;
+    outline: 2px solid blue !important; /* TEMP: for debugging */
+    transition: background 0.18s, color 0.18s, box-shadow 0.18s !important;
+}
+@media (max-width: 700px) {
+    .notification-bell .bell-icon-wrapper .notif-unread-badge.bell-badge {
+        font-size: 10px !important;
+        min-width: 14px !important;
+        height: 14px !important;
+        line-height: 14px !important;
+        border-width: 1.5px !important;
+        top: -4px !important;
+        right: -4px !important;
+    }
+}
+</style> 

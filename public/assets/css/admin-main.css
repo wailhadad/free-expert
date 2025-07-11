@@ -1135,3 +1135,21 @@ body[data-background-color="dark"] .select2-container--default .select2-selectio
 .font-12 {
   font-size: 12px;
 }
+
+/* Fix for dropdown menu to prevent scroll and match admin style */
+.dropdown-menu {
+  min-width: 180px;
+  max-height: none !important;
+  overflow: visible !important;
+  box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+}
+
+/* Force seller order dropdown to never scroll */
+.table .dropdown-menu,
+.table-responsive .dropdown-menu,
+.dropdown-menu {
+  position: fixed !important;
+  z-index: 9999 !important;
+  left: auto !important;
+  right: auto !important;
+}

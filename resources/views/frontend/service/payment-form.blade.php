@@ -40,42 +40,20 @@
       <form action="{{ route('service.place_order', ['slug' => request()->route('slug')]) }}" method="POST"
         enctype="multipart/form-data" id="payment-form">
         @csrf
+        @if ($errors->any())
+          <div class="alert alert-danger">
+            <ul class="mb-0">
+              @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+              @endforeach
+            </ul>
+          </div>
+        @endif
         <div class="row">
           <div class=" @if ($quoteBtnStatus == 0) col-lg-8 @else col-12 @endif">
             <input type="hidden" name="quote_btn_status" value="{{ $quoteBtnStatus }}">
             <div class="row mb-40">
-              <div class="col-md-6">
-                @php
-                  if (!empty($authUser->first_name) && !empty($authUser->last_name)) {
-                      $authUserName = $authUser->first_name . ' ' . $authUser->last_name;
-                  } else {
-                      $authUserName = '';
-                  }
-                @endphp
-
-                <div class="form-group mb-30">
-                  <label>{{ __('Name') . '*' }}</label>
-                  <input type="text" class="form-control" name="name" placeholder="{{ __('Enter Your Full Name') }}"
-                    value="{{ old('name') ? old('name') : $authUserName }}">
-                  @error('name')
-                    <p class="mt-2 text-danger">{{ $message }}</p>
-                  @enderror
-                </div>
-              </div>
-
-              <div class="col-md-6">
-                <div class="form-group mb-30">
-                  <label>{{ __('Email Address') . '*' }}</label>
-                  <input type="email" class="form-control" name="email_address"
-                    placeholder="{{ __('Enter Your Email Address') }}"
-                    value="{{ old('email_address') ? old('email_address') : $authUser->email_address }}">
-                  @error('email_address')
-                    <p class="mt-2 text-danger">{{ $message }}</p>
-                  @enderror
-                </div>
-              </div>
-
-
+              <!-- Removed Name and Email Address fields from checkout form -->
               @foreach ($inputFields as $inputField)
                 @if ($inputField->type == 1)
                   <div class="col-md-6">
@@ -334,6 +312,20 @@
 
                 @if ($quoteBtnStatus == 0)
                   <div class="form-group mb-30">
+                    <label for="subuser_id">Order as</label>
+                    <div class="dropdown" id="profile-dropdown-wrapper">
+                      <button class="btn btn-light d-flex align-items-center gap-2" type="button" id="profileDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                        <img id="profileDropdownAvatar" src="{{ Auth::guard('web')->user()->image ? asset('assets/img/users/' . Auth::guard('web')->user()->image) : asset('assets/img/profile.jpg') }}" class="rounded-circle" style="width:36px;height:36px;object-fit:cover;">
+                        <span id="profileDropdownName">{{ Auth::guard('web')->user()->username }}</span>
+                        <i class="bi bi-caret-down-fill ms-2"></i>
+                      </button>
+                      <ul class="dropdown-menu" id="profileDropdownMenu" aria-labelledby="profileDropdownBtn" style="max-height:300px;overflow-y:auto;min-width:220px;"></ul>
+                      <input type="hidden" name="subuser_id" id="subuser_id" value="{{ old('subuser_id', '') }}">
+                    </div>
+                    @error('subuser_id')
+                      <p class="mt-2 text-danger">{{ $message }}</p>
+                    @enderror
+                  </div>
 
                     <select class="niceselect form-control wide" name="gateway">
                       <option selected disabled>{{ __('Select a Payment Gateway') }}</option>
@@ -358,8 +350,6 @@
                         @endforeach
                       @endif
                     </select>
-                  </div>
-
                 @endif
 
                 <div class="iyzico-element {{ old('gateway') == 'iyzico' ? '' : 'd-none' }}">
@@ -526,3 +516,76 @@
     </script>
   @endif
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const mainUser = {
+    id: '',
+    username: '{{ Auth::guard('web')->user()->username }}',
+    first_name: '{{ Auth::guard('web')->user()->first_name }}',
+    last_name: '{{ Auth::guard('web')->user()->last_name }}',
+    image: '{{ Auth::guard('web')->user()->image ? asset('assets/img/users/' . Auth::guard('web')->user()->image) : asset('assets/img/profile.jpg') }}'
+  };
+  const dropdownMenu = document.getElementById('profileDropdownMenu');
+  const dropdownBtn = document.getElementById('profileDropdownBtn');
+  const dropdownAvatar = document.getElementById('profileDropdownAvatar');
+  const dropdownName = document.getElementById('profileDropdownName');
+  // Add main user (Myself)
+  dropdownMenu.innerHTML = '';
+  const myselfLi = document.createElement('li');
+  myselfLi.innerHTML = `<a class="dropdown-item d-flex align-items-center" href="#" data-id="" data-avatar="${mainUser.image}" data-name="${mainUser.username}">
+    <img src="${mainUser.image}" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
+    <span>${mainUser.username} <span class="text-muted">(Main Account)</span></span>
+  </a>`;
+  dropdownMenu.appendChild(myselfLi);
+  document.getElementById('subuser_id').value = '';
+  fetch('/user/subusers/json')
+    .then(res => res.json())
+    .then(data => {
+      if (data.subusers && data.subusers.length) {
+        data.subusers.forEach(subuser => {
+          const avatar = subuser.image ? '/assets/img/subusers/' + subuser.image : mainUser.image;
+          const li = document.createElement('li');
+          li.innerHTML = `<a class="dropdown-item d-flex align-items-center" href="#" data-id="${subuser.id}" data-avatar="${avatar}" data-name="${subuser.username}">
+            <img src="${avatar}" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
+            <span>${subuser.username} <span class="text-muted">(${subuser.first_name} ${subuser.last_name})</span></span>
+          </a>`;
+          dropdownMenu.appendChild(li);
+        });
+      }
+      // Click handler
+      dropdownMenu.querySelectorAll('a.dropdown-item').forEach(a => {
+        a.addEventListener('click', function(e) {
+          e.preventDefault();
+          dropdownAvatar.src = this.getAttribute('data-avatar');
+          dropdownName.textContent = this.getAttribute('data-name');
+          const id = this.getAttribute('data-id');
+          document.getElementById('subuser_id').value = id ? id : '';
+          console.log('Subuser selected - ID:', id, 'Value set to:', document.getElementById('subuser_id').value);
+        });
+      });
+    });
+});
+</script>
+<style>
+#profile-picker { gap: 1.5rem; }
+.profile-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+.profile-option.profile-selected {
+  border: 2px solid #ff9800;
+  box-shadow: 0 2px 8px rgba(255,152,0,0.12);
+  background: #fff8e1;
+}
+.profile-option:hover {
+  border: 2px solid #ff9800;
+}
+</style>
+@endpush

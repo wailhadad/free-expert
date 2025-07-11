@@ -387,18 +387,28 @@ Route::middleware(['auth:web'])->group(function () {
     Route::get('direct-chat/{chat}/messages', [\App\Http\Controllers\DirectChatMessageController::class, 'getMessages']);
     Route::post('direct-chat/{chat}/send', [\App\Http\Controllers\DirectChatMessageController::class, 'sendMessage']);
     Route::post('direct-chat/{chat}/read', [\App\Http\Controllers\DirectChatMessageController::class, 'markAsRead']);
+    Route::get('direct-chat/unread-count', [\App\Http\Controllers\DirectChatController::class, 'unreadCount']);
 });
+Route::post('direct-chat/mark-subuser-read', [\App\Http\Controllers\DirectChatController::class, 'markSubuserMessagesRead'])->middleware(['auth:web']);
+
 Route::prefix('seller')->middleware(['auth:seller'])->group(function () {
     Route::post('direct-chat/start', [\App\Http\Controllers\DirectChatController::class, 'startOrGetChat']);
     Route::get('direct-chat/discussions', [\App\Http\Controllers\DirectChatController::class, 'listForSeller']);
     Route::get('direct-chat/{chat}/messages', [\App\Http\Controllers\DirectChatMessageController::class, 'getMessages']);
     Route::post('direct-chat/{chat}/send', [\App\Http\Controllers\DirectChatMessageController::class, 'sendMessage']);
     Route::post('direct-chat/{chat}/read', [\App\Http\Controllers\DirectChatMessageController::class, 'markAsRead']);
+    Route::get('direct-chat/unread-count', [\App\Http\Controllers\DirectChatController::class, 'unreadCount']);
 });
+Route::post('seller/direct-chat/mark-subuser-read', [\App\Http\Controllers\DirectChatController::class, 'markSubuserMessagesRead'])->middleware(['auth:seller']);
+
 Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     Route::get('direct-chat/discussions', [\App\Http\Controllers\DirectChatController::class, 'listForAdmin']);
     Route::get('direct-chat/{chat}/messages', [\App\Http\Controllers\DirectChatMessageController::class, 'getMessages']);
+    Route::post('direct-chat/{chat}/send', [\App\Http\Controllers\DirectChatMessageController::class, 'sendMessage']);
+    Route::post('direct-chat/{chat}/read', [\App\Http\Controllers\DirectChatMessageController::class, 'markAsRead']);
+    Route::get('direct-chat/unread-count', [\App\Http\Controllers\DirectChatController::class, 'unreadCount']);
 });
+Route::post('admin/direct-chat/mark-subuser-read', [\App\Http\Controllers\DirectChatController::class, 'markSubuserMessagesRead'])->middleware(['auth:admin']);
 
 // Add missing seller and admin discussion routes
 Route::get('seller/direct-chat/discussions', [\App\Http\Controllers\DirectChatController::class, 'listForSeller'])->middleware(['auth:seller']);

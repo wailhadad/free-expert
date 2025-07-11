@@ -330,6 +330,12 @@ class RealTimeNotifications {
                     this.updateNotificationBadge();
                 }
                 this.reloadNotificationListPage();
+                // --- NEW: If this is a direct_chat notification, update the envelope unread badge ---
+                if (data.type === 'direct_chat' || (notificationElement && notificationElement.textContent.toLowerCase().includes('direct'))) {
+                    if (typeof updateDiscussionBadge === 'function') {
+                        setTimeout(updateDiscussionBadge, 300);
+                    }
+                }
             }
         })
         .catch(error => {

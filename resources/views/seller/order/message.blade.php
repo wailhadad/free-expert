@@ -145,9 +145,10 @@
                           @else
                             <div class="chat-card reply-chat mdb-15">
                               <div class="thumb">
-                                @if (!is_null($msgInfo->user->image))
-                                  <img src="{{ asset('assets/img/users/' . $msgInfo->user->image) }}" alt="user"
-                                    title="User">
+                                @if ($msgInfo->subuser)
+                                  <img src="{{ $msgInfo->subuser->image ? asset('assets/img/subusers/' . $msgInfo->subuser->image) : asset('assets/img/blank-user.jpg') }}" alt="subuser" title="Subuser">
+                                @elseif (!is_null($msgInfo->user->image))
+                                  <img src="{{ asset('assets/img/users/' . $msgInfo->user->image) }}" alt="user" title="User">
                                 @else
                                   <img src="{{ asset('assets/img/blank-user.jpg') }}" alt="user" title="User">
                                 @endif

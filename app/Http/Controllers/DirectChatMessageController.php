@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\DirectChat;
 use App\Models\DirectChatMessage;
 use App\Events\DirectChatMessageSent;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -42,11 +43,7 @@ class DirectChatMessageController extends Controller
             $fileOriginalName = $file->getClientOriginalName();
         }
 
-        $subuserId = null;
-        if ($senderType === 'user') {
-            // Prefer subuser_id from request, fallback to chat
-            $subuserId = $request->input('subuser_id') ?: ($chat->subuser_id ?? null);
-        }
+        $subuserId = $request->input('subuser_id') ?: ($chat->subuser_id ?? null);
 
         $msg = DirectChatMessage::create([
             'chat_id' => $chatId,
@@ -61,6 +58,57 @@ class DirectChatMessageController extends Controller
         // Update chat's updated_at for sorting
         $chat->touch();
 
+        // --- Real-time discussion event for first message ---
+        if ($chat->messages()->count() == 1) {
+            $lastMsg = $msg;
+            $realUser = $chat->user;
+            $subuser = null;
+            $user = null;
+            $isSubuser = false;
+            if ($lastMsg && $lastMsg->subuser_id) {
+                $subuser = \App\Models\Subuser::find($lastMsg->subuser_id);
+                $user = $subuser;
+                $isSubuser = true;
+            } else if ($chat->subuser) {
+                $subuser = $chat->subuser;
+                $user = $subuser;
+                $isSubuser = true;
+            } else {
+                $user = $realUser;
+            }
+            $discussionData = [
+                'id' => $chat->id,
+                'real_user' => [
+                    'id' => $realUser->id,
+                    'username' => $realUser->username,
+                    'avatar_url' => $realUser->image ? asset('assets/img/users/' . $realUser->image) : asset('assets/img/users/profile.jpeg'),
+                ],
+                'subuser' => $subuser ? [
+                    'id' => $subuser->id,
+                    'username' => $subuser->username,
+                    'avatar_url' => $subuser->image ? asset('assets/img/subusers/' . $subuser->image) : asset('assets/img/users/profile.jpeg'),
+                ] : null,
+                'user' => [
+                    'id' => $user->id,
+                    'username' => $user->username,
+                    'avatar_url' => $isSubuser
+                        ? ($user->image ? asset('assets/img/subusers/' . $user->image) : asset('assets/img/users/profile.jpeg'))
+                        : ($user->image ? asset('assets/img/users/' . $user->image) : asset('assets/img/users/profile.jpeg')),
+                ],
+                'seller' => $chat->seller ? [
+                    'id' => $chat->seller->id,
+                    'username' => $chat->seller->username,
+                    'avatar_url' => $chat->seller->image ? asset('assets/img/sellers/' . $chat->seller->image) : asset('assets/img/users/profile.jpeg'),
+                ] : null,
+                'latest_message' => $lastMsg->message,
+            ];
+            $pusher = new \Pusher\Pusher(config('broadcasting.connections.pusher.key'), config('broadcasting.connections.pusher.secret'), config('broadcasting.connections.pusher.app_id'), [
+                'cluster' => config('broadcasting.connections.pusher.options.cluster'),
+                'useTLS' => true,
+            ]);
+            $pusher->trigger('discussion-channel', 'discussion.started', $discussionData);
+        }
+
         // Notify seller if sender is user
         if ($senderType === 'user') {
             $seller = $chat->seller;
@@ -68,21 +116,60 @@ class DirectChatMessageController extends Controller
             // Use subuser from message if present
             $subuser = $msg->subuser_id ? \App\Models\Subuser::find($msg->subuser_id) : $chat->subuser;
             if ($seller) {
-                $notificationService = new \App\Services\NotificationService();
-                $notificationService->sendRealTime($seller, [
+                $notificationData = [
                     'type' => 'direct_chat',
                     'title' => 'New Direct Message from Customer',
                     'message' => "You have received a new direct message from " . ($subuser ? $subuser->username : $user->username),
-                    'url' => url('/seller/discussions'),
+                    'url' => route('seller.discussions') . '?chat_id=' . $chat->id . ($subuser ? '&subuser_id=' . $subuser->id : ''),
                     'icon' => 'fas fa-comments',
                     'extra' => [
                         'chat_id' => $chat->id,
                         'user_id' => $subuser ? $subuser->id : $user->id,
                         'user_name' => $subuser ? $subuser->username : $user->username,
-                        'user_avatar' => $subuser ? ($subuser->image ? asset('assets/img/subusers/' . $subuser->image) : asset('assets/img/users/profile.jpeg')) : ($user->avatar_url ?? null),
+                        'user_avatar' => $subuser ? ($subuser->image ? asset('assets/img/subusers/' . $subuser->image) : asset('assets/img/users/profile.jpeg')) : ($user->avatar_url ?? asset('assets/img/users/profile.jpeg')),
                         'message_preview' => mb_substr($message, 0, 100),
                     ],
+                ];
+                
+                \Log::info('Sending notification to seller', [
+                    'seller_id' => $seller->id,
+                    'notification_data' => $notificationData
                 ]);
+                
+                $notificationService = new NotificationService();
+                $notificationService->sendRealTime($seller, $notificationData);
+                
+                \Log::info('Notification sent to seller via NotificationService');
+            }
+            
+            // Also notify admin about the message
+            $admin = \App\Models\Admin::first(); // Get first admin or implement your admin selection logic
+            if ($admin) {
+                $adminNotificationData = [
+                    'type' => 'direct_chat',
+                    'title' => 'New Direct Message from Customer',
+                    'message' => "Customer " . ($subuser ? $subuser->username : $user->username) . " sent a message to seller " . $seller->username,
+                    'url' => route('admin.discussions') . '?chat_id=' . $chat->id . ($subuser ? '&subuser_id=' . $subuser->id : ''),
+                    'icon' => 'fas fa-comments',
+                    'extra' => [
+                        'chat_id' => $chat->id,
+                        'user_id' => $subuser ? $subuser->id : $user->id,
+                        'user_name' => $subuser ? $subuser->username : $user->username,
+                        'seller_id' => $seller->id,
+                        'seller_name' => $seller->username,
+                        'message_preview' => mb_substr($message, 0, 100),
+                    ],
+                ];
+                
+                \Log::info('Sending notification to admin', [
+                    'admin_id' => $admin->id,
+                    'notification_data' => $adminNotificationData
+                ]);
+                
+                $notificationService = new NotificationService();
+                $notificationService->sendRealTime($admin, $adminNotificationData);
+                
+                \Log::info('Notification sent to admin via NotificationService');
             }
         }
 
@@ -91,21 +178,93 @@ class DirectChatMessageController extends Controller
             $seller = $chat->seller;
             $user = $chat->user;
             if ($user) {
-                $notificationService = new \App\Services\NotificationService();
-                $notificationService->sendRealTime($user, [
+                $notificationData = [
                     'type' => 'direct_chat',
                     'title' => 'New Direct Message from Seller',
                     'message' => "You have received a new direct message from {$seller->username}",
-                    'url' => url('/user/discussions'),
+                    'url' => route('user.discussions') . '?chat_id=' . $chat->id . ($subuserId ? '&subuser_id=' . $subuserId : ''),
                     'icon' => 'fas fa-comments',
                     'extra' => [
                         'chat_id' => $chat->id,
                         'seller_id' => $seller->id,
                         'seller_name' => $seller->username,
-                        'seller_avatar' => $seller->photo ? asset('assets/admin/img/seller-photo/' . $seller->photo) : null,
+                        'seller_avatar' => $seller->photo ? asset('assets/admin/img/seller-photo/' . $seller->photo) : asset('assets/img/users/profile.jpeg'),
                         'message_preview' => mb_substr($message, 0, 100),
                     ],
+                ];
+                
+                \Log::info('Sending notification to user', [
+                    'user_id' => $user->id,
+                    'notification_data' => $notificationData
                 ]);
+                
+                $notificationService = new NotificationService();
+                $notificationService->sendRealTime($user, $notificationData);
+                
+                \Log::info('Notification sent to user via NotificationService');
+            }
+            
+            // Also notify admin about the message
+            $admin = \App\Models\Admin::first(); // Get first admin or implement your admin selection logic
+            if ($admin) {
+                $adminNotificationData = [
+                    'type' => 'direct_chat',
+                    'title' => 'New Direct Message from Seller',
+                    'message' => "Seller {$seller->username} sent a message to customer " . ($user->username ?? 'Unknown'),
+                    'url' => route('admin.discussions') . '?chat_id=' . $chat->id . ($subuserId ? '&subuser_id=' . $subuserId : ''),
+                    'icon' => 'fas fa-comments',
+                    'extra' => [
+                        'chat_id' => $chat->id,
+                        'seller_id' => $seller->id,
+                        'seller_name' => $seller->username,
+                        'user_id' => $user->id,
+                        'user_name' => $user->username ?? 'Unknown',
+                        'message_preview' => mb_substr($message, 0, 100),
+                    ],
+                ];
+                
+                \Log::info('Sending notification to admin from seller', [
+                    'admin_id' => $admin->id,
+                    'notification_data' => $adminNotificationData
+                ]);
+                
+                $notificationService = new NotificationService();
+                $notificationService->sendRealTime($admin, $adminNotificationData);
+                
+                \Log::info('Notification sent to admin from seller via NotificationService');
+            }
+        }
+
+        // Notify user if sender is admin
+        if ($senderType === 'admin') {
+            $admin = Auth::guard('admin')->user();
+            $user = $chat->user;
+            if ($user) {
+                $notificationData = [
+                    'type' => 'direct_chat',
+                    'title' => 'New Direct Message from Admin',
+                    'message' => "You have received a new direct message from {$admin->first_name} {$admin->last_name}",
+                    'url' => route('user.discussions') . '?chat_id=' . $chat->id . ($subuserId ? '&subuser_id=' . $subuserId : ''),
+                    'icon' => 'fas fa-comments',
+                    'extra' => [
+                        'chat_id' => $chat->id,
+                        'admin_id' => $admin->id,
+                        'admin_name' => $admin->first_name . ' ' . $admin->last_name,
+                        'admin_avatar' => $admin->image ? asset('assets/img/admins/' . $admin->image) : asset('assets/img/users/profile.jpeg'),
+                        'message_preview' => mb_substr($message, 0, 100),
+                    ],
+                ];
+                
+                \Log::info('Sending notification to user from admin', [
+                    'user_id' => $user->id,
+                    'admin_id' => $admin->id,
+                    'notification_data' => $notificationData
+                ]);
+                
+                $notificationService = new NotificationService();
+                $notificationService->sendRealTime($user, $notificationData);
+                
+                \Log::info('Notification sent to user from admin via NotificationService');
             }
         }
 
@@ -159,6 +318,7 @@ class DirectChatMessageController extends Controller
                     'created_at' => $msg->created_at,
                     'file_name' => $msg->file_name,
                     'file_original_name' => $msg->file_original_name,
+                    'subuser_id' => $msg->subuser_id ?? null,
                 ];
             });
             return response()->json(['messages' => $messages]);

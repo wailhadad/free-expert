@@ -250,95 +250,13 @@
         </div>
 
         <div class="card-body">
-          <div class="payment-information">
-            <div class="row mb-2">
-              <div class="col-lg-3">
-                <strong>{{ __('Name') . ' :' }}</strong>
-              </div>
-
-              <div class="col-lg-9">{{ $orderInfo->name }}</div>
-            </div>
-
-            <div class="row mb-2">
-              <div class="col-lg-3">
-                <strong>{{ __('Email') . ' :' }}</strong>
-              </div>
-
-              <div class="col-lg-9">{{ $orderInfo->email_address }}</div>
-            </div>
-
-            @php $informations = json_decode($orderInfo->informations); @endphp
-
-            @if (!is_null($informations))
-              @foreach ($informations as $key => $information)
-                @php
-                  $length = count((array) $informations);
-                  $str = preg_replace('/_/', ' ', $key);
-                  $label = mb_convert_case($str, MB_CASE_TITLE);
-                @endphp
-
-                @if ($information->type == 8)
-                  <div class="row {{ $loop->iteration == $length ? 'mb-1' : 'mb-2' }}">
-                    <div class="col-lg-3">
-                      <strong>{{ $label . ' :' }}</strong>
-                    </div>
-
-                    <div class="col-lg-9">
-                      <a href="{{ asset('assets/file/zip-files/' . $information->value) }}"
-                        download="{{ $information->originalName }}" class="btn btn-sm btn-primary">
-                        {{ __('Download') }}
-                      </a>
-                    </div>
-                  </div>
-                @elseif ($information->type == 5)
-                  <div class="row {{ $loop->iteration == $length ? 'mb-1' : 'mb-2' }}">
-                    <div class="col-lg-3">
-                      <strong>{{ $label . ' :' }}</strong>
-                    </div>
-
-                    <div class="col-lg-9">
-                      <a href="#" class="btn btn-sm btn-info" data-toggle="modal"
-                        data-target="#textModal-{{ $loop->iteration }}">
-                        {{ __('Show') }}
-                      </a>
-                    </div>
-                  </div>
-
-                  @include('seller.order.show-text')
-                @elseif ($information->type == 4)
-                  <div class="row {{ $loop->iteration == $length ? 'mb-1' : 'mb-2' }}">
-                    <div class="col-lg-3">
-                      <strong>{{ $label . ' :' }}</strong>
-                    </div>
-
-                    <div class="col-lg-9">
-                      @php
-                        $checkboxValues = $information->value;
-                        $allCheckboxOptions = '';
-                        $lastElement = end($checkboxValues);
-
-                        foreach ($checkboxValues as $value) {
-                            if ($value == $lastElement) {
-                                $allCheckboxOptions .= $value;
-                            } else {
-                                $allCheckboxOptions .= $value . ', ';
-                            }
-                        }
-                      @endphp
-
-                      {{ $allCheckboxOptions }}
-                    </div>
-                  </div>
-                @else
-                  <div class="row {{ $loop->iteration == $length ? 'mb-1' : 'mb-2' }}">
-                    <div class="col-lg-3">
-                      <strong>{{ $label . ' :' }}</strong>
-                    </div>
-
-                    <div class="col-lg-9">{{ $information->value }}</div>
-                  </div>
-                @endif
-              @endforeach
+          <div class="payment-information text-center">
+            @if ($orderInfo->subuser)
+              <img src="{{ $orderInfo->subuser->image ? asset($orderInfo->subuser->image) : asset('assets/img/default-avatar.png') }}" class="rounded-circle mb-2" style="width:70px;height:70px;object-fit:cover;">
+              <div><strong>{{ __('Username') }}:</strong> {{ $orderInfo->subuser->username }}</div>
+            @else
+              <img src="{{ $orderInfo->user->image ? asset('assets/img/users/' . $orderInfo->user->image) : asset('assets/img/profile.jpg') }}" class="rounded-circle mb-2" style="width:70px;height:70px;object-fit:cover;">
+              <div><strong>{{ __('Username') }}:</strong> {{ $orderInfo->user->username }}</div>
             @endif
           </div>
         </div>

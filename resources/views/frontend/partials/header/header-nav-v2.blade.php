@@ -62,6 +62,7 @@
                 </li>
               @endif
             @endforeach
+            @include('components.discussion-envelope')
             @include('components.notification-bell')
           </ul>
         </div>

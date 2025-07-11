@@ -157,9 +157,13 @@
                           </td>
                           <td>{{ '#' . $order->order_number }}</td>
 
-                          @php $customerName = $order->name; @endphp
-
-                          <td>{{ $customerName }}</td>
+                          <td>
+                            @if ($order->subuser)
+                              {{ $order->subuser->username }}
+                            @else
+                              {{ $order->user->username }}
+                            @endif
+                          </td>
                           <td>
                             @if (!empty($order->serviceSlug))
                               <a target="_blank"
@@ -241,7 +245,7 @@
                           <td>
                             <div class="dropdown">
                               <button class="btn btn-sm btn-secondary dropdown-toggle" type="button"
-                                id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
+                                id="dropdownMenuButton" data-bs-toggle="dropdown" aria-haspopup="true"
                                 aria-expanded="false">
                                 {{ __('Select') }}
                               </button>
@@ -253,8 +257,8 @@
                                 </a>
 
                                 @if (!is_null($order->receipt))
-                                  <a href="#" class="dropdown-item" data-toggle="modal"
-                                    data-target="#receiptModal-{{ $order->id }}">
+                                  <a href="#" class="dropdown-item" data-bs-toggle="modal"
+                                    data-bs-target="#receiptModal-{{ $order->id }}">
                                     {{ __('Receipt') }}
                                   </a>
                                 @endif
@@ -278,7 +282,7 @@
                                   </a>
                                 @endif
 
-                                <a href="{{ '#emailModal-' . $order->id }}" data-toggle="modal" class="dropdown-item">
+                                <a href="{{ '#emailModal-' . $order->id }}" data-bs-toggle="modal" class="dropdown-item">
                                   {{ __('Send via Mail') }}
                                 </a>
                                 <form class="deleteForm d-block"
