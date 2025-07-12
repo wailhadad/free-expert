@@ -204,6 +204,11 @@ class DirectChatController extends Controller
                         ? ($user->image ? asset('assets/img/subusers/' . $user->image) : asset('assets/img/users/profile.jpeg'))
                         : ($user->image ? asset('assets/img/users/' . $user->image) : asset('assets/img/users/profile.jpeg')),
                 ],
+                'seller' => $chat->seller ? [
+                    'id' => $chat->seller->id,
+                    'username' => $chat->seller->username,
+                    'avatar_url' => $chat->seller->avatar_url,
+                ] : null,
                 'subusers' => $subusers,
                 'unread_count' => $globalUnread,
                 'messages' => $chat->messages,

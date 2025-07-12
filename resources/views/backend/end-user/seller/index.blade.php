@@ -123,7 +123,7 @@
                                 {{ __('Select') }}
                               </button>
 
-                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                              <div class="dropdown-menu order-actions-dropdown" aria-labelledby="dropdownMenuButton">
                                 <a href="{{ route('admin.seller_management.seller_details', ['id' => $seller->id, 'language' => $defaultLang->code]) }}"
                                   class="dropdown-item">
                                   {{ __('Details & Package') }}

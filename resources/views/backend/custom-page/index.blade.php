@@ -91,7 +91,7 @@
                                                                 {{ __('Select') }}
                                                             </button>
 
-                                                            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                                            <div class="dropdown-menu order-actions-dropdown" aria-labelledby="dropdownMenuButton">
                                                                 <a href="{{ route('admin.custom_pages.edit_page', ['id' => $page->page_id]) }}"
                                                                     class="dropdown-item">
                                                                     {{ __('Edit') }}

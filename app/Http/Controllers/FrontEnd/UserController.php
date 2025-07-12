@@ -503,7 +503,15 @@ class UserController extends Controller
 
     $orders->map(function ($order) use ($language) {
       $service = $order->service()->first();
-      $order['serviceInfo'] = $service->content()->where('language_id', $language->id)->select('title', 'slug')->first();
+      if ($service) {
+        $order['serviceInfo'] = $service->content()->where('language_id', $language->id)->select('title', 'slug')->first();
+      } else {
+        // Fallback for customer offer orders (no real service)
+        $order['serviceInfo'] = (object)[
+          'title' => $order->order_number ?? 'Custom Offer',
+          'slug' => null
+        ];
+      }
     });
 
     $queryResult['orders'] = $orders;
@@ -534,12 +542,35 @@ class UserController extends Controller
 
     $order = ServiceOrder::where([['id', $id], ['user_id', Auth::guard('web')->user()->id]])->firstOrFail();
     $queryResult['orderInfo'] = $order;
+    if (empty($order->name)) {
+        $order->name = $order->subuser ? ($order->subuser->full_name ?? '') : ($order->user ? trim($order->user->first_name . ' ' . $order->user->last_name) : '');
+    }
+    if (empty($order->email_address)) {
+        $order->email_address = ($order->subuser && property_exists($order->subuser, 'email') && !empty($order->subuser->email))
+            ? $order->subuser->email
+            : ($order->user ? $order->user->email : 'N/A');
+    }
+    $queryResult['customerUsername'] = $order->order_customer_username;
+    $queryResult['customerAvatar'] = $order->order_customer_image;
+
+    $displayName = $order->subuser ? ($order->subuser->full_name ?? '') : ($order->user ? trim($order->user->first_name . ' ' . $order->user->last_name) : '');
+    $displayEmail = $order->user ? $order->user->email_address : 'N/A';
+    $queryResult['displayName'] = $displayName;
+    $queryResult['displayEmail'] = $displayEmail;
 
     $language = $misc->getLanguage();
 
     // get service title
     $service = $order->service()->first();
-    $queryResult['serviceInfo'] = $service->content()->where('language_id', $language->id)->select('title', 'slug')->first();
+    if ($service) {
+        $queryResult['serviceInfo'] = $service->content()->where('language_id', $language->id)->select('title', 'slug')->first();
+    } else {
+        // Fallback for customer offer orders (no real service)
+        $queryResult['serviceInfo'] = (object)[
+            'title' => $order->order_number ?? 'Custom Offer',
+            'slug' => null
+        ];
+    }
 
     // get package title
     $package = $order->package()->first();
@@ -576,7 +607,15 @@ class UserController extends Controller
     $language = $misc->getLanguage();
 
     $service = $order->service()->first();
-    $queryResult['serviceInfo'] = $service->content()->where('language_id', $language->id)->first();
+    if ($service) {
+      $queryResult['serviceInfo'] = $service->content()->where('language_id', $language->id)->first();
+    } else {
+      // Fallback for customer offer orders (no real service)
+      $queryResult['serviceInfo'] = (object)[
+        'title' => $order->order_number ?? 'Custom Offer',
+        'slug' => null
+      ];
+    }
 
     $messages = $order->message()->get();
 

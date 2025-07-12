@@ -162,7 +162,7 @@
                                 {{ __('Select') }}
                               </button>
 
-                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                              <div class="dropdown-menu order-actions-dropdown" aria-labelledby="dropdownMenuButton">
                                 <a href="{{ '#assignModal-' . $ticket->id }}" data-toggle="modal" class="dropdown-item">
                                   {{ __('Assign To') }}
                                 </a>

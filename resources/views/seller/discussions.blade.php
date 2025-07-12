@@ -38,8 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         item.addEventListener('click', function(e) {
           e.preventDefault();
-          // Show user/subuser details in the chat header for seller view
-          window.openDirectChatModal(chat.id, user?.username, user?.avatar_url, chat.seller?.id, user?.username);
+          window.openDirectChatModal(chat.id, user?.username, chat.seller?.avatar_url, chat.seller?.id, user?.username);
         });
         list.appendChild(item);
       });

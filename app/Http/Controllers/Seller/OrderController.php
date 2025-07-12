@@ -60,11 +60,15 @@ class OrderController extends Controller
 
         $orders->map(function ($order) use ($language) {
             $service = $order->service()->first();
-            $order['serviceTitle'] = $service->content()->where('language_id', $language->id)->pluck('title')->first();
-            $order['serviceSlug'] = $service->content()->where('language_id', $language->id)->pluck('slug')->first();
-
+            if ($service) {
+                $order['serviceTitle'] = $service->content()->where('language_id', $language->id)->pluck('title')->first();
+                $order['serviceSlug'] = $service->content()->where('language_id', $language->id)->pluck('slug')->first();
+            } else {
+                // Fallback for customer offer orders (no real service)
+                $order['serviceTitle'] = $order->order_number ?? 'Custom Offer';
+                $order['serviceSlug'] = null;
+            }
             $package = $order->package()->first();
-
             if (is_null($package)) {
                 $order['packageName'] = NULL;
             } else {
@@ -258,7 +262,15 @@ class OrderController extends Controller
 
         // get service title
         $service = $order->service()->first();
-        $queryResult['serviceTitle'] = $service->content()->where('language_id', $language->id)->select('title', 'slug')->first();
+        if ($service) {
+            $queryResult['serviceTitle'] = $service->content()->where('language_id', $language->id)->select('title', 'slug')->first();
+        } else {
+            // Fallback for customer offer orders (no real service)
+            $queryResult['serviceTitle'] = (object)[
+                'title' => $order->order_number ?? 'Custom Offer',
+                'slug' => null
+            ];
+        }
 
         // get package title
         $package = $order->package()->first();
@@ -268,6 +280,8 @@ class OrderController extends Controller
         } else {
             $queryResult['packageTitle'] = $package->name;
         }
+
+        $queryResult['customerAvatar'] = $order->subuser ? $order->subuser->image : ($order->user ? $order->user->image : null);
 
         return view('seller.order.details', $queryResult);
     }
@@ -288,7 +302,15 @@ class OrderController extends Controller
         $queryResult['order'] = $order;
         $language = Language::query()->where('is_default', '=', 1)->first();
         $service = $order->service()->first();
-        $queryResult['serviceInfo'] = $service->content()->where('language_id', $language->id)->first();
+        if ($service) {
+            $queryResult['serviceInfo'] = $service->content()->where('language_id', $language->id)->first();
+        } else {
+            // Fallback for customer offer orders (no real service)
+            $queryResult['serviceInfo'] = (object)[
+                'title' => $order->order_number ?? 'Custom Offer',
+                'slug' => null
+            ];
+        }
 
         $messages = $order->message()->get();
 

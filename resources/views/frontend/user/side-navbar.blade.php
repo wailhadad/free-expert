@@ -13,7 +13,7 @@
       </li>
       <li>
         <a href="{{ route('user.discussions') }}" class="{{ request()->routeIs('user.discussions') ? 'active' : '' }}">
-          <i class="fas fa-comments"></i> {{ __('Discussions') }}
+          <i class="fas fa-comments"></i> {{ __('Messages') }}
         </a>
       </li>
       @if ($basicInfo->is_service)

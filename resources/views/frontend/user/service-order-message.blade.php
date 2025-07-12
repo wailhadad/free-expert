@@ -15,10 +15,20 @@
           <div id="reload-div">
             <div class="message-wrapper mb-40">
               <h4 class="mb-3">
-                {{ '#' . $order->order_number }} - <a
-                  href="{{ route('service_details', ['slug' => $serviceInfo->slug, 'id' => $serviceInfo->service_id]) }}"
-                  class="link_22422"
-                  target="_blank">{{ strlen($serviceInfo->title) > 35 ? mb_substr($serviceInfo->title, 0, 35, 'UTF-8') . '...' : $serviceInfo->title }}</a>
+                @php
+                  $serviceId = property_exists($serviceInfo, 'service_id') ? $serviceInfo->service_id : ($order->service_id ?? null);
+                @endphp
+
+                {{ '#' . $order->order_number }} - 
+                @if ($serviceId && $serviceInfo->slug)
+                  <a href="{{ route('service_details', ['slug' => $serviceInfo->slug, 'id' => $serviceId]) }}"
+                     class="link_22422"
+                     target="_blank">
+                    {{ strlen($serviceInfo->title) > 35 ? mb_substr($serviceInfo->title, 0, 35, 'UTF-8') . '...' : $serviceInfo->title }}
+                  </a>
+                @else
+                  <span>{{ strlen($serviceInfo->title) > 35 ? mb_substr($serviceInfo->title, 0, 35, 'UTF-8') . '...' : $serviceInfo->title }}</span>
+                @endif
               </h4>
               <div class="row">
                 <div class="col-lg-12">

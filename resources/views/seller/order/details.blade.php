@@ -252,10 +252,10 @@
         <div class="card-body">
           <div class="payment-information text-center">
             @if ($orderInfo->subuser)
-              <img src="{{ $orderInfo->subuser->image ? asset($orderInfo->subuser->image) : asset('assets/img/default-avatar.png') }}" class="rounded-circle mb-2" style="width:70px;height:70px;object-fit:cover;">
+              <img src="{{ $orderInfo->subuser->image ? asset('assets/img/subusers/' . $orderInfo->subuser->image) : asset('assets/img/users/profile.jpeg') }}" class="rounded-circle mb-2" style="width:70px;height:70px;object-fit:cover;">
               <div><strong>{{ __('Username') }}:</strong> {{ $orderInfo->subuser->username }}</div>
             @else
-              <img src="{{ $orderInfo->user->image ? asset('assets/img/users/' . $orderInfo->user->image) : asset('assets/img/profile.jpg') }}" class="rounded-circle mb-2" style="width:70px;height:70px;object-fit:cover;">
+              <img src="{{ $orderInfo->user->image ? asset('assets/img/users/' . $orderInfo->user->image) : asset('assets/img/users/profile.jpeg') }}" class="rounded-circle mb-2" style="width:70px;height:70px;object-fit:cover;">
               <div><strong>{{ __('Username') }}:</strong> {{ $orderInfo->user->username }}</div>
             @endif
           </div>

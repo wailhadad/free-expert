@@ -26,6 +26,25 @@
 
                   <div class="view-order-page">
                     <div class="order-info-area">
+                      <div class="row align-items-center mb-3">
+                        <div class="d-flex align-items-center mb-4" style="gap: 1rem;">
+                          @php
+                            $avatar = null;
+                            if (!empty($customerAvatar)) {
+                              // If subuser is set, use subuser path, else user path
+                              if ($orderInfo->subuser_id && $customerAvatar) {
+                                $avatar = asset('assets/img/subusers/' . $customerAvatar);
+                              } else {
+                                $avatar = asset('assets/img/users/' . $customerAvatar);
+                              }
+                            } else {
+                              $avatar = asset('assets/img/users/profile.jpeg');
+                            }
+                          @endphp
+                          <img src="{{ $avatar }}" alt="avatar" class="rounded-circle border" width="56" height="56" style="object-fit:cover;">
+                          <span class="fw-bold" style="font-size:1.15rem; letter-spacing:0.5px;">{{ $customerUsername }}</span>
+                        </div>
+                      </div>
                       <div class="row align-items-center">
                         <div class="col-lg-8">
                           <div class="order-info">
@@ -65,11 +84,11 @@
                           <h5>{{ __('Information') }}</h5>
                           <ul class="list list-unstyled">
                             <li>
-                              <p><span>{{ __('Name') . ':' }}</span>{{ $orderInfo->name }}</p>
+                              <p><span>{{ __('Name') . ':' }}</span>{{ $displayName ?: 'N/A' }}</p>
                             </li>
 
                             <li>
-                              <p><span>{{ __('Email') . ':' }}</span>{{ $orderInfo->email_address }}</p>
+                              <p><span>{{ __('Email') . ':' }}</span>{{ $displayEmail ?: 'N/A' }}</p>
                             </li>
                             @php $informations = json_decode($orderInfo->informations); @endphp
 
@@ -79,54 +98,27 @@
                                   $str = preg_replace('/_/', ' ', $key);
                                   $label = mb_convert_case($str, MB_CASE_TITLE);
                                 @endphp
-
-                                @if ($information->type == 8)
+                                @if (is_object($information) && isset($information->type) && $information->type == 8)
                                   <li>
                                     <p>
                                       <span>{{ __($label) . ':' }}</span>
-                                      <a href="{{ asset('assets/file/zip-files/' . $information->value) }}" download
-                                        class="btn btn-sm btn-primary rounded-1">
-                                        {{ __('Download') }}
-                                      </a>
+                                      <a href="{{ asset('assets/file/zip-files/' . $information->value) }}" target="_blank">{{ $information->value }}</a>
                                     </p>
                                   </li>
-                                @elseif ($information->type == 4)
+                                @elseif (is_object($information) && isset($information->type) && $information->type == 4)
                                   <li>
                                     <p>
                                       <span>{{ __($label) . ':' }}</span>
-
-                                      @php
-                                        $checkboxValues = $information->value;
-                                        $allCheckboxOptions = '';
-                                        $lastElement = end($checkboxValues);
-
-                                        foreach ($checkboxValues as $value) {
-                                            if ($value == $lastElement) {
-                                                $allCheckboxOptions .= $value;
-                                            } else {
-                                                $allCheckboxOptions .= $value . ', ';
-                                            }
-                                        }
-                                      @endphp
-
-                                      {{ $allCheckboxOptions }}
+                                      {{-- handle type 4 as needed, e.g., checkbox or other --}}
+                                      {{ $information->value ?? '' }}
                                     </p>
                                   </li>
-                                @elseif ($information->type == 5)
-                                  <li>
-                                    <p>
-                                      <span>{{ __($label) . ':' }}</span>
-                                      <button type="button" class="btn btn-sm btn-primary rounded-1"
-                                        data-bs-toggle="modal" data-bs-target="#textAreaModal-{{ $key }}">
-                                        {{ __('Show') }}
-                                      </button>
-                                    </p>
-                                  </li>
-
-                                  @includeIf('frontend.user.textarea-data')
                                 @else
                                   <li>
-                                    <p><span>{{ __($label) . ':' }}</span>{{ $information->value }}</p>
+                                    <p>
+                                      <span>{{ __($label) . ':' }}</span>
+                                      {{ is_object($information) && isset($information->value) ? $information->value : $information }}
+                                    </p>
                                   </li>
                                 @endif
                               @endforeach

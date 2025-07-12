@@ -376,7 +376,7 @@
                                     {{ __('Select') }}
                                   </button>
 
-                                  <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                  <div class="dropdown-menu order-actions-dropdown" aria-labelledby="dropdownMenuButton">
                                     <a href="{{ route('admin.service_management.edit_service', ['id' => $service->id]) }}"
                                       class="dropdown-item">
                                       {{ __('Edit') }}

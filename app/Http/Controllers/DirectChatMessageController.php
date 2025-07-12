@@ -142,35 +142,7 @@ class DirectChatMessageController extends Controller
                 \Log::info('Notification sent to seller via NotificationService');
             }
             
-            // Also notify admin about the message
-            $admin = \App\Models\Admin::first(); // Get first admin or implement your admin selection logic
-            if ($admin) {
-                $adminNotificationData = [
-                    'type' => 'direct_chat',
-                    'title' => 'New Direct Message from Customer',
-                    'message' => "Customer " . ($subuser ? $subuser->username : $user->username) . " sent a message to seller " . $seller->username,
-                    'url' => route('admin.discussions') . '?chat_id=' . $chat->id . ($subuser ? '&subuser_id=' . $subuser->id : ''),
-                    'icon' => 'fas fa-comments',
-                    'extra' => [
-                        'chat_id' => $chat->id,
-                        'user_id' => $subuser ? $subuser->id : $user->id,
-                        'user_name' => $subuser ? $subuser->username : $user->username,
-                        'seller_id' => $seller->id,
-                        'seller_name' => $seller->username,
-                        'message_preview' => mb_substr($message, 0, 100),
-                    ],
-                ];
-                
-                \Log::info('Sending notification to admin', [
-                    'admin_id' => $admin->id,
-                    'notification_data' => $adminNotificationData
-                ]);
-                
-                $notificationService = new NotificationService();
-                $notificationService->sendRealTime($admin, $adminNotificationData);
-                
-                \Log::info('Notification sent to admin via NotificationService');
-            }
+            // Admin notifications removed - admins will not be notified about direct chat messages
         }
 
         // Notify user if sender is seller
@@ -204,35 +176,7 @@ class DirectChatMessageController extends Controller
                 \Log::info('Notification sent to user via NotificationService');
             }
             
-            // Also notify admin about the message
-            $admin = \App\Models\Admin::first(); // Get first admin or implement your admin selection logic
-            if ($admin) {
-                $adminNotificationData = [
-                    'type' => 'direct_chat',
-                    'title' => 'New Direct Message from Seller',
-                    'message' => "Seller {$seller->username} sent a message to customer " . ($user->username ?? 'Unknown'),
-                    'url' => route('admin.discussions') . '?chat_id=' . $chat->id . ($subuserId ? '&subuser_id=' . $subuserId : ''),
-                    'icon' => 'fas fa-comments',
-                    'extra' => [
-                        'chat_id' => $chat->id,
-                        'seller_id' => $seller->id,
-                        'seller_name' => $seller->username,
-                        'user_id' => $user->id,
-                        'user_name' => $user->username ?? 'Unknown',
-                        'message_preview' => mb_substr($message, 0, 100),
-                    ],
-                ];
-                
-                \Log::info('Sending notification to admin from seller', [
-                    'admin_id' => $admin->id,
-                    'notification_data' => $adminNotificationData
-                ]);
-                
-                $notificationService = new NotificationService();
-                $notificationService->sendRealTime($admin, $adminNotificationData);
-                
-                \Log::info('Notification sent to admin from seller via NotificationService');
-            }
+            // Admin notifications removed - admins will not be notified about direct chat messages
         }
 
         // Notify user if sender is admin

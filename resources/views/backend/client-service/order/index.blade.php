@@ -305,36 +305,30 @@
                             @endif
                           </td>
                           <td>
-                            <div class="dropdown position-static">
-                              <button class="btn btn-sm btn-secondary dropdown-toggle" type="button"
-                                id="dropdownMenuButton{{ $order->id }}" data-bs-toggle="dropdown" aria-haspopup="true"
-                                aria-expanded="false">
-                                {{ __('Select') }}
-                              </button>
-                              <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton{{ $order->id }}">
-                                <li><a href="{{ route('admin.service_order.details', ['id' => $order->id]) }}" class="dropdown-item">{{ __('Details') }}</a></li>
-                                @if (!is_null($order->receipt))
-                                  <li><a href="#" class="dropdown-item" data-toggle="modal" data-target="#receiptModal-{{ $order->id }}">{{ __('Receipt') }}</a></li>
-                                @endif
-                                @if (!is_null($order->invoice))
-                                  <li><a href="{{ asset('assets/file/invoices/service/' . $order->invoice) }}" class="dropdown-item" target="_blank">{{ __('Invoice') }}</a></li>
-                                @endif
-                                <li><a href="{{ route('admin.service_order.message', ['id' => $order->id]) }}" class="dropdown-item">{{ __('Chat with customer') }}</a></li>
-                                <li><a href="{{ '#emailModal-' . $order->id }}" data-toggle="modal" class="dropdown-item">{{ __('Send via Mail') }}</a></li>
-                                <li>
-                                  <form class="deleteForm d-block" action="{{ route('admin.service_order.delete', ['id' => $order->id]) }}" method="post">
-                                    @csrf
-                                    <button type="submit" class="deleteBtn dropdown-item">{{ __('Delete') }}</button>
-                                  </form>
-                                </li>
-                              </ul>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-secondary dropdown-toggle" type="button"
+                                    id="dropdownMenuButton{{ $order->id }}" data-bs-toggle="dropdown" aria-haspopup="true"
+                                    aria-expanded="false">
+                                    {{ __('Select') }}
+                                </button>
+                                <div class="dropdown-menu order-actions-dropdown" aria-labelledby="dropdownMenuButton{{ $order->id }}">
+                                    <a href="{{ route('admin.service_order.details', ['id' => $order->id]) }}" class="dropdown-item">{{ __('Details') }}</a>
+                                    @if (!is_null($order->receipt))
+                                        <a href="#" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#receiptModal-{{ $order->id }}">{{ __('Receipt') }}</a>
+                                    @endif
+                                    @if (!is_null($order->invoice))
+                                        <a href="{{ asset('assets/file/invoices/service/' . $order->invoice) }}" class="dropdown-item" target="_blank">{{ __('Invoice') }}</a>
+                                    @endif
+                                    <a href="{{ route('admin.service_order.message', ['id' => $order->id]) }}" class="dropdown-item">{{ __('Chat with customer') }}</a>
+                                    <a href="{{ '#emailModal-' . $order->id }}" data-bs-toggle="modal" class="dropdown-item">{{ __('Send via Mail') }}</a>
+                                    <form class="deleteForm d-block" action="{{ route('admin.service_order.delete', ['id' => $order->id]) }}" method="post">
+                                        @csrf
+                                        <button type="submit" class="deleteBtn dropdown-item">{{ __('Delete') }}</button>
+                                    </form>
+                                </div>
                             </div>
                           </td>
                         </tr>
-                        <!-- Email Modal -->
-                        @includeIf('backend.client-service.order.send-mail')
-
-                        @includeWhen($order->receipt, 'backend.client-service.order.show-receipt')
                       @endforeach
                     </tbody>
                   </table>

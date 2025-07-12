@@ -283,12 +283,12 @@ class OrderProcessController extends Controller
       'order_number' => $data['orderNumber'],
       'name' => $data['name'],
       'email_address' => $data['emailAddress'],
-      'informations' => $data['infos'],
+      'informations' => is_array($data['infos']) ? json_encode($data['infos']) : $data['infos'],
       'service_id' => $data['serviceId'],
       'package_id' => $data['packageId'],
       'seller_membership_id' => $seller_membership_id,
       'package_price' => $data['packagePrice'],
-      'addons' => $data['addons'],
+      'addons' => is_array($data['addons']) ? json_encode($data['addons']) : $data['addons'],
       'addon_price' => $data['addonPrice'],
       'tax_percentage' => $data['tax_percentage'],
       'tax' => $data['tax'],
@@ -308,8 +308,19 @@ class OrderProcessController extends Controller
     // Get service and package details for notifications
     $service = Service::find($data['serviceId']);
     $package = \App\Models\ClientService\ServicePackage::find($data['packageId']);
+    
+    // Check if this is a customer offer order
+    $isCustomerOffer = isset($data['conversation_id']) && strpos($data['conversation_id'], 'customer_offer_') === 0;
+    
+    if ($isCustomerOffer) {
+      $offerId = str_replace('customer_offer_', '', $data['conversation_id']);
+      $customerOffer = \App\Models\CustomerOffer::find($offerId);
+      $serviceName = $customerOffer ? $customerOffer->title : 'Customer Offer';
+      $packageName = 'Custom Offer';
+    } else {
     $serviceName = $service ? $service->content()->where('language_id', 1)->pluck('title')->first() : 'Unknown Service';
     $packageName = $package ? $package->name : 'Basic Package';
+    }
     
     // Prepare detailed notification data
     $notificationData = [
@@ -325,6 +336,8 @@ class OrderProcessController extends Controller
       'package_name' => $packageName,
       'payment_method' => $data['paymentMethod'],
       'gateway_type' => $data['gatewayType'],
+      'is_customer_offer' => $isCustomerOffer,
+      'offer_id' => $isCustomerOffer ? $offerId : null,
     ];
 
     // Notify seller
@@ -332,9 +345,10 @@ class OrderProcessController extends Controller
       $seller = \App\Models\Seller::find($data['seller_id']);
       if ($seller) {
         $notificationData['seller_name'] = $seller->username;
+        $orderType = $isCustomerOffer ? 'Customer Offer' : 'Service';
         $notifArr = [
           'title' => 'New Order Received',
-          'message' => "New order #{$orderInfo->order_number} received for service: {$serviceName}\nPackage: {$packageName} - Amount: {$data['currencySymbol']}{$data['grandTotal']}\nStatus: " . ucfirst($data['orderStatus']),
+          'message' => "New {$orderType} order #{$orderInfo->order_number} received: {$serviceName}\nAmount: {$data['currencySymbol']}{$data['grandTotal']}\nStatus: " . ucfirst($data['orderStatus']),
           'url' => route('seller.service_order.details', ['id' => $orderInfo->id]),
           'icon' => 'fas fa-shopping-cart',
           'extra' => $notificationData,
@@ -349,9 +363,10 @@ class OrderProcessController extends Controller
     // Notify all admins
     $admins = Admin::all();
     foreach ($admins as $admin) {
+      $orderType = $isCustomerOffer ? 'Customer Offer' : 'Service';
       $notifArr = [
         'title' => 'New Order Placed',
-        'message' => "New order #{$orderInfo->order_number} placed by {$data['name']} for service: {$serviceName} - Package: {$packageName} - Amount: {$data['currencySymbol']}{$data['grandTotal']} - Payment: " . ucfirst($data['paymentStatus']),
+        'message' => "New {$orderType} order #{$orderInfo->order_number} placed by {$data['name']}: {$serviceName} - Amount: {$data['currencySymbol']}{$data['grandTotal']} - Payment: " . ucfirst($data['paymentStatus']),
         'url' => route('admin.service_order.details', ['id' => $orderInfo->id]),
         'icon' => 'fas fa-shopping-cart',
         'extra' => $notificationData,
@@ -365,9 +380,10 @@ class OrderProcessController extends Controller
     // Notify user
     $user = \App\Models\User::find($data['userId']);
     if ($user) {
+      $orderType = $isCustomerOffer ? 'Customer Offer' : 'Service';
       $notifArr = [
         'title' => 'Order Placed Successfully',
-        'message' => "Your order #{$orderInfo->order_number} for service: {$serviceName} - Package: {$packageName} has been placed successfully. Amount: {$data['currencySymbol']}{$data['grandTotal']} - Payment Status: " . ucfirst($data['paymentStatus']),
+        'message' => "Your {$orderType} order #{$orderInfo->order_number}: {$serviceName} has been placed successfully. Amount: {$data['currencySymbol']}{$data['grandTotal']} - Payment Status: " . ucfirst($data['paymentStatus']),
         'url' => route('user.service_order.details', ['id' => $orderInfo->id]),
         'icon' => 'fas fa-check-circle',
         'extra' => $notificationData,

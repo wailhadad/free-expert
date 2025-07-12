@@ -98,7 +98,7 @@
                                 {{ __('Select') }}
                               </button>
 
-                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                              <div class="dropdown-menu order-actions-dropdown" aria-labelledby="dropdownMenuButton">
                                 <a data-toggle="modal" data-target="#editModal" data-id="{{ $item->id }}"
                                   data-name="{{ $item->name }}" data-status="{{ $item->status }}"
                                   class="dropdown-item editBtn">

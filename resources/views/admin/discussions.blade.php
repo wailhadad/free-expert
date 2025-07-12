@@ -60,10 +60,31 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
           }
           e.preventDefault();
-          window.openDirectChatModal(chat.id, chat.seller?.username, chat.seller?.avatar_url, chat.seller?.id, subuser ? subuser.username : null);
+          window.openDirectChatModal(chat.id, seller?.username, seller?.avatar_url, seller?.id, subuser ? subuser.username : null);
         });
         list.appendChild(item);
       });
+
+      // Auto-open chat modal if chat_id is present in URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const chatIdParam = urlParams.get('chat_id');
+      const subuserIdParam = urlParams.get('subuser_id');
+      if (chatIdParam) {
+        const chatToOpen = nonEmptyChats.find(chat => String(chat.id) === String(chatIdParam));
+        if (chatToOpen) {
+          // Find seller and subuser info
+          const seller = chatToOpen.seller;
+          const subuser = chatToOpen.subuser;
+          // Use username for subuser if present
+          window.openDirectChatModal(
+            chatToOpen.id,
+            seller?.username,
+            seller?.avatar_url,
+            seller?.id,
+            subuserIdParam ? (subuser && String(subuser.id) === String(subuserIdParam) ? subuser.username : null) : null
+          );
+        }
+      }
     });
 });
 </script>

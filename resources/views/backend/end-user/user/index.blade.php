@@ -132,7 +132,7 @@
                                 {{ __('Select') }}
                               </button>
 
-                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                              <div class="dropdown-menu order-actions-dropdown" aria-labelledby="dropdownMenuButton">
                                 <a href="{{ route('admin.user_management.user.details', ['id' => $user->id]) }}"
                                   class="dropdown-item">
                                   {{ __('Details') }}

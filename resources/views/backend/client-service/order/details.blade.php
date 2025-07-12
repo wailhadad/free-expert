@@ -282,18 +282,26 @@
           <div class="payment-information">
             <div class="row mb-2">
               <div class="col-lg-4">
-                <strong>{{ __('Name') . ' :' }}</strong>
+                <strong>{{ __('User') . ' :' }}</strong>
               </div>
-
-              <div class="col-lg-8">{{ $orderInfo->name }}</div>
+              <div class="col-lg-8">
+                @if($userUsername)
+                  <a href="{{ route('admin.user_management.user.details', ['id' => $orderInfo->user_id]) }}">{{ $userUsername }}</a>
+                @endif
+                @if($subuserUsername)
+                  as
+                  (<a href="{{ route('admin.user_management.subuser.details', ['id' => $orderInfo->subuser_id]) }}">{{ $subuserUsername }}</a>)
+                @endif
+              </div>
             </div>
 
             <div class="row mb-2">
               <div class="col-lg-4">
                 <strong>{{ __('Email') . ' :' }}</strong>
               </div>
-
-              <div class="col-lg-8">{{ @$orderInfo->email_address }}</div>
+              <div class="col-lg-8">
+                {{ $displayEmail }}
+              </div>
             </div>
 
             @php $informations = json_decode($orderInfo->informations); @endphp
@@ -306,7 +314,7 @@
                   $label = mb_convert_case($str, MB_CASE_TITLE);
                 @endphp
 
-                @if ($information->type == 8)
+                @if (is_object($information) && $information->type == 8)
                   <div class="row {{ $loop->iteration == $length ? 'mb-1' : 'mb-2' }}">
                     <div class="col-lg-4">
                       <strong>{{ $label . ' :' }}</strong>
@@ -319,7 +327,7 @@
                       </a>
                     </div>
                   </div>
-                @elseif ($information->type == 5)
+                @elseif (is_object($information) && $information->type == 5)
                   <div class="row {{ $loop->iteration == $length ? 'mb-1' : 'mb-2' }}">
                     <div class="col-lg-4">
                       <strong>{{ $label . ' :' }}</strong>
@@ -334,7 +342,7 @@
                   </div>
 
                   @include('backend.client-service.order.show-text')
-                @elseif ($information->type == 4)
+                @elseif (is_object($information) && $information->type == 4)
                   <div class="row {{ $loop->iteration == $length ? 'mb-1' : 'mb-2' }}">
                     <div class="col-lg-4">
                       <strong>{{ $label . ' :' }}</strong>
@@ -358,13 +366,21 @@
                       {{ $allCheckboxOptions }}
                     </div>
                   </div>
-                @else
+                @elseif (is_object($information))
                   <div class="row {{ $loop->iteration == $length ? 'mb-1' : 'mb-2' }}">
                     <div class="col-lg-4">
                       <strong>{{ $label . ' :' }}</strong>
                     </div>
 
                     <div class="col-lg-8">{{ $information->value }}</div>
+                  </div>
+                @else
+                  <div class="row {{ $loop->iteration == $length ? 'mb-1' : 'mb-2' }}">
+                    <div class="col-lg-4">
+                      <strong>{{ $label . ' :' }}</strong>
+                    </div>
+
+                    <div class="col-lg-8">{{ $information }}</div>
                   </div>
                 @endif
               @endforeach

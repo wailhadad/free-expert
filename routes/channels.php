@@ -40,7 +40,11 @@ Broadcast::channel('notification-channel', function () {
 
 // Direct chat private channel
 Broadcast::channel('direct-chat.{chatId}', function ($user, $chatId) {
-    // You should check if the authenticated user or seller is part of the chat
-    // For demo, allow all authenticated users/sellers (replace with real check for production)
-    return auth('web')->check() || auth('seller')->check();
+    $chat = \App\Models\DirectChat::find($chatId);
+    if (!$chat) return false;
+    // Check if the user is a participant (user, seller, or subuser)
+    if ($chat->user_id === $user->id) return true;
+    if ($chat->seller_id === $user->id) return true;
+    if ($chat->subuser_id && $chat->subuser_id === $user->id) return true;
+    return false;
 });

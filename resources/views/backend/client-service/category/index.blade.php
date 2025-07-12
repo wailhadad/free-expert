@@ -142,7 +142,7 @@
                                 {{ __('Select') }}
                               </button>
 
-                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                              <div class="dropdown-menu order-actions-dropdown" aria-labelledby="dropdownMenuButton">
                                 <a data-toggle="modal" data-target="#editModal" data-id="{{ $category->id }}"
                                   data-image="{{ asset('assets/img/service-categories/' . $category->image) }}"
                                   data-name="{{ $category->name }}" data-status="{{ $category->status }}"

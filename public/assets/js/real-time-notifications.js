@@ -74,6 +74,7 @@ class RealTimeNotifications {
     }
 
     handleNewNotification(data) {
+        this.playNotificationSound();
         console.log('Real-time notification received!', data);
         console.log('Current timestamp:', new Date().toISOString());
         console.log('Notification type:', data.notification?.type);
@@ -106,6 +107,22 @@ class RealTimeNotifications {
                 this.reloadNotificationListPage();
             }
         }, 300); // 300ms delay to allow database transaction to commit
+    }
+
+    playNotificationSound() {
+        try {
+            const audio = new Audio('/assets/notification.mp3');
+            audio.volume = 1.0;
+            audio.play().catch(e => { /* ignore autoplay errors */ });
+            
+            // Stop the sound after 3 seconds
+            setTimeout(() => {
+                audio.pause();
+                audio.currentTime = 0;
+            }, 4000);
+        } catch (e) {
+            console.warn('Notification sound could not be played:', e);
+        }
     }
 
     getRolePrefix() {

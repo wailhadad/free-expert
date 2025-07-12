@@ -22,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use Mews\Purifier\Facades\Purifier;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -69,11 +70,15 @@ class OrderController extends Controller
 
     $orders->map(function ($order) use ($language) {
       $service = $order->service()->first();
-      $order['serviceTitle'] = $service->content()->where('language_id', $language->id)->pluck('title')->first();
-      $order['serviceSlug'] = $service->content()->where('language_id', $language->id)->pluck('slug')->first();
-
+      if ($service) {
+        $order['serviceTitle'] = $service->content()->where('language_id', $language->id)->pluck('title')->first();
+        $order['serviceSlug'] = $service->content()->where('language_id', $language->id)->pluck('slug')->first();
+      } else {
+        // Fallback for customer offer orders (no real service)
+        $order['serviceTitle'] = $order->order_number ?? 'Custom Offer';
+        $order['serviceSlug'] = null;
+      }
       $package = $order->package()->first();
-
       if (is_null($package)) {
         $order['packageName'] = NULL;
       } else {
@@ -103,8 +108,13 @@ class OrderController extends Controller
 
     $collection->map(function ($order) use ($language) {
       $service = $order->service()->first();
-      $order['serviceTitle'] = $service->content()->where('language_id', $language->id)->pluck('title')->first();
-      $order['serviceSlug'] = $service->content()->where('language_id', $language->id)->pluck('slug')->first();
+      if ($service) {
+        $order['serviceTitle'] = $service->content()->where('language_id', $language->id)->pluck('title')->first();
+        $order['serviceSlug'] = $service->content()->where('language_id', $language->id)->pluck('slug')->first();
+      } else {
+        $order['serviceTitle'] = $order->order_number ?? 'Custom Offer';
+        $order['serviceSlug'] = null;
+      }
     });
     return view('backend.client-service.order.disputs', compact('collection'));
   }
@@ -170,12 +180,12 @@ class OrderController extends Controller
           'invoice' => $invoice
         ]);
         
-        \Log::info('AdminOrderInvoice: PDF generated successfully', [
+        Log::info('AdminOrderInvoice: PDF generated successfully', [
           'order_id' => $order->id,
           'invoice' => $invoice
         ]);
       } catch (\Exception $e) {
-        \Log::error('AdminOrderInvoice: PDF generation failed', [
+        Log::error('AdminOrderInvoice: PDF generation failed', [
           'order_id' => $order->id,
           'error' => $e->getMessage()
         ]);
@@ -233,32 +243,32 @@ class OrderController extends Controller
         $smtpInfo = \App\Models\BasicSettings\Basic::select('smtp_status', 'smtp_host', 'from_mail')->first();
         if ($smtpInfo && $smtpInfo->smtp_status == 1) {
           BasicMailer::sendMail($mailData);
-          \Log::info('AdminOrderPayment: Email sent via SMTP', [
+          Log::info('AdminOrderPayment: Email sent via SMTP', [
             'order_id' => $order->id,
               'recipient' => $recipientEmail,
             'smtp_host' => $smtpInfo->smtp_host
           ]);
         } else {
-          \Log::warning('AdminOrderPayment: SMTP not configured, email not sent', [
+          Log::warning('AdminOrderPayment: SMTP not configured, email not sent', [
             'order_id' => $order->id,
               'recipient' => $recipientEmail,
             'smtp_status' => $smtpInfo ? $smtpInfo->smtp_status : 'null'
             ]);
           }
         } else {
-          \Log::warning('Order email not sent: No valid recipient email for order', [
+          Log::warning('Order email not sent: No valid recipient email for order', [
             'order_id' => $order->id,
             'user_id' => $order->user_id,
             'subuser_id' => $order->subuser_id,
           ]);
         }
         
-        \Log::info('AdminOrderPayment: Notifications and email sent successfully', [
+        Log::info('AdminOrderPayment: Notifications and email sent successfully', [
           'order_id' => $order->id,
           'status' => 'completed'
         ]);
       } catch (\Exception $e) {
-        \Log::error('AdminOrderPayment: Notifications/Email sending failed', [
+        Log::error('AdminOrderPayment: Notifications/Email sending failed', [
           'order_id' => $order->id,
           'error' => $e->getMessage()
         ]);
@@ -299,12 +309,12 @@ class OrderController extends Controller
 
         BasicMailer::sendMail($mailData);
         
-        \Log::info('AdminOrderPayment: Notifications and email sent successfully', [
+        Log::info('AdminOrderPayment: Notifications and email sent successfully', [
           'order_id' => $order->id,
           'status' => 'pending'
         ]);
       } catch (\Exception $e) {
-        \Log::error('AdminOrderPayment: Notifications/Email sending failed', [
+        Log::error('AdminOrderPayment: Notifications/Email sending failed', [
           'order_id' => $order->id,
           'error' => $e->getMessage()
         ]);
@@ -360,12 +370,12 @@ class OrderController extends Controller
 
         BasicMailer::sendMail($mailData);
         
-        \Log::info('AdminOrderPayment: Notifications and email sent successfully', [
+        Log::info('AdminOrderPayment: Notifications and email sent successfully', [
           'order_id' => $order->id,
           'status' => 'rejected'
         ]);
       } catch (\Exception $e) {
-        \Log::error('AdminOrderPayment: Notifications/Email sending failed', [
+        Log::error('AdminOrderPayment: Notifications/Email sending failed', [
           'order_id' => $order->id,
           'error' => $e->getMessage()
         ]);
@@ -399,7 +409,7 @@ class OrderController extends Controller
     $arrData['orderInfo']->website_title = $websiteInfo->website_title;
 
     // Debug: Log the logo value
-    \Log::info('AdminOrderInvoice: Logo debugging', [
+    Log::info('AdminOrderInvoice: Logo debugging', [
         'logo_from_db' => $websiteInfo->logo,
         'logo_assigned_to_order' => $arrData['orderInfo']->logo,
         'website_title' => $websiteInfo->website_title
@@ -410,7 +420,12 @@ class OrderController extends Controller
 
     // get service title
     $service = $order->service()->first();
-    $arrData['serviceTitle'] = $service->content()->where('language_id', $language->id)->pluck('title')->first();
+    if ($service) {
+      $arrData['serviceTitle'] = $service->content()->where('language_id', $language->id)->pluck('title')->first();
+    } else {
+      // Fallback for customer offer orders (no real service)
+      $arrData['serviceTitle'] = $order->order_number ?? 'Custom Offer';
+    }
 
     // get package title
     $package = $order->package()->first();
@@ -421,7 +436,7 @@ class OrderController extends Controller
       $arrData['packageTitle'] = $package->name;
     }
 
-    \Log::info('AdminOrderInvoice: Starting PDF generation', [
+    Log::info('AdminOrderInvoice: Starting PDF generation', [
       'order_id' => $order->id,
       'file_location' => public_path($fileLocation)
     ]);
@@ -437,7 +452,7 @@ class OrderController extends Controller
         ])
         ->save(public_path($fileLocation));
 
-      \Log::info('AdminOrderInvoice: PDF generated successfully', [
+      Log::info('AdminOrderInvoice: PDF generated successfully', [
         'order_id' => $order->id,
         'file_location' => public_path($fileLocation),
         'file_exists' => file_exists(public_path($fileLocation))
@@ -445,7 +460,7 @@ class OrderController extends Controller
 
       return $invoiceName;
     } catch (\Exception $e) {
-      \Log::error('AdminOrderInvoice: PDF generation failed', [
+      Log::error('AdminOrderInvoice: PDF generation failed', [
         'order_id' => $order->id,
         'error' => $e->getMessage(),
         'file_location' => public_path($fileLocation)
@@ -673,12 +688,23 @@ class OrderController extends Controller
   {
     $order = ServiceOrder::query()->findOrFail($id);
     $queryResult['orderInfo'] = $order;
+    $queryResult['userUsername'] = $order->user ? $order->user->username : null;
+    $queryResult['subuserUsername'] = $order->subuser ? $order->subuser->username : null;
+    $queryResult['displayEmail'] = $order->user ? $order->user->email_address : 'N/A';
 
     $language = Language::query()->where('is_default', '=', 1)->first();
 
     // get service title
     $service = $order->service()->first();
-    $queryResult['serviceTitle'] = $service->content()->where('language_id', $language->id)->select('title', 'slug')->first();
+    if ($service) {
+      $queryResult['serviceTitle'] = $service->content()->where('language_id', $language->id)->select('title', 'slug')->first();
+    } else {
+      // Fallback for customer offer orders (no real service)
+      $queryResult['serviceTitle'] = (object)[
+        'title' => $order->order_number ?? 'Custom Offer',
+        'slug' => null
+      ];
+    }
 
     // get package title
     $package = $order->package()->first();
@@ -699,7 +725,15 @@ class OrderController extends Controller
     $queryResult['order'] = $order;
     $language = Language::query()->where('is_default', '=', 1)->first();
     $service = $order->service()->first();
-    $queryResult['serviceInfo'] = $service->content()->where('language_id', $language->id)->first();
+    if ($service) {
+      $queryResult['serviceInfo'] = $service->content()->where('language_id', $language->id)->first();
+    } else {
+      // Fallback for customer offer orders (no real service)
+      $queryResult['serviceInfo'] = (object)[
+        'title' => $order->order_number ?? 'Custom Offer',
+        'slug' => null
+      ];
+    }
 
     $messages = $order->message()->get();
 

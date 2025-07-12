@@ -1153,3 +1153,17 @@ body[data-background-color="dark"] .select2-container--default .select2-selectio
   left: auto !important;
   right: auto !important;
 }
+
+/* --- Order Actions Dropdown Alignment Fix --- */
+.order-actions-dropdown {
+  left: auto !important;
+  min-width: 180px;
+  top: -5px !important;
+  margin-top: 0.25rem !important;
+}
+
+/* Optional: Prevent dropdown from being cut off in responsive tables */
+.table-responsive .dropdown-menu.order-actions-dropdown {
+  position: absolute !important;
+}
+/* --- End Order Actions Dropdown Alignment Fix --- */

@@ -55,4 +55,12 @@ class Seller extends Authenticatable
     {
         return $this->belongsTo(SupportTicket::class, 'user_id', 'id');
     }
+
+    public function getAvatarUrlAttribute()
+    {
+        if ($this->photo) {
+            return asset('assets/admin/img/seller-photo/' . $this->photo);
+        }
+        return asset('assets/img/users/profile.jpeg');
+    }
 }

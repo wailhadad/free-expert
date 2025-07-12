@@ -73,6 +73,11 @@ class NotificationService
     {
         $notification = new RealTimeNotification($data);
         Notification::send($notifiables, $notification);
+        
+        // Trigger broadcast events for each notifiable
+        foreach ($notifiables as $notifiable) {
+            event(new NotificationReceived($data, class_basename($notifiable), $notifiable->id));
+        }
     }
 
     /**

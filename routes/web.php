@@ -5,6 +5,9 @@ use Illuminate\Support\Facades\Route;
 //use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\FrontEnd\NotificationController;
 use App\Http\Controllers\FrontEnd\MiscellaneousController;
+use Illuminate\Support\Facades\Broadcast;
+
+Broadcast::routes();
 
 /*
 |--------------------------------------------------------------------------
@@ -388,6 +391,19 @@ Route::middleware(['auth:web'])->group(function () {
     Route::post('direct-chat/{chat}/send', [\App\Http\Controllers\DirectChatMessageController::class, 'sendMessage']);
     Route::post('direct-chat/{chat}/read', [\App\Http\Controllers\DirectChatMessageController::class, 'markAsRead']);
     Route::get('direct-chat/unread-count', [\App\Http\Controllers\DirectChatController::class, 'unreadCount']);
+    
+    // Customer Offer routes for users
+    Route::get('customer-offer/{chat}/offers', [\App\Http\Controllers\CustomerOfferController::class, 'getOffers']);
+    Route::post('customer-offer/{offer}/accept', [\App\Http\Controllers\CustomerOfferController::class, 'accept']);
+    Route::post('customer-offer/{offer}/decline', [\App\Http\Controllers\CustomerOfferController::class, 'decline']);
+    Route::get('customer-offer/{offer}/details', [\App\Http\Controllers\CustomerOfferController::class, 'getOfferDetails']);
+    
+    // Customer Offer checkout routes
+    Route::get('customer-offer/{offer}/checkout', [\App\Http\Controllers\CustomerOfferCheckoutController::class, 'checkout'])->name('customer.offer.checkout');
+    Route::post('customer-offer/{offer}/process-checkout', [\App\Http\Controllers\CustomerOfferCheckoutController::class, 'processCheckout'])->name('customer.offer.process_checkout');
+    Route::get('customer-offer/{offer}/complete', [\App\Http\Controllers\CustomerOfferCheckoutController::class, 'complete'])->name('customer.offer.complete');
+    // Add order details route for customer offer orders
+    Route::get('customer-offer/order/{order}/details', [\App\Http\Controllers\CustomerOfferCheckoutController::class, 'orderDetails'])->name('customer.offer.order.details');
 });
 Route::post('direct-chat/mark-subuser-read', [\App\Http\Controllers\DirectChatController::class, 'markSubuserMessagesRead'])->middleware(['auth:web']);
 
@@ -398,6 +414,11 @@ Route::prefix('seller')->middleware(['auth:seller'])->group(function () {
     Route::post('direct-chat/{chat}/send', [\App\Http\Controllers\DirectChatMessageController::class, 'sendMessage']);
     Route::post('direct-chat/{chat}/read', [\App\Http\Controllers\DirectChatMessageController::class, 'markAsRead']);
     Route::get('direct-chat/unread-count', [\App\Http\Controllers\DirectChatController::class, 'unreadCount']);
+    
+    // Customer Offer routes for sellers
+    Route::get('customer-offer/forms', [\App\Http\Controllers\CustomerOfferController::class, 'getForms']);
+    Route::post('customer-offer/create', [\App\Http\Controllers\CustomerOfferController::class, 'create']);
+    Route::get('customer-offer/{chat}/offers', [\App\Http\Controllers\CustomerOfferController::class, 'getOffers']);
 });
 Route::post('seller/direct-chat/mark-subuser-read', [\App\Http\Controllers\DirectChatController::class, 'markSubuserMessagesRead'])->middleware(['auth:seller']);
 
@@ -407,6 +428,9 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     Route::post('direct-chat/{chat}/send', [\App\Http\Controllers\DirectChatMessageController::class, 'sendMessage']);
     Route::post('direct-chat/{chat}/read', [\App\Http\Controllers\DirectChatMessageController::class, 'markAsRead']);
     Route::get('direct-chat/unread-count', [\App\Http\Controllers\DirectChatController::class, 'unreadCount']);
+    
+    // Customer Offer routes for admins
+    Route::get('customer-offer/{chat}/offers', [\App\Http\Controllers\CustomerOfferController::class, 'getOffers']);
 });
 Route::post('admin/direct-chat/mark-subuser-read', [\App\Http\Controllers\DirectChatController::class, 'markSubuserMessagesRead'])->middleware(['auth:admin']);
 

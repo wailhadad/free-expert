@@ -65,10 +65,47 @@ window.currentUserId = '{{ $userId }}';
   border-color: #dc3545;
   color: white;
 }
+
+/* Customer Offer styling */
+.customer-offer-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+.customer-offer-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.customer-offer-card.accepted {
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+  border-color: #28a745;
+}
+
+.customer-offer-card.declined {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  border-color: #dc3545;
+}
+
+.customer-offer-card.expired {
+  background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);
+  border-color: #6c757d;
+}
+
+.customer-offer-card .btn {
+  border-radius: 20px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.customer-offer-card .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
 </style>
 @endpush
 <div class="modal fade" id="directChatModal" tabindex="-1" aria-labelledby="directChatModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+  <div class="modal-dialog modal-dialog-centered modal-xl"> <!-- Changed to modal-xl for larger chat window -->
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="directChatModalLabel">
@@ -91,6 +128,13 @@ window.currentUserId = '{{ $userId }}';
           </label>
           <input type="text" id="direct-chat-input" class="form-control" placeholder="Type a message..." autocomplete="off" required>
           <button type="submit" class="btn btn-primary"><i class="far fa-paper-plane"></i></button>
+          
+          @if ($userType === 'seller')
+          <button type="button" id="customer-offer-btn" class="btn btn-success ms-2 customer-offer-btn" title="Create Customer Offer">
+            <i class="fas fa-gift"></i> Customer Offer
+          </button>
+          @endif
+          
           @if ($userType === 'user')
           <div class="dropdown ms-2" id="direct-chat-subuser-dropdown" style="min-width:180px;">
             <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center" type="button" id="subuserDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
@@ -116,4 +160,6 @@ window.currentUserId = '{{ $userId }}';
       </div>
     </div>
   </div>
-</div> 
+</div>
+
+@include('components.customer-offer-modal') 

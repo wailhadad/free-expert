@@ -225,7 +225,7 @@
         <li class="nav-item {{ request()->routeIs('seller.discussions') ? 'active' : '' }}">
           <a href="{{ route('seller.discussions') }}">
             <i class="fas fa-comments"></i>
-            <p>Discussions</p>
+            <p>Messages</p>
           </a>
         </li>
 
