@@ -116,16 +116,17 @@ class DirectChatMessageController extends Controller
             // Use subuser from message if present
             $subuser = $msg->subuser_id ? \App\Models\Subuser::find($msg->subuser_id) : $chat->subuser;
             if ($seller) {
+                $fromUsername = $subuser ? $subuser->username : $user->username;
                 $notificationData = [
                     'type' => 'direct_chat',
-                    'title' => 'New Direct Message from Customer',
-                    'message' => "You have received a new direct message from " . ($subuser ? $subuser->username : $user->username),
+                    'title' => 'New Message from ' . $fromUsername,
+                    'message' => "You have received a new direct message from " . $fromUsername,
                     'url' => route('seller.discussions') . '?chat_id=' . $chat->id . ($subuser ? '&subuser_id=' . $subuser->id : ''),
                     'icon' => 'fas fa-comments',
                     'extra' => [
                         'chat_id' => $chat->id,
                         'user_id' => $subuser ? $subuser->id : $user->id,
-                        'user_name' => $subuser ? $subuser->username : $user->username,
+                        'user_name' => $fromUsername,
                         'user_avatar' => $subuser ? ($subuser->image ? asset('assets/img/subusers/' . $subuser->image) : asset('assets/img/users/profile.jpeg')) : ($user->avatar_url ?? asset('assets/img/users/profile.jpeg')),
                         'message_preview' => mb_substr($message, 0, 100),
                     ],
@@ -152,7 +153,7 @@ class DirectChatMessageController extends Controller
             if ($user) {
                 $notificationData = [
                     'type' => 'direct_chat',
-                    'title' => 'New Direct Message from Seller',
+                    'title' => 'New Message from ' . $seller->username,
                     'message' => "You have received a new direct message from {$seller->username}",
                     'url' => route('user.discussions') . '?chat_id=' . $chat->id . ($subuserId ? '&subuser_id=' . $subuserId : ''),
                     'icon' => 'fas fa-comments',

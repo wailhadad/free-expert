@@ -41,7 +41,7 @@
             </div>
 
             <div class="col-lg-4 offset-lg-1 mt-2 mt-lg-0">
-              <a href="#" data-toggle="modal" data-target="#createModal"
+              <a href="#" data-bs-toggle="modal" data-bs-target="#createModal"
                 class="btn btn-primary btn-sm float-lg-right float-left">
                 <i class="fas fa-plus"></i> {{ __('Add') }}
               </a>

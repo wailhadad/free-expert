@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', function() {
       list.innerHTML = '';
       // Only show chats with at least one message
       const nonEmptyChats = data.chats.filter(chat => chat.messages && chat.messages.length > 0);
+      // Store all discussions globally for modal header use
+      window.adminDiscussionsListData = data.chats;
       if (!nonEmptyChats.length) {
         list.innerHTML = '<div class="text-muted text-center py-4">No discussions yet.</div>';
         return;
@@ -60,6 +62,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
           }
           e.preventDefault();
+          // Store the clicked chat's data for the modal header
+          window.lastOpenedAdminChatData = chat;
           window.openDirectChatModal(chat.id, seller?.username, seller?.avatar_url, seller?.id, subuser ? subuser.username : null);
         });
         list.appendChild(item);

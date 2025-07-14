@@ -6381,3 +6381,17 @@ Other CSS
 button.swal-button.swal-button--confirm.btn.btn-success {
   background: #079507;
 }
+
+/* Custom status badge colors for subscription log */
+.badge-success {
+  background-color: #28a745 !important;
+  color: #fff !important;
+}
+.badge-warning {
+  background-color: #ffc107 !important;
+  color: #212529 !important;
+}
+.badge-danger {
+  background-color: #dc3545 !important;
+  color: #fff !important;
+}

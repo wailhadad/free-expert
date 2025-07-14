@@ -140,6 +140,10 @@ class DirectChatController extends Controller
             $chatArr = $chat->toArray();
             $chatArr['subusers'] = $subusers;
             $chatArr['unread_count'] = $globalUnread;
+            // Ensure seller avatar_url uses accessor
+            if ($chat->seller) {
+                $chatArr['seller']['avatar_url'] = $chat->seller->avatar_url;
+            }
             return $chatArr;
         });
         return response()->json(['chats' => $chats]);
@@ -265,7 +269,7 @@ class DirectChatController extends Controller
                 'seller' => $chat->seller ? [
                     'id' => $chat->seller->id,
                     'username' => $chat->seller->username,
-                    'avatar_url' => $chat->seller->image ? asset('assets/img/sellers/' . $chat->seller->image) : asset('assets/img/users/profile.jpeg'),
+                    'avatar_url' => $chat->seller->avatar_url ? $chat->seller->avatar_url : asset('assets/img/users/profile.jpeg'), // <-- Use accessor for correct image path
                 ] : null,
                 'subusers' => $subusers,
                 'unread_count' => $globalUnread,

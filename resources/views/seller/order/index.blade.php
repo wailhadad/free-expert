@@ -245,12 +245,12 @@
                           <td>
                             <div class="dropdown">
                               <button class="btn btn-sm btn-secondary dropdown-toggle" type="button"
-                                id="dropdownMenuButton" data-bs-toggle="dropdown" aria-haspopup="true"
+                                id="dropdownMenuButton-{{ $order->id }}" data-bs-toggle="dropdown" aria-haspopup="true"
                                 aria-expanded="false">
                                 {{ __('Select') }}
                               </button>
 
-                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton-{{ $order->id }}">
                                 <a href="{{ route('seller.service_order.details', ['id' => $order->id]) }}"
                                   class="dropdown-item">
                                   {{ __('Details') }}
@@ -282,9 +282,6 @@
                                   </a>
                                 @endif
 
-                                <a href="{{ '#emailModal-' . $order->id }}" data-bs-toggle="modal" class="dropdown-item">
-                                  {{ __('Send via Mail') }}
-                                </a>
                                 <form class="deleteForm d-block"
                                   action="{{ route('seller.service_order.delete', ['id' => $order->id]) }}"
                                   method="post">
@@ -324,4 +321,15 @@
       </div>
     </div>
   </div>
+@endsection
+
+@section('script')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var dropdownElements = [].slice.call(document.querySelectorAll('.dropdown-toggle[data-bs-toggle="dropdown"]'));
+    dropdownElements.forEach(function (dropdownToggleEl) {
+        new bootstrap.Dropdown(dropdownToggleEl);
+    });
+});
+</script>
 @endsection

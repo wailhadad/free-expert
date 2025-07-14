@@ -124,7 +124,7 @@ class AuthorizeController extends Controller
                             'expire_date' => Carbon::parse($expire->toFormattedDateString())->format('Y') == '9999' ? 'Lifetime' : $expire->toFormattedDateString(),
                             'membership_invoice' => $file_name,
                             'website_title' => $bs->website_title,
-                            'templateType' => 'membership_extend',
+                                                'templateType' => 'seller_membership_extend',
                             'type' => 'membershipExtend'
                         ];
                         $mailer->mailFromAdmin($data);

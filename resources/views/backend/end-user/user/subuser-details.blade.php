@@ -20,14 +20,6 @@
         <dd class="col-sm-9">{{ $subuser->full_name }}</dd>
         <dt class="col-sm-3">{{ __('Status') }}</dt>
         <dd class="col-sm-9">{{ $subuser->status ? __('Active') : __('Inactive') }}</dd>
-        <dt class="col-sm-3">{{ __('Phone') }}</dt>
-        <dd class="col-sm-9">{{ $subuser->phone_number }}</dd>
-        <dt class="col-sm-3">{{ __('Address') }}</dt>
-        <dd class="col-sm-9">{{ $subuser->address }}</dd>
-        <dt class="col-sm-3">{{ __('City') }}</dt>
-        <dd class="col-sm-9">{{ $subuser->city }}</dd>
-        <dt class="col-sm-3">{{ __('State') }}</dt>
-        <dd class="col-sm-9">{{ $subuser->state }}</dd>
         <dt class="col-sm-3">{{ __('Country') }}</dt>
         <dd class="col-sm-9">{{ $subuser->country }}</dd>
         <dt class="col-sm-3">{{ __('Created At') }}</dt>

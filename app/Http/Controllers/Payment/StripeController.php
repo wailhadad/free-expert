@@ -65,6 +65,13 @@ class StripeController extends Controller
 
             if ($charge['status'] == 'succeeded') {
                 $paymentFor = Session::get('paymentFor');
+                
+                \Log::info('Stripe payment success', [
+                    'paymentFor' => $paymentFor,
+                    'request' => $request->all(),
+                    'session_id' => session()->getId()
+                ]);
+                
                 $package = Package::find($request->package_id);
                 $transaction_id = SellerPermissionHelper::uniqidReal(8);
                 $transaction_details = json_encode($charge);
@@ -102,6 +109,26 @@ class StripeController extends Controller
                     $mailer->mailFromAdmin($data);
                     @unlink(public_path('assets/front/invoices/' . $file_name));
 
+                    // Notify all admins of new seller package purchase
+                    $admins = \App\Models\Admin::all();
+                    foreach ($admins as $admin) {
+                        $notificationService = new \App\Services\NotificationService();
+                        $notificationService->sendRealTime($admin, [
+                            'type' => 'seller_package_purchase',
+                            'title' => 'New Seller Package Purchase',
+                            'message' => 'Seller ' . $user->username . ' purchased the package: ' . $package->title,
+                            'url' => route('admin.payment-log.index'),
+                            'icon' => 'fas fa-box',
+                            'extra' => [
+                                'seller_id' => $user->id,
+                                'package_id' => $package->id,
+                                'package_title' => $package->title,
+                                'price' => $amount,
+                                'payment_method' => 'Stripe'
+                            ]
+                        ]);
+                    }
+
                     session()->flash('success', __('successful_payment'));
                     Session::forget('request');
                     Session::forget('paymentFor');
@@ -128,11 +155,32 @@ class StripeController extends Controller
                         'expire_date' => Carbon::parse($expire->toFormattedDateString())->format('Y') == '9999' ? 'Lifetime' : $expire->toFormattedDateString(),
                         'membership_invoice' => $file_name,
                         'website_title' => $bs->website_title,
-                        'templateType' => 'membership_extend',
+                                            'templateType' => 'seller_membership_extend',
                         'type' => 'membershipExtend'
                     ];
+                    \Log::info('Sending seller extension email', $data);
                     $mailer->mailFromAdmin($data);
                     @unlink(public_path('assets/front/invoices/' . $file_name));
+
+                    // Notify all admins of seller package extension
+                    $admins = \App\Models\Admin::all();
+                    foreach ($admins as $admin) {
+                        $notificationService = new \App\Services\NotificationService();
+                        $notificationService->sendRealTime($admin, [
+                            'type' => 'seller_package_extension',
+                            'title' => 'Seller Package Extension',
+                            'message' => 'Seller ' . $user->username . ' extended the package: ' . $package->title,
+                            'url' => route('admin.payment-log.index'),
+                            'icon' => 'fas fa-sync-alt',
+                            'extra' => [
+                                'seller_id' => $user->id,
+                                'package_id' => $package->id,
+                                'package_title' => $package->title,
+                                'price' => $amount,
+                                'payment_method' => 'Stripe'
+                            ]
+                        ]);
+                    }
 
                     //store data to transaction and earnings table
                     $transaction_data = [];

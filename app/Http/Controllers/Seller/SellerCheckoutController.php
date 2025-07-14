@@ -41,6 +41,7 @@ class SellerCheckoutController extends Controller
 {
     public function checkout(ExtendRequest $request)
     {
+        \Log::info('Checkout method entered', ['request' => $request->all()]);
         try {
             $offline_payment_gateways = OfflineGateway::all()->pluck('name')->toArray();
             $currentLang = session()->has('lang') ?
@@ -66,10 +67,19 @@ class SellerCheckoutController extends Controller
 
                 $lastMemb = $seller->memberships()->orderBy('id', 'DESC')->first();
 
+                \Log::info('About to generate PDF invoice', ['seller_id' => $seller->id, 'package_id' => $request['package_id']]);
                 $file_name = $this->makeInvoice($request->all(), "extend", $seller, $password, $request['price'], $request["payment_method"], $seller->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb, 'seller-memberships');
                 
                 // Use MegaMailer for consistency
                 $mailer = new \App\Http\Helpers\MegaMailer();
+                // Determine if this is an extension
+                $hasActiveMembership = \App\Models\Membership::where('seller_id', $seller->id)
+                    ->where('package_id', $package->id)
+                    ->where('status', 1)
+                    ->where('start_date', '<=', now())
+                    ->where('expire_date', '>=', now())
+                    ->count() > 1; // >1 because the just-created one is included
+                $templateType = $hasActiveMembership ? 'seller_membership_extend' : 'seller_membership_invoice';
                 $data = [
                     'toMail' => $seller->email,
                     'username' => $seller->username,
@@ -80,12 +90,30 @@ class SellerCheckoutController extends Controller
                     'membership_invoice' => $file_name,
                     'membership_invoice_path' => 'seller-memberships',
                     'website_title' => $bs->website_title,
-                    'templateType' => 'seller_membership_invoice',
+                    'templateType' => $templateType,
                     'mail_subject' => $subject,
                 ];
                 $mailer->mailFromAdmin($data);
                 Session::forget('request');
                 Session::forget('paymentFor');
+                // Notify all admins of new seller package extension (free or paid)
+                $admins = \App\Models\Admin::all();
+                foreach ($admins as $admin) {
+                    $notificationService = new \App\Services\NotificationService();
+                    $notificationService->sendRealTime($admin, [
+                        'type' => 'seller_package_purchase',
+                        'title' => 'New Seller Package Purchase',
+                        'message' => 'Seller ' . $seller->username . ' purchased the package: ' . $package->title,
+                        'url' => route('admin.payment-log.index'),
+                        'icon' => 'fas fa-box',
+                        'extra' => [
+                            'seller_id' => $seller->id,
+                            'package_id' => $package->id,
+                            'package_title' => $package->title,
+                            'price' => $request['price']
+                        ]
+                    ]);
+                }
                 return redirect()->route('success.page', ['type' => 'free']);
             } elseif ($request->payment_method == 'PayPal') {
                 $amount = round(($request->price / $bs->base_currency_rate), 2);
@@ -140,8 +168,8 @@ class SellerCheckoutController extends Controller
                 $amount = $request->price;
                 $success_url = route('membership.instamojo.success');
                 $cancel_url = route('membership.instamojo.cancel');
-                $instaMojo = new InstamojoController();
-                return $instaMojo->paymentProcess($request, $amount, $success_url, $cancel_url, $title, $bs);
+                $instaMoJo = new InstamojoController();
+                return $instaMoJo->paymentProcess($request, $amount, $success_url, $cancel_url, $title, $bs);
             } elseif ($request->payment_method == 'MercadoPago') {
 
                 if ($bs->base_currency_text != "BRL") {
@@ -320,10 +348,37 @@ class SellerCheckoutController extends Controller
                 $transaction_id = SellerPermissionHelper::uniqidReal(8);
                 $transaction_details = "offline";
                 $password = uniqid('qrcode');
-                $this->store($request, $transaction_id, json_encode($transaction_details), $amount, $bs, $password);
+                $seller = $this->store($request, $transaction_id, json_encode($transaction_details), $amount, $bs, $password);
+                
+                // Get package details for notification
+                $package = Package::find($request->package_id);
+                
+                // Notify all admins of new offline payment submission
+                $admins = \App\Models\Admin::all();
+                foreach ($admins as $admin) {
+                    $notificationService = new \App\Services\NotificationService();
+                    $notificationService->sendRealTime($admin, [
+                        'type' => 'seller_package_purchase',
+                        'title' => 'New Seller Package Purchase',
+                        'message' => 'Seller ' . $seller->username . ' purchased the package: ' . $package->title,
+                        'url' => route('admin.payment-log.index'),
+                        'icon' => 'fas fa-box',
+                        'extra' => [
+                            'seller_id' => $seller->id,
+                            'package_id' => $package->id,
+                            'package_title' => $package->title,
+                            'price' => $amount,
+                            'payment_method' => $request->payment_method,
+                            'transaction_id' => $transaction_id,
+                            'receipt_name' => $request['receipt_name'] ?? null
+                        ]
+                    ]);
+                }
+                
                 return redirect()->route('seller.offline-success');
             }
         } catch (\Exception $e) {
+            \Log::error('Checkout Exception: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             Session::flash('warning', 'Something went wrong');
             return back();
         }

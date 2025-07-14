@@ -107,7 +107,16 @@ class PaymentLogController extends Controller
         $membership = Membership::query()->where('id', $request->id)->first();
         $seller = Seller::query()->where('id', $membership->seller_id)->first();
         $package = Package::query()->where('id', $membership->package_id)->first();
-        $count_membership = Membership::query()->where('seller_id', $membership->seller_id)->count();
+        
+        // Check if seller has an existing active membership (to determine if this is an extension)
+        $existingActiveMembership = Membership::query()
+            ->where('seller_id', $membership->seller_id)
+            ->where('id', '!=', $membership->id) // Exclude current membership being approved
+            ->where('status', 1) // Only active memberships
+            ->where('start_date', '<=', Carbon::now()->toDateString())
+            ->where('expire_date', '>=', Carbon::now()->toDateString())
+            ->exists();
+            
         if ($request->status === "1") {
             $member['first_name'] = $seller->first_name;
             $member['last_name'] = $seller->last_name;
@@ -161,10 +170,10 @@ class PaymentLogController extends Controller
                 }
             }
 
-            if ($count_membership > 1) {
+            if ($existingActiveMembership) {
 
-                $mailTemplate = 'payment_accepted_for_membership_extension_offline_gateway';
-                $mailType = 'paymentAcceptedForMembershipExtensionOfflineGateway';
+                $mailTemplate = 'seller_membership_extend';
+                $mailType = 'membershipExtend';
             } else {
 
                 $mailTemplate = 'payment_accepted_for_registration_offline_gateway';
@@ -190,7 +199,33 @@ class PaymentLogController extends Controller
                 'templateType' => $mailTemplate,
                 'type' => $mailType
             ];
+            
+            \Log::info('PaymentLogController: About to send email', [
+                'seller_id' => $seller->id,
+                'membership_id' => $membership->id,
+                'templateType' => $mailTemplate,
+                'mailType' => $mailType,
+                'is_extension' => $existingActiveMembership,
+                'toMail' => $seller->email,
+                'invoice_file' => $filename
+            ]);
+            
+            try {
             $mailer->mailFromAdmin($data);
+                \Log::info('PaymentLogController: Email sent successfully', [
+                    'seller_id' => $seller->id,
+                    'membership_id' => $membership->id,
+                    'templateType' => $mailTemplate
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('PaymentLogController: Email sending failed', [
+                    'seller_id' => $seller->id,
+                    'membership_id' => $membership->id,
+                    'error' => $e->getMessage(),
+                    'templateType' => $mailTemplate
+                ]);
+            }
+            
             @unlink(public_path('assets/front/invoices/' . $filename));
 
             //store data to transaction and earnings table
@@ -217,8 +252,24 @@ class PaymentLogController extends Controller
                 ];
                 storeEarnings($data);
             }
+
+            // Notify seller of payment validation
+            $notificationService = new \App\Services\NotificationService();
+            $notificationService->sendRealTime($seller, [
+                'type' => 'seller_package_approved',
+                'title' => 'Your Package Payment Approved',
+                'message' => 'Your payment for the package "' . $package->title . '" has been approved by admin.',
+                'url' => route('seller.plan.extend.index'),
+                'icon' => 'fas fa-check-circle',
+                'extra' => [
+                    'membership_id' => $membership->id,
+                    'package_id' => $package->id,
+                    'package_title' => $package->title,
+                    'price' => $membership->price
+                ]
+            ]);
         } elseif ($request->status == 2) {
-            if ($count_membership > 1) {
+            if ($existingActiveMembership) {
 
                 $mailTemplate = 'payment_rejected_for_membership_extension_offline_gateway';
                 $mailType = 'paymentRejectedForMembershipExtensionOfflineGateway';

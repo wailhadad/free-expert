@@ -16,6 +16,18 @@ class MegaMailer
   {
     $temp = MailTemplate::where('mail_type', '=', $data['templateType'])->first();
 
+    \Log::info('MegaMailer: Template lookup', [
+        'templateType' => $data['templateType'],
+        'template_found' => $temp ? 'yes' : 'no',
+        'toMail' => $data['toMail'] ?? 'not_set',
+        'template_id' => $temp ? $temp->id : 'null'
+    ]);
+    
+    if (!$temp) {
+        \Log::error('MegaMailer: Template not found', ['templateType' => $data['templateType']]);
+        return;
+    }
+
     $body = $temp->mail_body;
     if (array_key_exists('username', $data)) {
       $body = preg_replace("/{username}/", $data['username'], $body);
@@ -35,8 +47,8 @@ class MegaMailer
     if (array_key_exists('package_title', $data)) {
       $body = preg_replace("/{package_title}/", $data['package_title'], $body);
     }
-    if (array_key_exists('package_price', $data)) {
-      $body = preg_replace("/{package_price}/", $data['package_price'], $body);
+    if (isset($data['package_price'])) {
+        $body = str_replace('{package_price}', $data['package_price'], $body);
     }
     if (array_key_exists('discount', $data)) {
       $body = preg_replace("/{discount}/", $data['discount'], $body);
@@ -113,6 +125,12 @@ class MegaMailer
             ->subject($mail_subject)
             ->from($fromMail, $fromName)
             ->html($body, 'text/html');
+
+          \Log::info('MegaMailer: Email sent successfully', [
+              'to' => $data['toMail'],
+              'subject' => $mail_subject,
+              'templateType' => $data['templateType'] ?? 'not_set'
+          ]);
 
           // Attach membership invoice (customer/seller) if present
           if (array_key_exists('membership_invoice', $data)) {

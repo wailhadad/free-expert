@@ -151,7 +151,7 @@
                 <h3 class="text-center mt-3">{{ __('NO ORDER FOUND') . '!' }}</h3>
               @else
                 <div class="table-responsive">
-                  <table class="table table-striped mt-2">
+                  <table class="table table-striped mt-2" style="min-width: 1500px;">
                     <thead>
                       <tr>
                         <th scope="col">
@@ -311,7 +311,7 @@
                                     aria-expanded="false">
                                     {{ __('Select') }}
                                 </button>
-                                <div class="dropdown-menu order-actions-dropdown" aria-labelledby="dropdownMenuButton{{ $order->id }}">
+                                <div class="dropdown-menu order-actions-dropdown" aria-labelledby="dropdownMenuButton{{ $order->id }}" style="margin-left: -120px;">
                                     <a href="{{ route('admin.service_order.details', ['id' => $order->id]) }}" class="dropdown-item">{{ __('Details') }}</a>
                                     @if (!is_null($order->receipt))
                                         <a href="#" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#receiptModal-{{ $order->id }}">{{ __('Receipt') }}</a>
@@ -320,7 +320,6 @@
                                         <a href="{{ asset('assets/file/invoices/service/' . $order->invoice) }}" class="dropdown-item" target="_blank">{{ __('Invoice') }}</a>
                                     @endif
                                     <a href="{{ route('admin.service_order.message', ['id' => $order->id]) }}" class="dropdown-item">{{ __('Chat with customer') }}</a>
-                                    <a href="{{ '#emailModal-' . $order->id }}" data-bs-toggle="modal" class="dropdown-item">{{ __('Send via Mail') }}</a>
                                     <form class="deleteForm d-block" action="{{ route('admin.service_order.delete', ['id' => $order->id]) }}" method="post">
                                         @csrf
                                         <button type="submit" class="deleteBtn dropdown-item">{{ __('Delete') }}</button>

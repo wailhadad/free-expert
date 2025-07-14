@@ -2,20 +2,25 @@
   if (auth('web')->check()) {
     $userType = 'user';
     $userId = auth('web')->id();
+    $userAvatar = auth('web')->user()->image ? asset('assets/img/users/' . auth('web')->user()->image) : asset('assets/img/profile.jpg');
   } elseif (auth('seller')->check()) {
     $userType = 'seller';
     $userId = auth('seller')->id();
+    $userAvatar = '';
   } elseif (auth('admin')->check()) {
     $userType = 'admin';
     $userId = auth('admin')->id();
+    $userAvatar = '';
   } else {
     $userType = '';
     $userId = '';
+    $userAvatar = '';
   }
 @endphp
 <script>
 window.currentUserType = '{{ $userType }}';
 window.currentUserId = '{{ $userId }}';
+window.currentUserAvatar = @json($userAvatar);
 </script>
 @push('styles')
 <style>
@@ -109,8 +114,23 @@ window.currentUserId = '{{ $userId }}';
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="directChatModalLabel">
+          @if ($userType === 'admin')
+            <span id="admin-chat-header" style="display:flex;align-items:center;gap:10px;">
+              <span id="real-user-avatar" class="rounded-circle" style="width:40px;height:40px;overflow:hidden;display:inline-block;background:#eee;"></span>
+              <span id="real-user-name" style="font-weight:600;"></span>
+              <span id="as-subuser-block" style="display:none;align-items:center;gap:5px;">
+                <span class="mx-1">(as)</span>
+                <span id="subuser-avatar" class="rounded-circle" style="width:40px;height:40px;overflow:hidden;display:inline-block;background:#eee;"></span>
+                <span id="subuser-name" style="font-weight:600;"></span>
+              </span>
+              <span class="mx-2">&#8594;</span>
+              <span id="seller-avatar" class="rounded-circle" style="width:40px;height:40px;overflow:hidden;display:inline-block;background:#eee;"></span>
+              <span id="seller-name" style="font-weight:600;"></span>
+            </span>
+          @else
           <span id="direct-chat-partner-avatar" class="rounded-circle me-2" style="width:40px;height:40px;overflow:hidden;display:inline-block;background:#eee;"></span>
           <span id="direct-chat-partner-name">Chat</span>
+          @endif
         </h5>
         <button type="button" class="close btn-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>

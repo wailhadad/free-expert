@@ -316,4 +316,16 @@
 
   <script type="text/javascript" src="{{ asset('assets/js/slider-image.js') }}"></script>
   <script type="text/javascript" src="{{ asset('assets/js/admin-partial.js') }}"></script>
+  <script>
+    // Fix for Bootstrap accordion in RTL and general UI
+    $(document).ready(function() {
+      $('.version-header button').on('click', function(e) {
+        var target = $(this).data('target');
+        // Close all
+        $('.collapse').collapse('hide');
+        // Open the clicked one
+        $(target).collapse('show');
+      });
+    });
+  </script>
 @endsection

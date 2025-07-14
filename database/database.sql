@@ -738,6 +738,7 @@ INSERT INTO `mail_templates` (`id`, `mail_type`, `mail_subject`, `mail_body`) VA
 (37, 'balance_subtract', 'Balance Subtract', '<p>Hi {username}</p>\r\n<p>{amount} subtract from your account.</p>\r\n<p>Your current balance is {current_balance}.</p>\r\n<p>Best Regards.<br />{website_title}</p>\r\n<p> </p>\r\n<p> </p>'),
 (38, 'add_user_by_admin', 'Admin has been added your account.', '<p>Hi {username},</p>\r\n<p>Admin has been added to your account as a \'{user_type}\'.</p>\r\n<p>Your username: {username} and password: #{password}</p>\r\n<p>Best regards.<br />{website_title}</p>');
 
+-------------------------- ADDED_SQL--------------------------
 INSERT INTO `mail_templates` (`mail_type`, `mail_subject`, `mail_body`) VALUES
 (
   'customer_membership_extend',
@@ -782,6 +783,44 @@ INSERT INTO `mail_templates` (`mail_type`, `mail_subject`, `mail_body`) VALUES
   <p>If you have any questions, please contact support.</p>
   <p>Best Regards,<br>{website_title}</p>'
 );
+
+INSERT INTO `mail_templates` (`mail_type`, `mail_subject`, `mail_body`) VALUES
+(
+  'seller_membership_invoice',
+  'Your Seller Package Invoice',
+  '<p>Hi {username},</p>
+  <p>Thank you for purchasing a seller package on {website_title}.</p>
+  <p>
+    <strong>Package Title:</strong> {package_title}<br>
+    <strong>Package Price:</strong> {package_price}<br>
+    <strong>Activation Date:</strong> {activation_date}<br>
+    <strong>Expire Date:</strong> {expire_date}
+  </p>
+  <p>We have attached an invoice with this email.<br>Thank you for your purchase.</p>
+  <p>Best Regards,<br>{website_title}</p>'
+);
+
+INSERT INTO `mail_templates` (`mail_type`, `mail_subject`, `mail_body`) VALUES
+(
+  'seller_membership_extend',
+  'Your Seller Package Extension Invoice',
+  '<p>Hi {username},</p>
+  <p>Your seller package has been successfully extended on {website_title}.</p>
+  <p>
+    <strong>Package Title:</strong> {package_title}<br>
+    <strong>Package Price:</strong> {package_price}<br>
+    <strong>Activation Date:</strong> {activation_date}<br>
+    <strong>Expire Date:</strong> {expire_date}
+  </p>
+  <p>We have attached an invoice with this email.<br>Thank you for your continued trust.</p>
+  <p>Best Regards,<br>{website_title}</p>'
+); 
+
+ALTER TABLE `direct_chats` 
+ADD COLUMN `subuser_id` bigint unsigned NULL AFTER `seller_id`,
+ADD CONSTRAINT `direct_chats_subuser_id_foreign` 
+FOREIGN KEY (`subuser_id`) REFERENCES `subusers` (`id`) ON DELETE SET NULL;
+
 -- --------------------------------------------------------
 
 --

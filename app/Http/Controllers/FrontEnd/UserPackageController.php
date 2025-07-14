@@ -374,7 +374,33 @@ class UserPackageController extends Controller
                     $transaction_id = UserPermissionHelper::uniqidReal(8);
                     $transaction_details = "offline";
                     $password = uniqid('qrcode');
-                    $this->store($request->all(), $transaction_id, json_encode($transaction_details), $amount, $bs, $password);
+                    $user = $this->store($request->all(), $transaction_id, json_encode($transaction_details), $amount, $bs, $password);
+                    
+                    // Get package details for notification
+                    $package = UserPackage::find($request->package_id);
+                    
+                    // Notify all admins of new user offline payment submission
+                    $admins = \App\Models\Admin::all();
+                    foreach ($admins as $admin) {
+                        $notificationService = new \App\Services\NotificationService();
+                        $notificationService->sendRealTime($admin, [
+                            'type' => 'user_package_purchase',
+                            'title' => 'New Customer Package Purchase',
+                            'message' => 'Customer ' . $user->username . ' purchased the package: ' . $package->name,
+                            'url' => route('admin.user_membership.index'),
+                            'icon' => 'fas fa-box',
+                            'extra' => [
+                                'user_id' => $user->id,
+                                'package_id' => $package->id,
+                                'package_name' => $package->name,
+                                'price' => $amount,
+                                'payment_method' => $request->payment_method,
+                                'transaction_id' => $transaction_id,
+                                'receipt_name' => $request['receipt_name'] ?? null
+                            ]
+                        ]);
+                    }
+                    
                     Session::flash('success', 'package bought successfully and sent to admin to validate the payment');
                     return redirect()->route('pricing');
                 } catch (\Exception $e) {

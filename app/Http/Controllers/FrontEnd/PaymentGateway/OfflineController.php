@@ -97,6 +97,29 @@ class OfflineController extends Controller
         'receipt' => isset($attachmentName) ? $attachmentName : null
       ]);
 
+      // Notify all admins of new invoice offline payment submission
+      $admins = \App\Models\Admin::all();
+      foreach ($admins as $admin) {
+        $notificationService = new \App\Services\NotificationService();
+        $notificationService->sendRealTime($admin, [
+          'type' => 'invoice_payment_submitted',
+          'title' => 'New Invoice Payment Submitted',
+          'message' => 'Invoice #' . $invoice->invoice_number . ' payment submitted by ' . $invoice->user_full_name . ' - Amount: ' . $invoice->currency_symbol . $invoice->grand_total,
+          'url' => route('admin.payment-log.index'),
+          'icon' => 'fas fa-file-invoice',
+          'extra' => [
+            'invoice_id' => $invoice->id,
+            'invoice_number' => $invoice->invoice_number,
+            'user_name' => $invoice->user_full_name,
+            'user_email' => $invoice->user_email_address,
+            'amount' => $invoice->grand_total,
+            'currency' => $invoice->currency_symbol,
+            'payment_method' => $offlineGateway->name,
+            'receipt_name' => isset($attachmentName) ? $attachmentName : null
+          ]
+        ]);
+      }
+
       return redirect()->route('pay.complete', ['via' => 'offline']);
     }
   }

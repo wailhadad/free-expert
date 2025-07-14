@@ -37,16 +37,16 @@
             <td class="strong small gry-color">{{ __('Bill to') . ':' }}</td>
           </tr>
           <tr>
-            <td class="strong">{{ ucfirst($member['first_name']) . ' ' . ucfirst($member['last_name']) }}</td>
+            <td class="strong">{{ ucfirst($member['first_name'] ?? '') . ' ' . ucfirst($member['last_name'] ?? '') }}</td>
           </tr>
           <tr>
-            <td class="gry-color small"><strong>{{ __('Username') . ':' }} </strong>{{ $member['username'] }}</td>
+            <td class="gry-color small"><strong>{{ __('Username') . ':' }} </strong>{{ $member['username'] ?? '' }}</td>
           </tr>
           <tr>
-            <td class="gry-color small"><strong>{{ __('Email') . ':' }} </strong> {{ $member['email'] }}</td>
+            <td class="gry-color small"><strong>{{ __('Email') . ':' }} </strong> {{ $member['email'] ?? '' }}</td>
           </tr>
           <tr>
-            <td class="gry-color small"><strong>{{ __('Phone') . ':' }} </strong> {{ $phone }}</td>
+            <td class="gry-color small"><strong>{{ __('Phone') . ':' }} </strong> {{ $phone ?? '' }}</td>
           </tr>
         </table>
       </div>
@@ -56,17 +56,17 @@
             <td class="strong">{{ __('Order Details') . ':' }}</td>
           </tr>
           <tr>
-            <td class="gry-color small"><strong>{{ __('Order ID') . ':' }}</strong> #{{ $order_id }}</td>
+            <td class="gry-color small"><strong>{{ __('Order ID') . ':' }}</strong> #{{ $order_id ?? '' }}</td>
           </tr>
           <tr>
             <td class="gry-color small"><strong>Total:</strong>
-              {{ $websiteInfo->base_currency_text_position == 'left' ? $websiteInfo->base_currency_text : '' }}
-              {{ $amount }}
-              {{ $websiteInfo->base_currency_text_position == 'right' ? $websiteInfo->base_currency_text : '' }}</td>
+              {{ $websiteInfo->base_currency_text_position == 'left' ? ($websiteInfo->base_currency_text ?? '') : '' }}
+              {{ $amount ?? '' }}
+              {{ $websiteInfo->base_currency_text_position == 'right' ? ($websiteInfo->base_currency_text ?? '') : '' }}</td>
           </tr>
           <tr>
             <td class="gry-color small"><strong>{{ __('Payment Method') . ':' }}</strong>
-              {{ $request['payment_method'] }}</td>
+              {{ $request['payment_method'] ?? '' }}</td>
           </tr>
           <tr>
             <td class="gry-color small"><strong>{{ __('Payment Status') . ':' }}</strong>{{ __('Completed') }}</td>
@@ -93,14 +93,14 @@
         <tbody class="strong">
 
           <tr class="text-center">
-            <td>{{ $package_title }}</td>
-            <td>{{ $request['start_date'] }}</td>
+            <td>{{ $package_title ?? '' }}</td>
+            <td>{{ $request['start_date'] ?? '' }}</td>
             <td>
-              {{ \Carbon\Carbon::parse($request['expire_date'])->format('Y') == '9999' ? 'Lifetime' : $request['expire_date'] }}
+              {{ isset($request['expire_date']) && \Carbon\Carbon::parse($request['expire_date'])->format('Y') == '9999' ? 'Lifetime' : ($request['expire_date'] ?? '') }}
             </td>
-            <td>{{ $base_currency_text }}</td>
+            <td>{{ $base_currency_text ?? '' }}</td>
             <td>
-              {{ $amount == 0 ? 'Free' : $amount }}
+              {{ (isset($amount) && $amount == 0) ? 'Free' : ($amount ?? '') }}
             </td>
           </tr>
         </tbody>
@@ -111,7 +111,7 @@
         <td class="text-right regards">{{ __('Thanks & Regards') . ',' }}</td>
       </tr>
       <tr>
-        <td class="text-right strong regards">{{ $websiteInfo->website_title }}</td>
+        <td class="text-right strong regards">{{ $websiteInfo->website_title ?? '' }}</td>
       </tr>
     </table>
   </div>

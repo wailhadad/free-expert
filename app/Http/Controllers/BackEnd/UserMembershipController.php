@@ -158,6 +158,24 @@ class UserMembershipController extends Controller
             return back();
         }
 
+        // Send real-time notification to user about membership approval
+        $notificationService = new \App\Services\NotificationService();
+        $notificationService->sendRealTime($membership->user, [
+            'type' => 'user_package_approved',
+            'title' => 'Your Package Payment Approved',
+            'message' => 'Your payment for the package "' . $package->title . '" has been approved by admin.',
+            'url' => route('user.packages.subscription_log'),
+            'icon' => 'fas fa-check-circle',
+            'extra' => [
+                'membership_id' => $membership->id,
+                'package_id' => $package->id,
+                'package_title' => $package->title,
+                'price' => $membership->price,
+                'start_date' => $membership->start_date,
+                'expire_date' => $membership->expire_date
+            ]
+        ]);
+
         Session::flash('success', 'User membership approved successfully!');
         return back();
     }
@@ -226,7 +244,23 @@ class UserMembershipController extends Controller
                     'mail_subject' => __('Your Package Purchase was Rejected by ') . $bs->website_title,
                 ];
                 $mailer->mailFromAdmin($mailData);
-                // TODO: Add notification logic for user and admin
+                
+                // Send real-time notification to user about membership rejection
+                $notificationService = new \App\Services\NotificationService();
+                $notificationService->sendRealTime($user, [
+                    'type' => 'user_package_rejected',
+                    'title' => 'Your Package Payment Rejected',
+                    'message' => 'Your payment for the package "' . $package->title . '" has been rejected by admin.',
+                    'url' => route('user.packages.subscription_log'),
+                    'icon' => 'fas fa-times-circle',
+                    'extra' => [
+                        'membership_id' => $membership->id,
+                        'package_id' => $package->id,
+                        'package_title' => $package->title,
+                        'price' => $membership->price
+                    ]
+                ]);
+                
                 Session::flash('success', 'Membership rejected, user notified.');
             } elseif ($newStatus == '1') { // Accepted
                 // Set start/expire dates if not set
@@ -316,7 +350,25 @@ class UserMembershipController extends Controller
                     Session::flash('error', 'Email sending failed: ' . $e->getMessage());
                     return back();
                 }
-                // TODO: Add notification logic for user and admin
+                
+                // Send real-time notification to user about membership approval
+                $notificationService = new \App\Services\NotificationService();
+                $notificationService->sendRealTime($user, [
+                    'type' => 'user_package_approved',
+                    'title' => 'Your Package Payment Approved',
+                    'message' => 'Your payment for the package "' . $package->title . '" has been approved by admin.',
+                    'url' => route('user.packages.subscription_log'),
+                    'icon' => 'fas fa-check-circle',
+                    'extra' => [
+                        'membership_id' => $membership->id,
+                        'package_id' => $package->id,
+                        'package_title' => $package->title,
+                        'price' => $membership->price,
+                        'start_date' => $membership->start_date,
+                        'expire_date' => $membership->expire_date
+                    ]
+                ]);
+                
                 Session::flash('success', 'Membership accepted, user notified and invoice sent.');
             } else { // Pending
                 $membership->status = '0';

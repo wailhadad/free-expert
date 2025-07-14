@@ -146,33 +146,20 @@
                             </form>
                           </td>
                           <td>
-                            <div class="dropdown">
-                              <button class="btn btn-sm btn-secondary dropdown-toggle" type="button"
-                                id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                {{ __('Select') }}
+                            <a @if ($data['status'] == 'true' && $data2['status'] == 'true') href="{{ route('seller.service_management.edit_service', ['id' => $service->id]) }}" @endif
+                              class="btn btn-sm btn-info" title="Edit">
+                              <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{{ route('seller.service_management.service.faqs', ['id' => $service->id, 'language' => request()->input('language')]) }}"
+                              class="btn btn-sm btn-warning" title="FAQ">
+                              <i class="fas fa-question-circle"></i>
+                            </a>
+                            <form class="deleteForm d-inline-block" style="display:inline;" action="{{ route('seller.service_management.delete_service', ['id' => $service->id]) }}" method="post">
+                              @csrf
+                              <button type="submit" class="btn btn-sm btn-danger deleteBtn" title="Delete">
+                                <i class="fas fa-trash-alt"></i>
                               </button>
-
-                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                                <a @if ($data['status'] == 'true' && $data2['status'] == 'true') href="{{ route('seller.service_management.edit_service', ['id' => $service->id]) }}" @endif
-                                  class="dropdown-item ">
-                                  {{ __('Edit') }}
-                                </a>
-
-                                <a href="{{ route('seller.service_management.service.faqs', ['id' => $service->id, 'language' => request()->input('language')]) }}"
-                                  class="dropdown-item">
-                                  {{ __('FAQ') }}
-                                </a>
-
-                                <form class="deleteForm d-block"
-                                  action="{{ route('seller.service_management.delete_service', ['id' => $service->id]) }}"
-                                  method="post">
-                                  @csrf
-                                  <button type="submit" class="deleteBtn">
-                                    {{ __('Delete') }}
-                                  </button>
-                                </form>
-                              </div>
-                            </div>
+                            </form>
                           </td>
                         </tr>
                       @endforeach
@@ -188,4 +175,15 @@
       </div>
     </div>
   </div>
+@endsection
+
+@section('script')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var dropdownElements = [].slice.call(document.querySelectorAll('.dropdown-toggle[data-bs-toggle="dropdown"]'));
+    dropdownElements.forEach(function (dropdownToggleEl) {
+        new bootstrap.Dropdown(dropdownToggleEl);
+    });
+});
+</script>
 @endsection

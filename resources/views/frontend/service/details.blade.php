@@ -313,14 +313,7 @@ window.currentUserId = '{{ $userId ?? '' }}';
 
         <div class="col-lg-4">
           @if ($details->quote_btn_status == 1)
-            <form action="{{ route('service.payment_form.check', ['slug' => $details->slug, 'id' => $details->id]) }}"
-              method="GET">
-              <input type="hidden" name="form_id" value="{{ $details->form_id }}">
-              <input type="hidden" name="quote_btn_status" value="{{ $details->quote_btn_status }}">
-              <button type="submit" class="btn btn-lg btn-primary radius-sm mb-4 w-100">
-                <i class="fas fa-calendar-plus"></i> {{ __('Request A Quote') }}
-              </button>
-            </form>
+            {{-- Remove the Request A Quote button here --}}
           @else
             <div class="gigs-sidebar pb-10">
               @if (count($packages) == 0)
@@ -501,7 +494,7 @@ window.currentUserId = '{{ $userId ?? '' }}';
                   data-seller-avatar="{{ $details->seller->avatar_url ?? '/assets/img/default-avatar.png' }}"
                   @if(!$isUser) data-login-required="true" @endif
                 >
-                  <i class="fas fa-comments"></i> Contact Now
+                  <i class="fas fa-comments"></i> {{ $details->quote_btn_status == 1 ? __('Request a Quote') : __('Contact Now') }}
                 </button>
 
 

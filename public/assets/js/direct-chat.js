@@ -122,20 +122,26 @@ if (window.currentUserType === 'user') {
     if (!dropdownMenu || !dropdownAvatar || !dropdownName) return;
     let found = false;
     dropdownMenu.querySelectorAll('a.dropdown-item').forEach(a => {
-      console.log('Dropdown item data-id:', a.getAttribute('data-id'));
       if (String(a.getAttribute('data-id')) === String(subuserId || '')) {
+        if (!a.getAttribute('data-id')) {
+          // "Myself" option: always use window.currentUserAvatar
+          dropdownAvatar.src = window.currentUserAvatar || a.getAttribute('data-avatar');
+          dropdownName.textContent = 'Myself';
+        } else {
         dropdownAvatar.src = a.getAttribute('data-avatar');
         dropdownName.textContent = a.getAttribute('data-name');
+        }
         window.selectedSubuserId = a.getAttribute('data-id') || null;
         found = true;
       }
     });
     if (!found) {
-      dropdownAvatar.src = '/assets/img/users/profile.jpeg';
-      dropdownName.textContent = 'Myself (Main)';
+      // Always use window.currentUserAvatar for fallback
+      let realUserAvatar = window.currentUserAvatar || '/assets/img/users/profile.jpeg';
+      dropdownAvatar.src = realUserAvatar;
+      dropdownName.textContent = 'Myself';
       window.selectedSubuserId = null;
     }
-    console.log('Dropdown sync: set to subuserId', subuserId, 'found:', found);
   };
 
   // Helper: populate dropdown and run callback after
@@ -149,10 +155,11 @@ if (window.currentUserType === 'user') {
     fetch('/user/subusers/json')
       .then(res => res.json())
       .then(data => {
-        // Always add "Myself" option (no unread badge)
+        // Always use window.currentUserAvatar for 'Myself' option
+        let realUserAvatar = window.currentUserAvatar || '/assets/img/users/profile.jpeg';
         const myselfLi = document.createElement('li');
-        myselfLi.innerHTML = `<a class="dropdown-item d-flex align-items-center" href="#" data-id="" data-avatar="/assets/img/users/profile.jpeg" data-name="Myself">
-          <img src="/assets/img/users/profile.jpeg" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
+        myselfLi.innerHTML = `<a class="dropdown-item d-flex align-items-center" href="#" data-id="" data-avatar="${realUserAvatar}" data-name="Myself">
+          <img src="${realUserAvatar}" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
           <span>Myself</span>
         </a>`;
         dropdownMenu.appendChild(myselfLi);
@@ -192,8 +199,9 @@ if (window.currentUserType === 'user') {
             // Always add "Myself" option
             const myselfLi = document.createElement('li');
             let myselfUnread = (window.subuserUnreadCounts && window.subuserUnreadCounts['null']) ? window.subuserUnreadCounts['null'] : 0;
-            myselfLi.innerHTML = `<a class="dropdown-item d-flex align-items-center" href="#" data-id="" data-avatar="/assets/img/users/profile.jpeg" data-name="Myself">
-              <img src="/assets/img/users/profile.jpeg" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
+            let realUserAvatar = window.currentUserAvatar || '/assets/img/users/profile.jpeg';
+            myselfLi.innerHTML = `<a class="dropdown-item d-flex align-items-center" href="#" data-id="" data-avatar="${realUserAvatar}" data-name="Myself">
+              <img src="${realUserAvatar}" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
               <span>Myself</span>
               <span class="discussion-unread-badge bell-badge ms-2" style="position:relative;min-width:18px;height:18px;line-height:18px;font-size:12px;border-radius:50%;font-weight:700;background:#e11d48;color:#fff;display:${myselfUnread > 0 ? 'flex' : 'none'};align-items:center;justify-content:center;z-index:2;border:2px solid #fff;box-shadow:0 2px 8px rgba(220,53,69,0.18);pointer-events:none;padding:0 4px;">${myselfUnread > 0 ? myselfUnread : ''}</span>
             </a>`;
@@ -226,7 +234,11 @@ if (window.currentUserType === 'user') {
           const selectedName = a.getAttribute('data-name');
           const selectedAvatar = a.getAttribute('data-avatar');
           window.selectedSubuserId = selectedSubuserId;
+          if (!selectedSubuserId) {
+            document.getElementById('subuserDropdownAvatar').src = window.currentUserAvatar || selectedAvatar;
+          } else {
           document.getElementById('subuserDropdownAvatar').src = selectedAvatar;
+          }
           document.getElementById('subuserDropdownName').textContent = selectedName;
           // Show loading state only until AJAX completes
           const container = document.getElementById('direct-chat-messages');
@@ -383,21 +395,25 @@ function createCustomerOffer() {
       // Reset form
       form.reset();
       document.getElementById('form-preview-section').classList.add('d-none');
-      
+      // Show success notification (if bootnotify is available)
+      if (typeof bootnotify === 'function') {
+        bootnotify('Customer offer created successfully!', 'Success', 'success');
+      }
       // Reload messages to show the new offer
       // if (typeof window.loadDirectChatMessages === 'function') {
       //   window.loadDirectChatMessages(window.currentDirectChatId);
       // }
-      
-      // Show success message
-      alert('Customer offer created successfully!');
     } else {
-      alert('Error creating offer: ' + (data.message || 'Unknown error'));
+      if (typeof bootnotify === 'function') {
+        bootnotify('Error creating offer: ' + (data.message || 'Unknown error'), 'Error', 'danger');
+      }
     }
   })
   .catch(err => {
     console.error('Error creating offer:', err);
-    alert('Error creating offer. Please try again.');
+    if (typeof bootnotify === 'function') {
+      bootnotify('Error creating offer. Please try again.', 'Error', 'danger');
+    }
   })
   .finally(() => {
     createBtn.innerHTML = originalText;
@@ -430,8 +446,6 @@ function loadCustomerOffers(chatId) {
 
 // Accept customer offer
 function acceptCustomerOffer(offerId) {
-  if (!confirm('Are you sure you want to accept this offer?')) return;
-  // Optimistically disable buttons
   setOfferActionButtonsState(offerId, true, 'Accepting...');
   fetch(`/customer-offer/${offerId}/accept`, {
     method: 'POST',
@@ -444,25 +458,30 @@ function acceptCustomerOffer(offerId) {
     if (data.success) {
       // Optimistically update offer status (will be corrected by real-time event)
       updateOfferStatusLocally(offerId, 'accepted');
-      alert('Offer accepted! Redirecting to checkout...');
+      if (typeof bootnotify === 'function') {
+        bootnotify('Offer accepted! Redirecting to checkout...', 'Success', 'success');
+      }
       if (data.redirect_url) {
         window.location.href = data.redirect_url;
       }
     } else {
-      alert('Error accepting offer: ' + (data.message || 'Unknown error'));
+      if (typeof bootnotify === 'function') {
+        bootnotify('Error accepting offer: ' + (data.message || 'Unknown error'), 'Error', 'danger');
+      }
       setOfferActionButtonsState(offerId, false);
     }
   })
   .catch(err => {
     console.error('Error accepting offer:', err);
-    alert('Error accepting offer. Please try again.');
+    if (typeof bootnotify === 'function') {
+      bootnotify('Error accepting offer. Please try again.', 'Error', 'danger');
+    }
     setOfferActionButtonsState(offerId, false);
   });
 }
 
 // Decline customer offer
 function declineCustomerOffer(offerId) {
-  if (!confirm('Are you sure you want to decline this offer?')) return;
   setOfferActionButtonsState(offerId, true, 'Declining...');
   fetch(`/customer-offer/${offerId}/decline`, {
     method: 'POST',
@@ -474,15 +493,21 @@ function declineCustomerOffer(offerId) {
   .then(data => {
     if (data.success) {
       updateOfferStatusLocally(offerId, 'declined');
-      alert('Offer declined successfully!');
+      if (typeof bootnotify === 'function') {
+        bootnotify('Offer declined successfully!', 'Success', 'success');
+      }
     } else {
-      alert('Error declining offer: ' + (data.message || 'Unknown error'));
+      if (typeof bootnotify === 'function') {
+        bootnotify('Error declining offer: ' + (data.message || 'Unknown error'), 'Error', 'danger');
+      }
       setOfferActionButtonsState(offerId, false);
     }
   })
   .catch(err => {
     console.error('Error declining offer:', err);
-    alert('Error declining offer. Please try again.');
+    if (typeof bootnotify === 'function') {
+      bootnotify('Error declining offer. Please try again.', 'Error', 'danger');
+    }
     setOfferActionButtonsState(offerId, false);
   });
 }
@@ -560,15 +585,54 @@ function startOrGetChatWithSubuser(sellerId, subuserId, partnerName, partnerAvat
 window.openDirectChatModal = function(chatId, partnerName, partnerAvatar, sellerId, subuserId) {
     window.currentDirectSellerName = partnerName;
     window.currentDirectSellerAvatar = partnerAvatar;
-    console.log('openDirectChatModal: sellerId=', sellerId);
-    console.log('openDirectChatModal called with chatId:', chatId, 'subuserId:', subuserId, 'name:', partnerName);
     // Always update modal header
+    if (window.currentUserType === 'admin') {
+        // Get the discussion data from the discussions list (already loaded in the click handler)
+        // We'll use the last opened chat's data from the discussions list
+        // You may want to pass the full user, subuser, and seller objects as extra args for more robustness
+        const chatList = window.adminDiscussionsListData || [];
+        const chatData = chatList.find(c => String(c.id) === String(chatId));
+        // Fallback: try to get from window.lastOpenedAdminChatData if set by the click handler
+        const data = chatData || window.lastOpenedAdminChatData || {};
+        // Real user
+        const realUser = data.user || {};
+        const realUserAvatar = realUser.avatar_url || '/assets/img/default-avatar.png';
+        const realUserName = realUser.username || '';
+        // Subuser
+        const subuser = data.subuser || null;
+        const subuserBlock = document.getElementById('as-subuser-block');
+        if (subuser && subuserBlock) {
+            subuserBlock.style.display = 'inline-flex';
+            const subuserAvatar = subuser.avatar_url || '/assets/img/default-avatar.png';
+            const subuserName = subuser.username || '';
+            const subuserAvatarElem = document.getElementById('subuser-avatar');
+            const subuserNameElem = document.getElementById('subuser-name');
+            if (subuserAvatarElem) subuserAvatarElem.innerHTML = `<img src="${subuserAvatar}" class="rounded-circle" style="width:40px;height:40px;object-fit:cover;">`;
+            if (subuserNameElem) subuserNameElem.textContent = subuserName;
+        } else if (subuserBlock) {
+            subuserBlock.style.display = 'none';
+        }
+        // Real user avatar/name
+        const realUserAvatarElem = document.getElementById('real-user-avatar');
+        if (realUserAvatarElem) realUserAvatarElem.innerHTML = `<img src="${realUserAvatar}" class="rounded-circle" style="width:40px;height:40px;object-fit:cover;">`;
+        const realUserNameElem = document.getElementById('real-user-name');
+        if (realUserNameElem) realUserNameElem.textContent = realUserName;
+        // Seller
+        const seller = data.seller || {};
+        const sellerAvatar = seller.avatar_url || '/assets/img/default-avatar.png';
+        const sellerName = seller.username || '';
+        const sellerAvatarElem = document.getElementById('seller-avatar');
+        if (sellerAvatarElem) sellerAvatarElem.innerHTML = `<img src="${sellerAvatar}" class="rounded-circle" style="width:40px;height:40px;object-fit:cover;">`;
+        const sellerNameElem = document.getElementById('seller-name');
+        if (sellerNameElem) sellerNameElem.textContent = sellerName;
+    } else {
     document.getElementById('direct-chat-partner-name').textContent = partnerName || 'Chat';
     const avatarElem = document.getElementById('direct-chat-partner-avatar');
     if (avatarElem) {
         avatarElem.innerHTML = partnerAvatar
             ? `<img src="${partnerAvatar}" class="rounded-circle" style="width:40px;height:40px;object-fit:cover;">`
             : '';
+        }
     }
     // Store current chat context
     const modalElem = document.getElementById('directChatModal');
@@ -685,7 +749,7 @@ function renderDirectChatMessages(messages) {
         if (!messages.length) {
             // Only show empty if there are no messages and no offers
             if (!window.currentCustomerOffers || window.currentCustomerOffers.length === 0) {
-            container.innerHTML = '<div class="text-center text-muted py-4">No messages yet.</div>';
+                container.innerHTML = '<div class="text-center text-muted py-4">No Messages Yet.</div>';
             }
             return;
         }
@@ -998,19 +1062,20 @@ function mergeAndRenderChatTimeline() {
     const timeline = [];
     messages.forEach(msg => {
         const ts = new Date(msg.created_at).getTime();
-        console.log('[DEBUG] Message created_at:', msg.created_at, '->', ts);
         timeline.push({ ...msg, _type: 'message', _ts: ts });
     });
     offers.forEach(offer => {
         const ts = new Date(offer.created_at).getTime();
-        console.log('[DEBUG] Offer created_at:', offer.created_at, '->', ts);
         timeline.push({ ...offer, _type: 'offer', _ts: ts });
     });
     // Sort by timestamp ascending
     timeline.sort((a, b) => a._ts - b._ts);
-    console.log('[DEBUG] Merged timeline:', timeline.map(item => ({ type: item._type, created_at: item.created_at, _ts: item._ts, id: item.id })));
     // Render
     container.innerHTML = '';
+    if (!timeline.length) {
+        container.innerHTML = '<div class="text-center text-muted py-4">No Messages Yet.</div>';
+        return;
+    }
     timeline.forEach(item => {
         if (item._type === 'message') {
             renderDirectChatMessage(item);

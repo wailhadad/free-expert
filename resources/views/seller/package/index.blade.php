@@ -65,7 +65,7 @@
                 {{ __('Back') }}
               </a>
 
-              <a href="#" data-toggle="modal" data-target="#createModal"
+              <a href="#" data-bs-toggle="modal" data-bs-target="#createModal"
                 class="btn btn-primary btn-sm float-lg-right float-left mr-2">
                 <i class="fas fa-plus"></i> {{ __('Add') }}
               </a>
@@ -115,8 +115,8 @@
                             {{ $position == 'left' ? $symbol : '' }}{{ $package->current_price }}{{ $position == 'right' ? $symbol : '' }}
                           </td>
                           <td>
-                            <a class="btn btn-secondary btn-sm mr-1 editBtn" href="#" data-toggle="modal"
-                              data-target="#editModal" data-id="{{ $package->id }}" data-name="{{ $package->name }}"
+                            <a class="btn btn-secondary btn-sm mr-1 editBtn" href="#" data-bs-toggle="modal"
+                              data-bs-target="#editModal" data-id="{{ $package->id }}" data-name="{{ $package->name }}"
                               data-current_price="{{ $package->current_price }}"
                               data-previous_price="{{ $package->previous_price }}"
                               data-delivery_time="{{ $package->delivery_time }}"

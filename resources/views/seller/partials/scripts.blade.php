@@ -39,11 +39,10 @@
 {{-- fontawesome icon picker js --}}
 <script type="text/javascript" src="{{ asset('assets/js/fontawesome-iconpicker.min.js') }}"></script>
 
-{{-- datatables js --}}
-<script type="text/javascript" src="{{ asset('assets/js/datatables-1.10.23.min.js') }}"></script>
-
-{{-- datatables bootstrap js --}}
-<script type="text/javascript" src="{{ asset('assets/js/datatables.bootstrap4.min.js') }}"></script>
+<!-- DataTables Bootstrap 5 integration -->
+<link rel="stylesheet" href="https://cdn.datatables.net/2.2.0/css/dataTables.bootstrap5.min.css" />
+<script src="https://cdn.datatables.net/2.2.0/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/2.2.0/js/dataTables.bootstrap5.min.js"></script>
 
 {{-- dropzone js --}}
 <script type="text/javascript" src="{{ asset('assets/js/dropzone.min.js') }}"></script>

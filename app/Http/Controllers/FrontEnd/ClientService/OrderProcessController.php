@@ -377,10 +377,10 @@ class OrderProcessController extends Controller
       event(new NotificationReceived($notifArr, 'Admin', $admin->id));
     }
     
-    // Notify user
+    // Notify user only if not a customer offer order
     $user = \App\Models\User::find($data['userId']);
-    if ($user) {
-      $orderType = $isCustomerOffer ? 'Customer Offer' : 'Service';
+    if ($user && !$isCustomerOffer) {
+      $orderType = 'Service';
       $notifArr = [
         'title' => 'Order Placed Successfully',
         'message' => "Your {$orderType} order #{$orderInfo->order_number}: {$serviceName} has been placed successfully. Amount: {$data['currencySymbol']}{$data['grandTotal']} - Payment Status: " . ucfirst($data['paymentStatus']),

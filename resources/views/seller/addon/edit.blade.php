@@ -9,7 +9,7 @@
       </div>
 
       <div class="modal-body">
-        <form id="ajaxEditForm" class="modal-form" action="{{ route('admin.service_management.service.update_addon') }}" method="post">
+        <form id="ajaxEditForm" class="modal-form" action="{{ route('seller.service_management.service.update_addon') }}" method="post">
           @csrf
           <input type="hidden" id="in_id" name="id">
 

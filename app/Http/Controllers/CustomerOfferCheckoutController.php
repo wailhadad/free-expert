@@ -131,7 +131,7 @@ class CustomerOfferCheckoutController extends Controller
             'userId' => $user->id,
             'subuser_id' => $request->input('subuser_id'),
             'seller_id' => $offer->seller_id,
-            'orderNumber' => 'CO-' . time() . '-' . $offer->id,
+            'orderNumber' => uniqid(),
             'name' => $offer->subuser ? $offer->subuser->full_name : ($user->first_name . ' ' . $user->last_name),
             'emailAddress' => $user->email_address,
             'serviceId' => 0, // Dummy service ID

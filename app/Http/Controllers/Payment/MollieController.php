@@ -97,6 +97,26 @@ class MollieController extends Controller
                 $mailer->mailFromAdmin($data);
                 @unlink(public_path('assets/front/invoices/' . $file_name));
 
+                // Notify all admins of new seller package purchase
+                $admins = \App\Models\Admin::all();
+                foreach ($admins as $admin) {
+                    $notificationService = new \App\Services\NotificationService();
+                    $notificationService->sendRealTime($admin, [
+                        'type' => 'seller_package_purchase',
+                        'title' => 'New Seller Package Purchase',
+                        'message' => 'Seller ' . $seller->username . ' purchased the package: ' . $package->title,
+                        'url' => route('admin.payment-log.index'),
+                        'icon' => 'fas fa-box',
+                        'extra' => [
+                            'seller_id' => $seller->id,
+                            'package_id' => $package->id,
+                            'package_title' => $package->title,
+                            'price' => $amount,
+                            'payment_method' => 'Mollie'
+                        ]
+                    ]);
+                }
+
                 session()->flash('success', 'Your payment has been completed.');
                 Session::forget('request');
                 Session::forget('paymentFor');
@@ -124,7 +144,7 @@ class MollieController extends Controller
                     'expire_date' => Carbon::parse($expire->toFormattedDateString())->format('Y') == '9999' ? 'Lifetime' : $expire->toFormattedDateString(),
                     'membership_invoice' => $file_name,
                     'website_title' => $bs->website_title,
-                    'templateType' => 'membership_extend',
+                    'templateType' => 'seller_membership_extend',
                     'type' => 'membershipExtend'
                 ];
                 $mailer->mailFromAdmin($data);
@@ -151,6 +171,26 @@ class MollieController extends Controller
                     'total_profit' => $lastMemb->price,
                 ];
                 storeEarnings($data);
+
+                // Notify all admins of seller package extension
+                $admins = \App\Models\Admin::all();
+                foreach ($admins as $admin) {
+                    $notificationService = new \App\Services\NotificationService();
+                    $notificationService->sendRealTime($admin, [
+                        'type' => 'seller_package_extension',
+                        'title' => 'Seller Package Extension',
+                        'message' => 'Seller ' . $seller->username . ' extended the package: ' . $package->title,
+                        'url' => route('admin.payment-log.index'),
+                        'icon' => 'fas fa-sync-alt',
+                        'extra' => [
+                            'seller_id' => $seller->id,
+                            'package_id' => $package->id,
+                            'package_title' => $package->title,
+                            'price' => $amount,
+                            'payment_method' => 'Mollie'
+                        ]
+                    ]);
+                }
 
                 Session::forget('request');
                 Session::forget('paymentFor');

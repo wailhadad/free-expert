@@ -646,74 +646,35 @@ $(function ($) {
 
 
   // Change Input Direction Start
-  $('select[name="language_id"]').change(function () {
-    $('.request-loader').addClass('show');
+  $('select[name="language_id"]').change(function() {
+    var langId = $(this).val();
+    var isAdmin = window.location.pathname.startsWith('/admin');
+    var $form = $(this).closest('form');
+    var $loader = $form.find('.rtl-loader');
+    $loader.show();
 
-    let langId = $(this).val();
-    let rtlURL = `${baseUrl}/language-management/${langId}/check-rtl`;
-    let categoryURL;
-
-    if ($('select[name="service_category_id"]').length > 0) {
-      categoryURL = `${baseUrl}/service-management/language/${langId}/service-categories`;
-    }
-
-    // send ajax request to check whether the selected language is 'rtl' or not
-    $.get(rtlURL, function (response) {
-      $('.request-loader').removeClass('show');
-
-      if ('successData' in response) {
-        if (response.successData == 1) {
-          $('form.create input').each(function () {
-            if (!$(this).hasClass('ltr')) {
-              $(this).addClass('rtl');
-            }
-          });
-
-          $('form.create select').each(function () {
-            if (!$(this).hasClass('ltr')) {
-              $(this).addClass('rtl');
-            }
-          });
-
-          $('form.create textarea').each(function () {
-            if (!$(this).hasClass('ltr')) {
-              $(this).addClass('rtl');
-            }
-          });
-
-          $('form.create .note-editor.note-frame .note-editing-area .note-editable').each(function () {
-            if (!$(this).hasClass('ltr')) {
-              $(this).addClass('rtl');
-            }
-          });
+    if (isAdmin) {
+      // Only admins have this endpoint
+      $.get('/language-management/' + langId + '/check-rtl', function(data) {
+        $loader.hide();
+        if (data == 1) {
+          $form.find('input, textarea').addClass('rtl text-right');
         } else {
-          $('form.create input, form.create select, form.create textarea, form.create .note-editor.note-frame .note-editing-area .note-editable').removeClass('rtl');
+          $form.find('input, textarea').removeClass('rtl text-right');
         }
-
-        // get service-categories
-        if (typeof categoryURL !== 'undefined') {
-          $.get(categoryURL, function (resp) {
-            let categories = resp.serviceCategories;
-
-            // remove previous categories from dom
-            $('.service-category').each(function () {
-              $(this).remove();
-            });
-
-            // append new categories to dom
-            if (categories.length > 0) {
-              categories.forEach(category => {
-                $('select[name="service_category_id"]').append(`<option value="${category.id}" class="service-category">
-                  ${category.name}
-                </option>`);
-              });
-            }
-          });
-        }
+      }).fail(function() {
+        $loader.hide();
+        $form.find('input, textarea').removeClass('rtl text-right');
+      });
+    } else {
+      // Seller: skip AJAX, just set direction based on language code (optional: add logic for Arabic)
+      $loader.hide();
+      if ($(this).find('option:selected').text().trim().match(/عرب|arabic|ar/i)) {
+        $form.find('input, textarea').addClass('rtl text-right');
       } else {
-        alert(response.errorData);
+        $form.find('input, textarea').removeClass('rtl text-right');
       }
-    });
+    }
   });
   // Change Input Direction End
 });

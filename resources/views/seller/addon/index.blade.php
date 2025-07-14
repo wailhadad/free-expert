@@ -64,7 +64,7 @@
                 {{ __('Back') }}
               </a>
 
-              <a href="#" data-toggle="modal" data-target="#createModal"
+              <a href="#" data-bs-toggle="modal" data-bs-target="#createModal"
                 class="btn btn-primary btn-sm float-lg-right float-left mr-2">
                 <i class="fas fa-plus"></i> {{ __('Add') }}
               </a>
@@ -114,8 +114,8 @@
                             {{ $position == 'left' ? $symbol : '' }}{{ $addon->price }}{{ $position == 'right' ? $symbol : '' }}
                           </td>
                           <td>
-                            <a class="btn btn-secondary btn-sm mr-1 editBtn" href="#" data-toggle="modal"
-                              data-target="#editModal" data-id="{{ $addon->id }}" data-name="{{ $addon->name }}"
+                            <a class="btn btn-secondary btn-sm mr-1 editBtn" href="#" data-bs-toggle="modal"
+                              data-bs-target="#editModal" data-id="{{ $addon->id }}" data-name="{{ $addon->name }}"
                               data-price="{{ $addon->price }}">
                               <span class="btn-label">
                                 <i class="fas fa-edit"></i>

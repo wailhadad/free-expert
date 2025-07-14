@@ -197,13 +197,16 @@ class OrderController extends Controller
         // Notify user about payment completion
         $user = \App\Models\User::find($order->user_id);
         if ($user) {
-          $user->notify(new \App\Notifications\OrderNotification([
+          $notifyData = [
             'title' => 'Payment Completed',
             'message' => "Payment for order #{$order->order_number} ({$serviceName}) has been completed successfully. Amount: {$order->currency_symbol}{$order->grand_total}",
             'url' => route('user.service_order.details', ['id' => $order->id]),
             'icon' => 'fas fa-credit-card',
             'extra' => $notificationData,
-          ]));
+          ];
+          $user->notify(new \App\Notifications\OrderNotification($notifyData));
+          $notificationService = new \App\Services\NotificationService();
+          $notificationService->sendRealTime($user, $notifyData);
         }
 
         // Notify seller about payment completion
@@ -211,13 +214,16 @@ class OrderController extends Controller
           $seller = Seller::find($order->seller_id);
           if ($seller) {
             $notificationData['seller_name'] = $seller->username;
-            $seller->notify(new \App\Notifications\OrderNotification([
+            $notifyData = [
               'title' => 'Payment Received',
               'message' => "Payment received for order #{$order->order_number} ({$serviceName}). Amount: {$order->currency_symbol}{$order->grand_total}",
               'url' => route('seller.service_order.details', ['id' => $order->id]),
               'icon' => 'fas fa-credit-card',
               'extra' => $notificationData,
-            ]));
+            ];
+            $seller->notify(new \App\Notifications\OrderNotification($notifyData));
+            $notificationService = new \App\Services\NotificationService();
+            $notificationService->sendRealTime($seller, $notifyData);
           }
         }
 
@@ -290,13 +296,16 @@ class OrderController extends Controller
         // Notify user about payment pending
         $user = \App\Models\User::find($order->user_id);
         if ($user) {
-          $user->notify(new \App\Notifications\OrderNotification([
+          $notifyData = [
             'title' => 'Payment Pending',
             'message' => "Payment for order #{$order->order_number} ({$serviceName}) is now pending. Amount: {$order->currency_symbol}{$order->grand_total}",
             'url' => route('user.service_order.details', ['id' => $order->id]),
             'icon' => 'fas fa-clock',
             'extra' => $notificationData,
-          ]));
+          ];
+          $user->notify(new \App\Notifications\OrderNotification($notifyData));
+          $notificationService = new \App\Services\NotificationService();
+          $notificationService->sendRealTime($user, $notifyData);
         }
 
         // Send email to customer
@@ -336,13 +345,16 @@ class OrderController extends Controller
         // Notify user about payment rejection
         $user = \App\Models\User::find($order->user_id);
         if ($user) {
-          $user->notify(new \App\Notifications\OrderNotification([
+          $notifyData = [
             'title' => 'Payment Rejected',
             'message' => "Payment for order #{$order->order_number} ({$serviceName}) has been rejected. Please contact support for assistance.",
             'url' => route('user.service_order.details', ['id' => $order->id]),
             'icon' => 'fas fa-times-circle',
             'extra' => $notificationData,
-          ]));
+          ];
+          $user->notify(new \App\Notifications\OrderNotification($notifyData));
+          $notificationService = new \App\Services\NotificationService();
+          $notificationService->sendRealTime($user, $notifyData);
         }
 
         // Notify seller about payment rejection
@@ -577,13 +589,16 @@ class OrderController extends Controller
         // Notify user about order completion
         $user = \App\Models\User::find($order->user_id);
         if ($user) {
-          $user->notify(new \App\Notifications\OrderNotification([
+          $notifyData = [
             'title' => 'Order Completed',
             'message' => "Your order #{$order->order_number} for service: {$serviceName} has been completed successfully!",
             'url' => route('user.service_order.details', ['id' => $order->id]),
             'icon' => 'fas fa-check-circle',
             'extra' => $notificationData,
-          ]));
+          ];
+          $user->notify(new \App\Notifications\OrderNotification($notifyData));
+          $notificationService = new \App\Services\NotificationService();
+          $notificationService->sendRealTime($user, $notifyData);
         }
 
         // Notify seller about order completion
@@ -635,13 +650,16 @@ class OrderController extends Controller
         // Notify user about order rejection
         $user = \App\Models\User::find($order->user_id);
         if ($user) {
-          $user->notify(new \App\Notifications\OrderNotification([
+          $notifyData = [
             'title' => 'Order Rejected',
             'message' => "Your order #{$order->order_number} for service: {$serviceName} has been rejected. Please contact support for more information.",
             'url' => route('user.service_order.details', ['id' => $order->id]),
             'icon' => 'fas fa-times-circle',
             'extra' => $notificationData,
-          ]));
+          ];
+          $user->notify(new \App\Notifications\OrderNotification($notifyData));
+          $notificationService = new \App\Services\NotificationService();
+          $notificationService->sendRealTime($user, $notifyData);
         }
 
         // Notify seller about order rejection
