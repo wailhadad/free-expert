@@ -158,14 +158,16 @@
                           <input type="checkbox" class="bulk-check" data-val="all">
                         </th>
                         <th scope="col">{{ __('Order No.') }}</th>
-                        <th scope="col">{{ __('Customer Name') }}</th>
-                        <th scope="col">{{ __('Seller') }}</th>
+                        <th scope="col" style="min-width: 260px;">{{ __('Customer Name') }}</th>
+                        <th scope="col" style="min-width: 220px;">{{ __('Seller') }}</th>
                         <th scope="col">{{ __('Service') }}</th>
                         <th scope="col">{{ __('Package') }}</th>
+                        <th scope="col">{{ __('Delivery Time') }}</th>
+                        <th scope="col" style="min-width: 180px;">{{ __('Deadline') }}</th>
                         <th scope="col">{{ __('Total Price') }}</th>
                         <th scope="col">{{ __('Paid via') }}</th>
-                        <th scope="col">{{ __('Payment Status') }}</th>
-                        <th scope="col">{{ __('Order Status') }}</th>
+                        <th scope="col" style="min-width: 160px;">{{ __('Payment Status') }}</th>
+                        <th scope="col" style="min-width: 160px;">{{ __('Order Status') }}</th>
                         <th scope="col">{{ __('Actions') }}</th>
                       </tr>
                     </thead>
@@ -177,7 +179,7 @@
                           </td>
                           <td>{{ '#' . $order->order_number }}</td>
 
-                          <td>
+                          <td style="min-width: 260px;">
                             @if ($order->subuser)
                               <a href="{{ route('admin.user_management.user.details', ['id' => $order->user->id]) }}" style="font-size: 16px; font-weight: 500;">
                                 {{ $order->user->username }}
@@ -192,7 +194,7 @@
                               </a>
                             @endif
                           </td>
-                          <td>
+                          <td style="min-width: 220px;">
                             @if (!is_null($order->seller_id))
                               <a
                                 href="{{ route('admin.seller_management.seller_details', ['id' => $order->seller_id, 'language' => $defaultLang->code]) }}">{{ @$order->seller->username }}</a>
@@ -219,6 +221,20 @@
                             @endif
                           </td>
                           <td>
+                            @if ($order->customerOffer)
+                              {{ $order->customerOffer->delivery_time }} {{ __('days') }}
+                            @else
+                              -
+                            @endif
+                          </td>
+                          <td style="min-width: 180px;">
+                            @if ($order->customerOffer && $order->customerOffer->dead_line)
+                              {{ $order->customerOffer->dead_line->format('Y-m-d H:i') }}
+                            @else
+                              -
+                            @endif
+                          </td>
+                          <td>
                             @if (is_null($order->grand_total))
                               {{ __('Requested') }}
                             @else
@@ -232,7 +248,7 @@
                               {{ $order->payment_method }}
                             @endif
                           </td>
-                          <td>
+                          <td style="min-width: 160px;">
                             @if ($order->gateway_type == 'online')
                               <h2 class="d-inline-block">
                                 @if ($order->payment_status == 'completed')
@@ -275,7 +291,7 @@
                               @endif
                             @endif
                           </td>
-                          <td>
+                          <td style="min-width: 160px;">
                             @if ($order->order_status == 'pending')
                               <form class="d-inline-block completeForm"
                                 action="{{ route('admin.service_order.update_order_status', ['id' => $order->id]) }}"

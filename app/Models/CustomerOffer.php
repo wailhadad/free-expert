@@ -25,11 +25,14 @@ class CustomerOffer extends Model
         'expires_at',
         'form_data',
         'accepted_order_id',
+        'delivery_time',
+        'dead_line',
     ];
 
     protected $casts = [
         'expires_at' => 'datetime',
         'form_data' => 'array',
+        'dead_line' => 'datetime',
     ];
 
     public function chat()

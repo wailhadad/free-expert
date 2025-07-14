@@ -230,6 +230,16 @@
                         <span>{{ __('Price') }}</span>
                         <span>{{ $offer->formatted_price }}</span>
                       </li>
+                      <li class="d-flex justify-content-between">
+                        <span>{{ __('Delivery Time') }}</span>
+                        <span>{{ $offer->delivery_time }} {{ __('days') }}</span>
+                      </li>
+                      @if($offer->dead_line)
+                      <li class="d-flex justify-content-between">
+                        <span>{{ __('Deadline') }}</span>
+                        <span>{{ $offer->dead_line->format('Y-m-d H:i') }}</span>
+                      </li>
+                      @endif
                     </ul>
                     <div class="mt-2 mb-2">
                       <span class="additional-info">

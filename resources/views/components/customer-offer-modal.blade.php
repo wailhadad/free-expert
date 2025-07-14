@@ -28,6 +28,14 @@
               </div>
             </div>
           </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group mb-3">
+                <label for="offer-delivery-time" class="form-label fw-bold">Delivery Time (days) *</label>
+                <input type="number" class="form-control" id="offer-delivery-time" name="delivery_time" min="1" required placeholder="Enter delivery time in days">
+              </div>
+            </div>
+          </div>
           
           <div class="form-group mb-3">
             <label for="offer-description" class="form-label fw-bold">Description *</label>

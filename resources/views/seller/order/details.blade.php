@@ -236,6 +236,26 @@
                   class="badge @if ($orderInfo->order_status == 'pending') badge-primary @elseif ($orderInfo->order_status == 'completed') badge-success @elseif ($orderInfo->order_status == 'rejected') badge-danger @endif">{{ ucfirst($orderInfo->order_status) }}</span>
               </div>
             </div>
+            @if ($orderInfo->customerOffer)
+              <div class="row mb-2">
+                <div class="col-lg-3">
+                  <strong>{{ __('Delivery Time') . ' :' }}</strong>
+                </div>
+                <div class="col-lg-9">
+                  {{ $orderInfo->customerOffer->delivery_time }} {{ __('days') }}
+                </div>
+              </div>
+              @if ($orderInfo->customerOffer->dead_line)
+              <div class="row mb-2">
+                <div class="col-lg-3">
+                  <strong>{{ __('Deadline') . ' :' }}</strong>
+                </div>
+                <div class="col-lg-9">
+                  {{ $orderInfo->customerOffer->dead_line->format('Y-m-d H:i') }}
+                </div>
+              </div>
+              @endif
+            @endif
           </div>
         </div>
       </div>

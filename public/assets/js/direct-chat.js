@@ -882,6 +882,15 @@ function renderCustomerOffer(offer) {
         const expiresDate = new Date(offer.expires_at);
         expirationInfo = `<div class="small text-muted mt-1"><i class="fas fa-clock"></i> Expires: ${expiresDate.toLocaleString()}</div>`;
     }
+    let deliveryTimeInfo = '';
+    if (offer.delivery_time) {
+        deliveryTimeInfo = `<div class="small text-muted mt-1"><i class="fas fa-clock"></i> Delivery: ${offer.delivery_time} day${offer.delivery_time > 1 ? 's' : ''}</div>`;
+    }
+    let deadlineInfo = '';
+    if (offer.status === 'accepted' && offer.dead_line) {
+        const deadlineDate = new Date(offer.dead_line);
+        deadlineInfo = `<div class=\"small text-muted mt-1\"><i class=\"fas fa-hourglass-end\"></i> Deadline: ${deadlineDate.toLocaleString()}</div>`;
+    }
     offerDiv.innerHTML = `
         <div class='chat-bubble ${isMe ? 'me-bubble flex-row-reverse' : 'other-bubble'} d-flex align-items-start' style='gap:10px;max-width:80%;'>
             <img src='${img.src}' class='rounded-circle me-2' style='width:40px;height:40px;object-fit:cover;'>
@@ -892,6 +901,8 @@ function renderCustomerOffer(offer) {
                 </div>
                 <div class="mb-2 offer-description">${escapeHtml(offer.description)}</div>
                 <div class="fw-bold text-success mb-2">${offer.currency_symbol}${offer.price}</div>
+                ${deliveryTimeInfo}
+                ${deadlineInfo}
                 ${formInfo}
                 ${expirationInfo}
                 <div class="small text-muted mt-2">

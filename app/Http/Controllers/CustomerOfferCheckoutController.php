@@ -158,8 +158,12 @@ class CustomerOfferCheckoutController extends Controller
         $orderProcess = new OrderProcessController();
         $order = $orderProcess->storeData($orderData);
 
-        // After order is created, set offer status to 'accepted'
-        $offer->update(['accepted_order_id' => $order->id, 'status' => 'accepted']);
+        // After order is created, set offer status to 'accepted' and calculate dead_line
+        $deadLine = null;
+        if ($offer->delivery_time) {
+            $deadLine = now()->addDays($offer->delivery_time);
+        }
+        $offer->update(['accepted_order_id' => $order->id, 'status' => 'accepted', 'dead_line' => $deadLine]);
         // Broadcast real-time event for offer acceptance
         event(new \App\Events\CustomerOfferEvent($offer->load(['form.input', 'seller', 'user', 'subuser']), $offer->chat_id, 'accepted'));
 

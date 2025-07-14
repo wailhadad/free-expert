@@ -139,9 +139,11 @@
                           <input type="checkbox" class="bulk-check" data-val="all">
                         </th>
                         <th scope="col">{{ __('Order No.') }}</th>
-                        <th scope="col">{{ __('Customer Name') }}</th>
+                        <th scope="col" style="min-width: 260px;" class="text-center">{{ __('Customer Name') }}</th>
                         <th scope="col">{{ __('Service') }}</th>
                         <th scope="col">{{ __('Package') }}</th>
+                        <th scope="col">{{ __('Delivery Time') }}</th>
+                        <th scope="col" style="min-width: 180px;">{{ __('Deadline') }}</th>
                         <th scope="col">{{ __('Total Price') }}</th>
                         <th scope="col">{{ __('Paid via') }}</th>
                         <th scope="col">{{ __('Payment Status') }}</th>
@@ -157,7 +159,7 @@
                           </td>
                           <td>{{ '#' . $order->order_number }}</td>
 
-                          <td>
+                          <td style="min-width: 260px;" class="text-center">
                             @if ($order->subuser)
                               {{ $order->subuser->username }}
                             @else
@@ -179,6 +181,20 @@
                               <span class="ml-4">-</span>
                             @else
                               {{ $order->packageName }}
+                            @endif
+                          </td>
+                          <td>
+                            @if ($order->customerOffer)
+                              {{ $order->customerOffer->delivery_time }} {{ __('days') }}
+                            @else
+                              -
+                            @endif
+                          </td>
+                          <td style="min-width: 180px;">
+                            @if ($order->customerOffer && $order->customerOffer->dead_line)
+                              {{ $order->customerOffer->dead_line->format('Y-m-d H:i') }}
+                            @else
+                              -
                             @endif
                           </td>
                           <td>

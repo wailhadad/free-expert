@@ -51,6 +51,7 @@ class CustomerOfferController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'price' => 'required|numeric|min:0',
+            'delivery_time' => 'required|integer|min:1',
             'form_id' => 'nullable|exists:forms,id',
             'expires_at' => 'nullable|date|after:now',
         ]);
@@ -87,6 +88,7 @@ class CustomerOfferController extends Controller
             'currency_symbol' => '$', // Default currency
             'status' => 'pending',
             'expires_at' => $request->expires_at,
+            'delivery_time' => $request->delivery_time,
         ]);
 
         // Broadcast real-time event for offer creation

@@ -50,6 +50,11 @@ class ServiceOrder extends Model
     return $this->belongsTo(\App\Models\Subuser::class, 'subuser_id', 'id');
   }
 
+  public function customerOffer()
+  {
+    return $this->hasOne(\App\Models\CustomerOffer::class, 'accepted_order_id');
+  }
+
   public function getOrderCustomerNameAttribute()
   {
     return $this->subuser ? $this->subuser->full_name : $this->user->first_name . ' ' . $this->user->last_name;
