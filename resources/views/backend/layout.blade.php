@@ -64,7 +64,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://js.pusher.com/7.2/pusher.min.js"></script>
-    <script src="{{ asset('assets/js/real-time-notifications.js') }}"></script>
+    <script src="{{ asset('assets/js/real-time-notifications.js') }}?v={{ time() }}&cb={{ uniqid() }}&t={{ microtime(true) }}"></script>
     @stack('scripts')
 
 </body>

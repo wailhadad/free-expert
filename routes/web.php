@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\FrontEnd\NotificationController;
 use App\Http\Controllers\FrontEnd\MiscellaneousController;
 use Illuminate\Support\Facades\Broadcast;
+use App\Http\Controllers\FrontEnd\CustomerBriefController;
+use App\Http\Controllers\Seller\SellerCustomerBriefController;
+use App\Http\Controllers\BackEnd\AdminCustomerBriefController;
 
 Broadcast::routes();
 
@@ -419,6 +422,8 @@ Route::prefix('seller')->middleware(['auth:seller'])->group(function () {
     Route::get('customer-offer/forms', [\App\Http\Controllers\CustomerOfferController::class, 'getForms']);
     Route::post('customer-offer/create', [\App\Http\Controllers\CustomerOfferController::class, 'create']);
     Route::get('customer-offer/{chat}/offers', [\App\Http\Controllers\CustomerOfferController::class, 'getOffers']);
+    Route::get('customer-briefs', [App\Http\Controllers\Seller\SellerCustomerBriefController::class, 'index'])->name('seller.customer-briefs.index');
+    Route::get('customer-briefs/{customerBrief}', [App\Http\Controllers\Seller\SellerCustomerBriefController::class, 'show'])->name('seller.customer-briefs.show');
 });
 Route::post('seller/direct-chat/mark-subuser-read', [\App\Http\Controllers\DirectChatController::class, 'markSubuserMessagesRead'])->middleware(['auth:seller']);
 
@@ -431,6 +436,7 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
     
     // Customer Offer routes for admins
     Route::get('customer-offer/{chat}/offers', [\App\Http\Controllers\CustomerOfferController::class, 'getOffers']);
+    Route::resource('customer-briefs', AdminCustomerBriefController::class)->only(['index', 'show', 'edit', 'update', 'destroy']);
 });
 Route::post('admin/direct-chat/mark-subuser-read', [\App\Http\Controllers\DirectChatController::class, 'markSubuserMessagesRead'])->middleware(['auth:admin']);
 
@@ -459,6 +465,15 @@ Route::prefix('admin')->middleware(['auth:admin'])->group(function () {
 
 Route::middleware(['auth:web'])->group(function () {
     Route::get('user/subusers/json', [\App\Http\Controllers\FrontEnd\SubuserController::class, 'listJson'])->name('user.subusers.json');
+    Route::resource('user/customer-briefs', CustomerBriefController::class)->names([
+        'index' => 'user.customer-briefs.index',
+        'create' => 'user.customer-briefs.create',
+        'store' => 'user.customer-briefs.store',
+        'show' => 'user.customer-briefs.show',
+        'edit' => 'user.customer-briefs.edit',
+        'update' => 'user.customer-briefs.update',
+        'destroy' => 'user.customer-briefs.destroy',
+    ]);
 });
 
 // Test route for logging

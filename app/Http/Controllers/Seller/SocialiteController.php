@@ -7,6 +7,7 @@ use App\Models\Seller;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
@@ -14,14 +15,14 @@ class SocialiteController extends Controller
 {
     public function googleLogin()
     {
-        config(['services.google.redirect' => env('SELLER_GOOGLE_REDIRECT_URI')]);
+        // Set session variable to indicate this is a seller login
+        Session::put('google_auth_type', 'seller');
         return Socialite::driver('google')->redirect();
     }
 
     public function googleAuthentication()
     {
         try {
-            config(['services.google.redirect' => env('SELLER_GOOGLE_REDIRECT_URI')]);
             $googleUser = Socialite::driver('google')->stateless()->user();
             
             // First check if seller exists with this google_id

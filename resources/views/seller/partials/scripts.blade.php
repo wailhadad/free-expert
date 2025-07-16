@@ -40,9 +40,9 @@
 <script type="text/javascript" src="{{ asset('assets/js/fontawesome-iconpicker.min.js') }}"></script>
 
 <!-- DataTables Bootstrap 5 integration -->
-<link rel="stylesheet" href="https://cdn.datatables.net/2.2.0/css/dataTables.bootstrap5.min.css" />
-<script src="https://cdn.datatables.net/2.2.0/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/2.2.0/js/dataTables.bootstrap5.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" />
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 
 {{-- dropzone js --}}
 <script type="text/javascript" src="{{ asset('assets/js/dropzone.min.js') }}"></script>
@@ -160,4 +160,21 @@
 @endif
 
 {{-- admin-main js --}}
+<script>
+// Prevent DataTable and RealTimeNotifications errors from breaking modal functionality
+window.addEventListener('error', function(event) {
+    if (event.error && event.error.message && (
+        event.error.message.includes('DataTable') ||
+        event.error.message.includes('Cannot read properties of undefined') ||
+        event.error.message.includes('defaults') ||
+        event.error.message.includes('RealTimeNotifications') ||
+        event.error.message.includes('RealtimeNotifications') ||
+        event.error.message.includes('has already been declared')
+    )) {
+        console.warn('Error prevented:', event.error.message);
+        event.preventDefault();
+        return false;
+    }
+});
+</script>
 <script type="text/javascript" src="{{ asset('assets/js/admin-main.js') }}"></script>

@@ -13,6 +13,12 @@ class DirectChatController extends Controller
     // Start or get a chat between user and seller
     public function startOrGetChat(Request $request)
     {
+        // Force English locale for logging
+        \App::setLocale('en');
+        
+        // Test log in English
+        \Log::info('=== TEST LOG IN ENGLISH ===');
+        
         // Add debug logging to see what's happening
         \Log::info('DirectChat startOrGetChat called', [
             'request_data' => $request->all(),
@@ -23,11 +29,13 @@ class DirectChatController extends Controller
         $userId = $request->input('user_id') ?? (Auth::guard('web')->check() ? Auth::id() : null);
         $sellerId = $request->input('seller_id');
         $subuserId = $request->input('subuser_id');
+        $briefId = $request->input('brief_id'); // New parameter for customer brief
         
         \Log::info('DirectChat parameters extracted', [
             'user_id' => $userId,
             'seller_id' => $sellerId,
             'subuser_id' => $subuserId,
+            'brief_id' => $briefId,
         ]);
         
         if (!$userId || !$sellerId) {
@@ -45,14 +53,48 @@ class DirectChatController extends Controller
             return response()->json(['error' => 'Seller not found'], 404);
         }
         
-        try {
-            \Log::info('DirectChat attempting to create or get chat');
-            $chat = DirectChat::firstOrCreate([
-                'user_id' => $userId,
-                'seller_id' => $sellerId,
-                'subuser_id' => $subuserId,
-            ]);
-            \Log::info('DirectChat chat created/found successfully', ['chat_id' => $chat->id]);
+                    try {
+                \Log::info('DirectChat attempting to find existing chat or prepare for new chat');
+                
+                // First, try to find an existing chat
+                $chat = DirectChat::where([
+                    'user_id' => $userId,
+                    'seller_id' => $sellerId,
+                    'subuser_id' => $subuserId,
+                ])->first();
+                
+                if ($chat) {
+                    // Chat exists, return it
+                    \Log::info('DirectChat existing chat found', ['chat_id' => $chat->id]);
+                } else {
+                    // No chat exists yet - create it immediately
+                    \Log::info('DirectChat creating new chat', [
+                        'user_id' => $userId,
+                        'seller_id' => $sellerId,
+                        'subuser_id' => $subuserId,
+                        'brief_id' => $briefId
+                    ]);
+                    
+                    // Create the chat
+                    $chat = DirectChat::create([
+                        'user_id' => $userId,
+                        'seller_id' => $sellerId,
+                        'subuser_id' => $subuserId,
+                        'brief_id' => $briefId, // Store brief_id if provided
+                    ]);
+                    
+                    \Log::info('DirectChat new chat created', ['chat_id' => $chat->id]);
+                    
+                    // If there's a brief_id, store it in session for the first seller message
+                    if ($briefId) {
+                        $sessionKey = 'pending_brief_id_' . $userId . '_' . $sellerId . '_' . ($subuserId ?? 'null');
+                        session([$sessionKey => $briefId]);
+                        \Log::info('Stored brief_id in session for first seller message', [
+                            'session_key' => $sessionKey,
+                            'brief_id' => $briefId
+                        ]);
+                    }
+                }
 
             // Broadcast only if this is a new chat (was just created)
             if ($chat->wasRecentlyCreated) {
@@ -89,6 +131,8 @@ class DirectChatController extends Controller
                     'useTLS' => true,
                 ]);
                 $pusher->trigger('discussion-channel', 'discussion.started', $discussionData);
+                
+
             }
             return response()->json([
                 'chat' => [
@@ -109,6 +153,8 @@ class DirectChatController extends Controller
             return response()->json(['error' => 'Could not create or get chat: ' . $e->getMessage()], 500);
         }
     }
+
+
 
     // List all chats for the authenticated user
     public function listForUser()
@@ -366,5 +412,83 @@ class DirectChatController extends Controller
         }
         
         return response()->json(['success' => true]);
+    }
+
+    // Send automatic brief details message
+    private function sendBriefDetailsMessage($chat, $briefId)
+    {
+        try {
+            $brief = \App\Models\CustomerBrief::find($briefId);
+            if (!$brief) {
+                \Log::warning('Brief not found for auto-message', ['brief_id' => $briefId]);
+                return;
+            }
+
+            // Create the brief details message content
+            $briefDetails = [
+                'type' => 'brief_details',
+                'brief_id' => $brief->id,
+                'title' => $brief->title,
+                'description' => $brief->description,
+                'delivery_time' => $brief->delivery_time,
+                'tags' => $brief->tags,
+                'price' => $brief->price,
+                'request_quote' => $brief->request_quote,
+                'created_at' => $brief->created_at->format('M d, Y'),
+                'user_name' => $brief->subuser ? $brief->subuser->username : $brief->user->username,
+                'user_avatar' => $brief->subuser 
+                    ? ($brief->subuser->image ? asset('assets/img/subusers/' . $brief->subuser->image) : asset('assets/img/users/profile.jpeg'))
+                    : ($brief->user->image ? asset('assets/img/users/' . $brief->user->image) : asset('assets/img/users/profile.jpeg')),
+            ];
+
+            // Create the message
+            $message = \App\Models\DirectChatMessage::create([
+                'chat_id' => $chat->id,
+                'sender_id' => $brief->user_id,
+                'sender_type' => 'user',
+                'subuser_id' => $brief->subuser_id,
+                'message' => json_encode($briefDetails),
+                'file_name' => null,
+                'file_original_name' => null,
+            ]);
+
+            // Update chat's updated_at for sorting
+            $chat->touch();
+
+            // Broadcast the message via Pusher
+            $messageData = [
+                'id' => $message->id,
+                'chat_id' => $chat->id,
+                'sender_id' => $message->sender_id,
+                'sender_type' => $message->sender_type,
+                'subuser_id' => $message->subuser_id,
+                'message' => $message->message,
+                'file_name' => $message->file_name,
+                'file_original_name' => $message->file_original_name,
+                'created_at' => $message->created_at->toISOString(),
+                'updated_at' => $message->updated_at->toISOString(),
+                'brief_details' => $briefDetails,
+            ];
+
+            $pusher = new \Pusher\Pusher(config('broadcasting.connections.pusher.key'), config('broadcasting.connections.pusher.secret'), config('broadcasting.connections.pusher.app_id'), [
+                'cluster' => config('broadcasting.connections.pusher.options.cluster'),
+                'useTLS' => true,
+            ]);
+            $pusher->trigger('chat-' . $chat->id, 'message.sent', $messageData);
+
+            \Log::info('Brief details message sent automatically when chat opened', [
+                'chat_id' => $chat->id,
+                'brief_id' => $briefId,
+                'message_id' => $message->id,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error sending brief details message', [
+                'chat_id' => $chat->id,
+                'brief_id' => $briefId,
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
     }
 }

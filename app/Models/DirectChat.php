@@ -13,6 +13,7 @@ class DirectChat extends Model
         'user_id',
         'seller_id',
         'subuser_id',
+        'brief_id',
     ];
 
     public function user()

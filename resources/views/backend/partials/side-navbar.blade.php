@@ -326,6 +326,14 @@
           </li>
         @endif
 
+        {{-- customer briefs --}}
+        <li class="nav-item @if (request()->routeIs('customer-briefs.index')) active @endif">
+          <a href="{{ route('customer-briefs.index') }}">
+            <i class="fas fa-briefcase"></i>
+            <p>Customer Briefs</p>
+          </a>
+        </li>
+
         {{-- dashboard --}}
         @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Raise Disputs', $rolePermissions)))
           <li class="nav-item @if (request()->routeIs('admin.service_order.disputs')) active @endif">

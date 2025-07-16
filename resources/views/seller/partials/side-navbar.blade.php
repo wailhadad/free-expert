@@ -191,6 +191,13 @@
             </ul>
           </div>
         </li>
+        {{-- customer briefs --}}
+        <li class="nav-item @if (request()->routeIs('seller.customer-briefs.index')) active @endif">
+          <a href="{{ route('seller.customer-briefs.index') }}">
+            <i class="fas fa-briefcase"></i>
+            <p>Customer Briefs</p>
+          </a>
+        </li>
         @if ($package && $package->qr_builder_status == 1)
           <li
             class="nav-item @if (request()->routeIs('seller.qr_codes.generate_code')) active 

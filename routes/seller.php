@@ -15,7 +15,6 @@ use App\Http\Controllers\FrontEnd\MiscellaneousController;
 Route::prefix('seller')->middleware('web', 'change.lang', 'guest:seller')->group(function () {
 
     Route::get('auth/google', [SocialiteController::class, 'googleLogin'])->name('seller.auth.google');
-    Route::get('auth/google-callback', [SocialiteController::class, 'googleAuthentication'])->name('seller.auth.google-callback');
 
     Route::get('/signup', 'Seller\SellerController@signup')->name('seller.signup');
   Route::post('/signup/submit', 'Seller\SellerController@create')->name('seller.signup_submit')->middleware('Demo');
@@ -29,6 +28,7 @@ Route::prefix('seller')->middleware('web', 'change.lang', 'guest:seller')->group
   Route::get('/reset-password', 'Seller\SellerController@reset_password')->name('seller.reset.password');
   Route::post('/update-forget-password', 'Seller\SellerController@update_password')->name('seller.update-forget-password');
 });
+
 
 
 Route::prefix('seller')->middleware('auth:seller', 'EmailStatus:seller', 'Deactive:seller', 'Demo')->group(function () {
@@ -226,6 +226,18 @@ Route::prefix('seller')->middleware('auth:seller', 'EmailStatus:seller', 'Deacti
 
   Route::get('/payment-log', 'Seller\SellerController@payment_log')->name('seller.payment_log');
   Route::get('/transcation', 'Seller\SellerController@transcation')->name('seller.transcation');
+
+  // Customer Briefs routes
+  Route::get('/customer-briefs', 'Seller\SellerCustomerBriefController@index')->name('seller.customer-briefs.index');
+  Route::get('/customer-briefs/{customerBrief}', 'Seller\SellerCustomerBriefController@show')->name('seller.customer-briefs.show');
+
+  // Direct Chat routes
+  Route::prefix('direct-chat')->group(function () {
+    Route::post('/start', [\App\Http\Controllers\DirectChatController::class, 'startOrGetChat'])->name('seller.direct-chat.start');
+    Route::post('/send', [\App\Http\Controllers\DirectChatMessageController::class, 'sendMessage'])->name('seller.direct-chat.send-new');
+    Route::get('/{chat_id}/messages', [\App\Http\Controllers\DirectChatMessageController::class, 'getMessages'])->name('seller.direct-chat.messages');
+    Route::post('/{chat_id}/send', [\App\Http\Controllers\DirectChatMessageController::class, 'sendMessage'])->name('seller.direct-chat.send');
+  });
 
   // qr-code route start
   Route::prefix('/qr-codes')->group(function () {

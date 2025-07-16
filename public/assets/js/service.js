@@ -1,5 +1,5 @@
 "use strict";
-let prevGatewayId;
+var prevGatewayId;
 
 $(document).ready(function () {
   //first hid stripe element

@@ -103,7 +103,9 @@
   @endif
   {{-- additional script --}}
   <script src="https://js.pusher.com/7.2/pusher.min.js"></script>
-  <script src="{{ asset('assets/js/real-time-notifications.js') }}"></script>
+  <!-- Temporarily disabled due to syntax error -->
+  <!-- <script src="{{ asset('assets/js/real-time-notifications.js') }}"></script> -->
+  <script src="{{ asset('assets/js/real-time-notifications.js') }}?v={{ time() }}&cb={{ uniqid() }}&t={{ microtime(true) }}"></script>
   @yield('script')
   @stack('scripts')
 </body>

@@ -45,6 +45,13 @@ return [
       'driver' => 'single',
       'path' => storage_path('logs/laravel.log'),
       'level' => env('LOG_LEVEL', 'debug'),
+      'formatter' => \Monolog\Formatter\LineFormatter::class,
+      'formatter_with' => [
+        'format' => "[%datetime%] %channel%.%level_name%: %message% %context% %extra%\n",
+        'dateFormat' => 'Y-m-d H:i:s',
+        'allowInlineLineBreaks' => true,
+        'ignoreEmptyContextAndExtra' => true,
+      ],
     ],
 
     'daily' => [

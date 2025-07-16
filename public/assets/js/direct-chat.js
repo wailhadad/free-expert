@@ -1,6 +1,241 @@
 // direct-chat.js
 // Requires Bootstrap 5 modal, Pusher/Echo, and fetch API
 
+// Global function to update discussion badge and list
+window.updateDiscussionBadge = function() {
+    console.log('updateDiscussionBadge called');
+    
+    // Determine current page and user type
+    const currentPath = window.location.pathname;
+    let endpoint = '';
+    let listId = '';
+    
+    if (currentPath.includes('/seller/discussions')) {
+        endpoint = '/seller/direct-chat/discussions';
+        listId = 'seller-discussions-list';
+    } else if (currentPath.includes('/user/discussions') || currentPath.includes('/discussions')) {
+        endpoint = '/direct-chat/discussions';
+        listId = 'user-discussions-list';
+    } else if (currentPath.includes('/admin/discussions')) {
+        endpoint = '/admin/direct-chat/discussions';
+        listId = 'admin-discussions-list';
+    }
+    
+    if (endpoint && listId) {
+        console.log('Updating discussions from:', endpoint);
+        fetch(endpoint)
+            .then(res => res.json())
+            .then(data => {
+                console.log('Discussions update data:', data);
+                const list = document.getElementById(listId);
+                if (!list) {
+                    console.warn('Discussions list element not found:', listId);
+                    return;
+                }
+                
+                // Update the discussions list
+                updateDiscussionsList(list, data, currentPath);
+                
+                // Update envelope badge if function exists
+                if (typeof updateEnvelopeBadge === 'function') {
+                    updateEnvelopeBadge();
+                }
+            })
+            .catch(error => {
+                console.error('Error updating discussions:', error);
+            });
+    }
+};
+
+// Function to update discussions list
+function updateDiscussionsList(list, data, currentPath) {
+    if (currentPath.includes('/seller/discussions')) {
+        updateSellerDiscussionsList(list, data);
+    } else if (currentPath.includes('/user/discussions') || currentPath.includes('/discussions')) {
+        updateUserDiscussionsList(list, data);
+    } else if (currentPath.includes('/admin/discussions')) {
+        updateAdminDiscussionsList(list, data);
+    }
+}
+
+// Update seller discussions list
+function updateSellerDiscussionsList(list, data) {
+    list.innerHTML = '';
+    const nonEmptyChats = data.chats.filter(chat => chat.messages && chat.messages.length > 0);
+    if (!nonEmptyChats.length) {
+        list.innerHTML = '<div class="text-muted text-center py-4">No discussions yet.</div>';
+        return;
+    }
+    
+    nonEmptyChats.forEach(chat => {
+        const user = chat.user;
+        const lastMsg = chat.messages && chat.messages.length ? chat.messages[chat.messages.length-1].message : '';
+        const item = document.createElement('a');
+        item.href = '#';
+        item.className = 'list-group-item list-group-item-action d-flex align-items-center gap-3';
+        item.innerHTML = `
+            <img src="${user?.avatar_url || '/assets/img/default-avatar.png'}" class="rounded-circle" style="width:48px;height:48px;object-fit:cover;">
+            <div class="flex-grow-1">
+                <div class="fw-bold">${user?.username || 'User'}</div>
+                <div class="text-muted small text-truncate">${lastMsg}</div>
+            </div>
+        `;
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.openDirectChatModal(chat.id, user?.username, chat.seller?.avatar_url, chat.seller?.id, user?.username);
+        });
+        list.appendChild(item);
+    });
+}
+
+// Update user discussions list
+function updateUserDiscussionsList(list, data) {
+    list.innerHTML = '';
+    if (!data.chats.length) {
+        list.innerHTML = '<div class="text-muted text-center py-4">No discussions yet.</div>';
+        return;
+    }
+    
+    const seenSellers = new Set();
+    const uniqueChats = [];
+    for (const chat of data.chats) {
+        const sellerId = chat.seller && chat.seller.id;
+        if (sellerId && !seenSellers.has(sellerId)) {
+            seenSellers.add(sellerId);
+            uniqueChats.push(chat);
+        }
+    }
+    
+    uniqueChats.forEach(chat => {
+        const seller = chat.seller;
+        const lastMsg = chat.messages && chat.messages.length ? chat.messages[chat.messages.length-1].message : '';
+        const item = document.createElement('div');
+        item.className = 'list-group-item list-group-item-action d-flex align-items-center gap-3 position-relative';
+        
+        let subuserDropdown = '';
+        if (chat.subusers && chat.subusers.length > 1) {
+            subuserDropdown = `<div class="dropdown ms-2">
+                <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Subusers</button>
+                <ul class="dropdown-menu">`;
+            chat.subusers.forEach(subuser => {
+                subuserDropdown += `<li><a class="dropdown-item d-flex align-items-center gap-2 subuser-chat-link" href="#" data-chat-id="${chat.id}" data-subuser-id="${subuser.id}">
+                    <img src="${subuser.avatar_url}" class="rounded-circle" style="width:28px;height:28px;object-fit:cover;">
+                    <span>${subuser.username}</span>
+                    <span class="discussion-unread-badge bell-badge ms-2" id="discussion-unread-${chat.id}-${subuser.id}" style="position:relative;min-width:18px;height:18px;line-height:18px;font-size:12px;border-radius:50%;font-weight:700;background:#e11d48;color:#fff;display:${subuser.unread_count > 0 ? 'flex' : 'none'};align-items:center;justify-content:center;z-index:2;border:2px solid #fff;box-shadow:0 2px 8px rgba(220,53,69,0.18);pointer-events:none;padding:0 4px;">${subuser.unread_count > 0 ? subuser.unread_count : ''}</span>
+                </a></li>`;
+            });
+            subuserDropdown += '</ul></div>';
+        }
+        
+        item.innerHTML = `
+            <span style="position:relative;display:inline-block;">
+            <img src="${seller.avatar_url || '/assets/img/default-avatar.png'}" class="rounded-circle" style="width:48px;height:48px;object-fit:cover;">
+            </span>
+            <div class="flex-grow-1">
+                <div class="fw-bold">${seller.username || 'Seller'}</div>
+            </div>
+            ${subuserDropdown}
+        `;
+        
+        item.addEventListener('click', function(e) {
+            if (e.target.closest('.subuser-chat-link')) return;
+            e.preventDefault();
+            window.currentDirectSubuserId = null;
+            window.subuserUnreadCounts = {};
+            if (chat.subusers) {
+                chat.subusers.forEach(subuser => {
+                    window.subuserUnreadCounts[String(subuser.id)] = subuser.unread_count;
+                });
+                window.subuserUnreadCounts['null'] = (chat.subusers.find(s => !s.id) || {}).unread_count || 0;
+            }
+            if (typeof markSubuserRead === 'function') {
+                markSubuserRead(chat.id, null);
+            }
+            window.openDirectChatModal(chat.id, seller.username, seller.avatar_url, seller.id, null);
+        });
+        
+        item.querySelectorAll('.subuser-chat-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const subuserId = this.getAttribute('data-subuser-id');
+                window.subuserUnreadCounts = {};
+                if (chat.subusers) {
+                    chat.subusers.forEach(subuser => {
+                        window.subuserUnreadCounts[String(subuser.id)] = subuser.unread_count;
+                    });
+                    window.subuserUnreadCounts['null'] = (chat.subusers.find(s => !s.id) || {}).unread_count || 0;
+                }
+                if (typeof markSubuserRead === 'function') {
+                    markSubuserRead(chat.id, subuserId);
+                }
+                window.currentDirectSubuserId = subuserId;
+                window.openDirectChatModal(chat.id, seller.username, seller.avatar_url, seller.id, subuserId);
+            });
+        });
+        
+        list.appendChild(item);
+    });
+}
+
+// Update admin discussions list
+function updateAdminDiscussionsList(list, data) {
+    list.innerHTML = '';
+    const nonEmptyChats = data.chats.filter(chat => chat.messages && chat.messages.length > 0);
+    window.adminDiscussionsListData = data.chats;
+    
+    if (!nonEmptyChats.length) {
+        list.innerHTML = '<div class="text-muted text-center py-4">No discussions yet.</div>';
+        return;
+    }
+    
+    nonEmptyChats.forEach(chat => {
+        const user = chat.user;
+        const subuser = chat.subuser;
+        const seller = chat.seller;
+        const lastMsg = chat.messages && chat.messages.length ? chat.messages[chat.messages.length-1].message : '';
+        const item = document.createElement('a');
+        item.href = '#';
+        item.className = 'list-group-item list-group-item-action d-flex align-items-center gap-3';
+        
+        let userHtml = `<img src="${user?.avatar_url || '/assets/img/default-avatar.png'}" class="rounded-circle" style="width:40px;height:40px;object-fit:cover;">`;
+        let subuserHtml = '';
+        if (subuser) {
+            subuserHtml = `<img src="${subuser.avatar_url || '/assets/img/default-avatar.png'}" class="rounded-circle ms-2" style="width:40px;height:40px;object-fit:cover;">`;
+        }
+        
+        let userLinks = `<a href="/admin/user-management/user/${user?.id}/details" class="username-link">${user?.username || 'User'}</a>`;
+        if (subuser) {
+            userLinks += ` <span class='mx-1'>(as)</span> <a href="/admin/user-management/subuser/${subuser.id}/details" class="username-link">${subuser.username}</a>`;
+        }
+        
+        item.innerHTML = `
+            ${userHtml}
+            ${subuserHtml}
+            <span class="mx-2">➔</span>
+            <img src="${seller?.avatar_url || '/assets/img/default-avatar.png'}" class="rounded-circle" style="width:40px;height:40px;object-fit:cover;">
+            <div class="flex-grow-1">
+                <div class="fw-bold">
+                    ${userLinks}
+                    ➔
+                    <a href="/admin/seller-management/seller/${seller?.id}/details?language=en" class="username-link">${seller?.username || 'Seller'}</a>
+                </div>
+                <div class="text-muted small text-truncate">${lastMsg}</div>
+            </div>
+        `;
+        
+        item.addEventListener('click', function(e) {
+            if (e.target.closest('.username-link')) {
+                return;
+            }
+            e.preventDefault();
+            window.lastOpenedAdminChatData = chat;
+            window.openDirectChatModal(chat.id, seller?.username, seller?.avatar_url, seller?.id, subuser ? subuser.username : null);
+        });
+        
+        list.appendChild(item);
+    });
+}
+
 // --- File upload handling ---
 let selectedFiles = [];
 
@@ -151,7 +386,18 @@ if (window.currentUserType === 'user') {
     const dropdownAvatar = document.getElementById('subuserDropdownAvatar');
     const dropdownName = document.getElementById('subuserDropdownName');
     if (!dropdownMenu || !dropdownBtn || !dropdownAvatar || !dropdownName) return;
+    
+    // Check if dropdown is already populated (has items)
+    const existingItems = dropdownMenu.querySelectorAll('.dropdown-item');
+    if (existingItems.length > 0) {
+      // Dropdown is already populated, just run the callback
+      if (typeof afterPopulateCallback === 'function') afterPopulateCallback();
+      return;
+    }
+    
+    // Clear dropdown completely before populating
     dropdownMenu.innerHTML = '';
+    
     fetch('/user/subusers/json')
       .then(res => res.json())
       .then(data => {
@@ -163,6 +409,7 @@ if (window.currentUserType === 'user') {
           <span>Myself</span>
         </a>`;
         dropdownMenu.appendChild(myselfLi);
+        
         if (data.subusers && data.subusers.length) {
           const seen = new Set();
           data.subusers.forEach(subuser => {
@@ -177,86 +424,125 @@ if (window.currentUserType === 'user') {
             dropdownMenu.appendChild(li);
           });
         }
+        
         if (typeof afterPopulateCallback === 'function') afterPopulateCallback();
         // Do NOT call syncSubuserDropdownSelection here!
       });
   };
 
-  document.addEventListener('DOMContentLoaded', function() {
-    // Populate custom dropdown when modal is shown
+  // Initialize dropdown functionality only once
+  let dropdownInitialized = false;
+  
+  function initializeDropdown() {
+    if (dropdownInitialized) return;
+    dropdownInitialized = true;
+    
     const modalElem = document.getElementById('directChatModal');
-    if (modalElem) {
-      modalElem.addEventListener('show.bs.modal', function() {
-        const dropdownMenu = document.getElementById('subuserDropdownMenu');
-        const dropdownBtn = document.getElementById('subuserDropdownBtn');
-        const dropdownAvatar = document.getElementById('subuserDropdownAvatar');
-        const dropdownName = document.getElementById('subuserDropdownName');
-        if (!dropdownMenu || !dropdownBtn || !dropdownAvatar || !dropdownName) return;
-        dropdownMenu.innerHTML = '';
-        fetch('/user/subusers/json')
-          .then(res => res.json())
-          .then(data => {
-            // Always add "Myself" option
-            const myselfLi = document.createElement('li');
-            let myselfUnread = (window.subuserUnreadCounts && window.subuserUnreadCounts['null']) ? window.subuserUnreadCounts['null'] : 0;
-            let realUserAvatar = window.currentUserAvatar || '/assets/img/users/profile.jpeg';
-            myselfLi.innerHTML = `<a class="dropdown-item d-flex align-items-center" href="#" data-id="" data-avatar="${realUserAvatar}" data-name="Myself">
-              <img src="${realUserAvatar}" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
-              <span>Myself</span>
-              <span class="discussion-unread-badge bell-badge ms-2" style="position:relative;min-width:18px;height:18px;line-height:18px;font-size:12px;border-radius:50%;font-weight:700;background:#e11d48;color:#fff;display:${myselfUnread > 0 ? 'flex' : 'none'};align-items:center;justify-content:center;z-index:2;border:2px solid #fff;box-shadow:0 2px 8px rgba(220,53,69,0.18);pointer-events:none;padding:0 4px;">${myselfUnread > 0 ? myselfUnread : ''}</span>
-            </a>`;
-            dropdownMenu.appendChild(myselfLi);
-            if (data.subusers && data.subusers.length) {
-              data.subusers.forEach(subuser => {
-                const avatar = subuser.image ? `/assets/img/subusers/${subuser.image}` : '/assets/img/users/profile.jpeg';
-                const li = document.createElement('li');
-                let unread = (window.subuserUnreadCounts && window.subuserUnreadCounts[String(subuser.id)]) ? window.subuserUnreadCounts[String(subuser.id)] : 0;
-                li.innerHTML = `<a class="dropdown-item d-flex align-items-center" href="#" data-id="${subuser.id}" data-avatar="${avatar}" data-name="${subuser.username}">
-                  <img src="${avatar}" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
-                  <span>${subuser.username}</span>
-                  <span class="discussion-unread-badge bell-badge ms-2" style="position:relative;min-width:18px;height:18px;line-height:18px;font-size:12px;border-radius:50%;font-weight:700;background:#e11d48;color:#fff;display:${unread > 0 ? 'flex' : 'none'};align-items:center;justify-content:center;z-index:2;border:2px solid #fff;box-shadow:0 2px 8px rgba(220,53,69,0.18);pointer-events:none;padding:0 4px;">${unread > 0 ? unread : ''}</span>
-                </a>`;
-                dropdownMenu.appendChild(li);
-              });
-            }
-            // Set current selection based on window.currentDirectSubuserId
-            setTimeout(() => window.syncSubuserDropdownSelection(), 50);
-          });
-      });
-      // Handle dropdown selection
+    if (!modalElem) return;
+    
+    // Populate custom dropdown when modal is shown
+    modalElem.addEventListener('show.bs.modal', function() {
       const dropdownMenu = document.getElementById('subuserDropdownMenu');
-      if (dropdownMenu) {
-        dropdownMenu.addEventListener('click', function(e) {
-          const a = e.target.closest('a.dropdown-item');
-          if (!a) return;
-          e.preventDefault();
-          const selectedSubuserId = a.getAttribute('data-id') || null;
-          const selectedName = a.getAttribute('data-name');
-          const selectedAvatar = a.getAttribute('data-avatar');
-          window.selectedSubuserId = selectedSubuserId;
-          if (!selectedSubuserId) {
-            document.getElementById('subuserDropdownAvatar').src = window.currentUserAvatar || selectedAvatar;
-          } else {
-          document.getElementById('subuserDropdownAvatar').src = selectedAvatar;
-          }
-          document.getElementById('subuserDropdownName').textContent = selectedName;
-          // Show loading state only until AJAX completes
-          const container = document.getElementById('direct-chat-messages');
-          if (container) container.innerHTML = '<div class="text-center text-muted py-4">Loading...</div>';
-          // Always use the last known sellerId, fallback to modal data attribute
-          let sellerId = window.currentDirectSellerId;
-          if (!sellerId) {
-            const modalElem = document.getElementById('directChatModal');
-            if (modalElem && modalElem.dataset.sellerId) {
-              sellerId = modalElem.dataset.sellerId;
+      const dropdownBtn = document.getElementById('subuserDropdownBtn');
+      const dropdownAvatar = document.getElementById('subuserDropdownAvatar');
+      const dropdownName = document.getElementById('subuserDropdownName');
+      if (!dropdownMenu || !dropdownBtn || !dropdownAvatar || !dropdownName) return;
+      
+      // Check if dropdown is already populated to prevent duplication
+      const existingItems = dropdownMenu.querySelectorAll('.dropdown-item');
+      if (existingItems.length > 0) {
+        // Dropdown is already populated, just sync selection and load messages
+        setTimeout(() => {
+          window.syncSubuserDropdownSelection();
+          // Always force reload messages when modal opens, regardless of current state
+                      if (window.currentDirectChatId && typeof window.loadDirectChatMessages === 'function') {
+              console.log('Force loading messages on modal open for chat ID:', window.currentDirectChatId);
+              window.loadDirectChatMessages(window.currentDirectChatId, true); // Show loading when opening modal
             }
-          }
-          console.log('Dropdown clicked: subuserId=', selectedSubuserId, 'name=', selectedName, 'sellerId=', sellerId, 'window.currentDirectSellerId=', window.currentDirectSellerId);
-          // Always use the global seller name/avatar for the chat header
-          startOrGetChatWithSubuser(sellerId, selectedSubuserId, window.currentDirectSellerName, window.currentDirectSellerAvatar);
-        });
+        }, 50);
+        return;
       }
+      
+      // Clear existing content to prevent duplication
+      dropdownMenu.innerHTML = '';
+      
+      fetch('/user/subusers/json')
+        .then(res => res.json())
+        .then(data => {
+          // Always add "Myself" option
+          const myselfLi = document.createElement('li');
+          let myselfUnread = (window.subuserUnreadCounts && window.subuserUnreadCounts['null']) ? window.subuserUnreadCounts['null'] : 0;
+          let realUserAvatar = window.currentUserAvatar || '/assets/img/users/profile.jpeg';
+          myselfLi.innerHTML = `<a class="dropdown-item d-flex align-items-center" href="#" data-id="" data-avatar="${realUserAvatar}" data-name="Myself">
+            <img src="${realUserAvatar}" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
+            <span>Myself</span>
+            <span class="discussion-unread-badge bell-badge ms-2" style="position:relative;min-width:18px;height:18px;line-height:18px;font-size:12px;border-radius:50%;font-weight:700;background:#e11d48;color:#fff;display:${myselfUnread > 0 ? 'flex' : 'none'};align-items:center;justify-content:center;z-index:2;border:2px solid #fff;box-shadow:0 2px 8px rgba(220,53,69,0.18);pointer-events:none;padding:0 4px;">${myselfUnread > 0 ? myselfUnread : ''}</span>
+          </a>`;
+          dropdownMenu.appendChild(myselfLi);
+          
+          if (data.subusers && data.subusers.length) {
+            data.subusers.forEach(subuser => {
+              const avatar = subuser.image ? `/assets/img/subusers/${subuser.image}` : '/assets/img/users/profile.jpeg';
+              const li = document.createElement('li');
+              let unread = (window.subuserUnreadCounts && window.subuserUnreadCounts[String(subuser.id)]) ? window.subuserUnreadCounts[String(subuser.id)] : 0;
+              li.innerHTML = `<a class="dropdown-item d-flex align-items-center" href="#" data-id="${subuser.id}" data-avatar="${avatar}" data-name="${subuser.username}">
+                <img src="${avatar}" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
+                <span>${subuser.username}</span>
+                <span class="discussion-unread-badge bell-badge ms-2" style="position:relative;min-width:18px;height:18px;line-height:18px;font-size:12px;border-radius:50%;font-weight:700;background:#e11d48;color:#fff;display:${unread > 0 ? 'flex' : 'none'};align-items:center;justify-content:center;z-index:2;border:2px solid #fff;box-shadow:0 2px 8px rgba(220,53,69,0.18);pointer-events:none;padding:0 4px;">${unread > 0 ? unread : ''}</span>
+              </a>`;
+              dropdownMenu.appendChild(li);
+            });
+          }
+          // Set current selection based on window.currentDirectSubuserId and load messages
+          setTimeout(() => {
+            window.syncSubuserDropdownSelection();
+            // Always force reload messages when modal opens, regardless of current state
+            if (window.currentDirectChatId && typeof window.loadDirectChatMessages === 'function') {
+              console.log('Force loading messages on modal open for chat ID:', window.currentDirectChatId);
+              window.loadDirectChatMessages(window.currentDirectChatId, true); // Show loading when opening modal
+            }
+          }, 50);
+        });
+    });
+    
+    // Handle dropdown selection
+    const dropdownMenu = document.getElementById('subuserDropdownMenu');
+    if (dropdownMenu) {
+      dropdownMenu.addEventListener('click', function(e) {
+        const a = e.target.closest('a.dropdown-item');
+        if (!a) return;
+        e.preventDefault();
+        const selectedSubuserId = a.getAttribute('data-id') || null;
+        const selectedName = a.getAttribute('data-name');
+        const selectedAvatar = a.getAttribute('data-avatar');
+        window.selectedSubuserId = selectedSubuserId;
+        if (!selectedSubuserId) {
+          document.getElementById('subuserDropdownAvatar').src = window.currentUserAvatar || selectedAvatar;
+        } else {
+        document.getElementById('subuserDropdownAvatar').src = selectedAvatar;
+        }
+        document.getElementById('subuserDropdownName').textContent = selectedName;
+        // Show loading state only until AJAX completes
+        const container = document.getElementById('direct-chat-messages');
+        if (container) container.innerHTML = '<div class="text-center text-muted py-4">Loading...</div>';
+        // Always use the last known sellerId, fallback to modal data attribute
+        let sellerId = window.currentDirectSellerId;
+        if (!sellerId) {
+          const modalElem = document.getElementById('directChatModal');
+          if (modalElem && modalElem.dataset.sellerId) {
+            sellerId = modalElem.dataset.sellerId;
+          }
+        }
+        console.log('Dropdown clicked: subuserId=', selectedSubuserId, 'name=', selectedName, 'sellerId=', sellerId, 'window.currentDirectSellerId=', window.currentDirectSellerId);
+        // Always use the global seller name/avatar for the chat header
+        startOrGetChatWithSubuser(sellerId, selectedSubuserId, window.currentDirectSellerName, window.currentDirectSellerAvatar);
+      });
     }
+  }
+  
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize dropdown functionality
+    initializeDropdown();
   });
 }
 
@@ -585,6 +871,56 @@ function startOrGetChatWithSubuser(sellerId, subuserId, partnerName, partnerAvat
 window.openDirectChatModal = function(chatId, partnerName, partnerAvatar, sellerId, subuserId) {
     window.currentDirectSellerName = partnerName;
     window.currentDirectSellerAvatar = partnerAvatar;
+    
+    // Get modal element
+    const modalElem = document.getElementById('directChatModal');
+    if (!modalElem) {
+        console.error('Direct chat modal not found');
+        return;
+    }
+    
+    // Force complete modal reset - this is the key fix
+    modalElem.style.display = 'none';
+    modalElem.classList.remove('show');
+    modalElem.removeAttribute('aria-hidden');
+    modalElem.setAttribute('aria-hidden', 'true');
+    
+    // Clear any existing modal backdrop and ensure proper state
+    const existingBackdrop = document.querySelector('.modal-backdrop');
+    if (existingBackdrop) {
+        existingBackdrop.remove();
+    }
+    
+    // Remove any existing modal-open class from body
+    document.body.classList.remove('modal-open');
+    
+    // Force remove any existing Bootstrap modal instances
+    if (window.bootstrap && bootstrap.Modal) {
+        const existingInstance = bootstrap.Modal.getInstance(modalElem);
+        if (existingInstance) {
+            try {
+                console.log('Admin chat: Disposing existing modal instance');
+                existingInstance.dispose();
+            } catch (e) {
+                console.log('Admin chat: Disposed existing modal instance');
+            }
+        }
+    }
+    
+    // Clear any potential DataTable conflicts
+    try {
+        if (window.$ && window.$.fn && window.$.fn.dataTable) {
+            // Destroy any existing DataTables that might interfere
+            $('.dataTable').each(function() {
+                if ($.fn.DataTable.isDataTable(this)) {
+                    $(this).DataTable().destroy();
+                }
+            });
+        }
+    } catch (e) {
+        console.log('Cleared potential DataTable conflicts');
+    }
+    
     // Always update modal header
     if (window.currentUserType === 'admin') {
         // Get the discussion data from the discussions list (already loaded in the click handler)
@@ -635,10 +971,30 @@ window.openDirectChatModal = function(chatId, partnerName, partnerAvatar, seller
         }
     }
     // Store current chat context
-    const modalElem = document.getElementById('directChatModal');
     if (modalElem) {
       modalElem.dataset.sellerId = sellerId || '';
     }
+    // Handle case when no chat ID is provided (new chat)
+    if (!chatId) {
+        window.currentDirectChatId = null;
+        window.currentDirectSellerId = sellerId || window.currentDirectSellerId || null;
+        window.currentDirectSubuserId = subuserId || null;
+        
+        // Clear messages and show empty state
+        const container = document.getElementById('direct-chat-messages');
+        if (container) {
+            container.innerHTML = '<div class="text-center text-muted py-4">Start a conversation by sending a message.</div>';
+        }
+        
+        // Clear file preview when opening modal
+        clearFilePreview();
+        
+        // Show the modal with proper state reset
+        showModalSafely(modalElem);
+        
+        return;
+    }
+    
     // Only reload messages if switching to a different chat or if never loaded
     const isSwitchingChat = window.currentDirectChatId !== chatId;
     const needsInitialLoad = (typeof window.lastLoadedDirectChatId === 'undefined' || window.lastLoadedDirectChatId !== chatId || !window.currentDirectChatMessages || window.currentDirectChatMessages.length === 0);
@@ -647,38 +1003,153 @@ window.openDirectChatModal = function(chatId, partnerName, partnerAvatar, seller
     window.currentDirectSubuserId = subuserId || null;
     // Subscribe to real-time chat and offer events
     if (typeof subscribeToDirectChatChannel === 'function') {
+        console.log('Admin chat: Subscribing to real-time events for chat ID:', chatId);
         subscribeToDirectChatChannel(chatId);
+    } else {
+        console.error('Admin chat: subscribeToDirectChatChannel function not found');
     }
-    // Show the modal (Bootstrap 5 or 4)
-    if (window.bootstrap && bootstrap.Modal && bootstrap.Modal.getOrCreateInstance) {
-        // Bootstrap 5+
-        const modal = bootstrap.Modal.getOrCreateInstance(modalElem);
-        modal.show();
-    } else if (window.$ && window.$.fn && window.$.fn.modal) {
-        // Bootstrap 4 fallback
-        $(modalElem).modal('show');
-    }
-    // --- Fix: Ensure dropdown selection matches current subuser after modal is shown and dropdown is populated ---
-    if (window.currentUserType === 'user') {
-        setTimeout(() => window.syncSubuserDropdownSelection(subuserId), 400);
-    }
+    
+    // Show the modal with proper state reset
+    showModalSafely(modalElem);
+    
+    // Fallback: Ensure messages are loaded after a reasonable delay if not already loaded
+    setTimeout(() => {
+        const container = document.getElementById('direct-chat-messages');
+        if (container && (container.innerHTML.includes('No Messages Yet') || container.innerHTML.includes('No messages yet') || container.innerHTML.includes('Loading...'))) {
+            if (window.currentDirectChatId && typeof window.loadDirectChatMessages === 'function') {
+                console.log('Fallback: Loading messages for chat ID:', window.currentDirectChatId);
+                window.loadDirectChatMessages(window.currentDirectChatId);
+            }
+        }
+    }, 1000); // 1 second fallback
+    
     // Clear messages immediately to avoid showing old messages
     const container = document.getElementById('direct-chat-messages');
     if (container) container.innerHTML = '<div class="text-center text-muted py-4">Loading...</div>';
     // Clear file preview when opening modal
     clearFilePreview();
-    // Only reload messages if switching to a different chat or never loaded
-    if ((isSwitchingChat || needsInitialLoad) && typeof window.loadDirectChatMessages === 'function') {
-        window.lastLoadedDirectChatId = chatId;
-        console.log('Loading messages for chat ID:', chatId);
-        window.loadDirectChatMessages(chatId);
+    
+    // --- Fix: Ensure dropdown selection matches current subuser after modal is shown and dropdown is populated ---
+    if (window.currentUserType === 'user') {
+        setTimeout(() => {
+            window.syncSubuserDropdownSelection(subuserId);
+            // Force load messages after dropdown sync, regardless of previous state
+            setTimeout(() => {
+                if (window.currentDirectChatId && typeof window.loadDirectChatMessages === 'function') {
+                    console.log('Force loading messages after dropdown sync for chat ID:', window.currentDirectChatId);
+                    window.loadDirectChatMessages(window.currentDirectChatId);
+                }
+            }, 100);
+        }, 400);
     } else {
-        // If not switching chat, just re-render the timeline
-        mergeAndRenderChatTimeline();
+        // For non-user types (admin, seller), load messages immediately
+        if ((isSwitchingChat || needsInitialLoad) && typeof window.loadDirectChatMessages === 'function') {
+            window.lastLoadedDirectChatId = chatId;
+            console.log('Loading messages for chat ID:', chatId);
+            window.loadDirectChatMessages(chatId);
+        } else {
+            // If not switching chat, just re-render the timeline
+            mergeAndRenderChatTimeline();
+        }
     }
 };
 
-window.loadDirectChatMessages = function(chatId) {
+// Helper function to safely show modal with proper state management
+function showModalSafely(modalElem) {
+    try {
+        // Ensure modal is properly reset and hidden first
+        modalElem.style.display = 'none';
+        modalElem.classList.remove('show');
+        modalElem.removeAttribute('aria-hidden');
+        modalElem.setAttribute('aria-hidden', 'true');
+        
+        // Clear any existing backdrop
+        const existingBackdrop = document.querySelector('.modal-backdrop');
+        if (existingBackdrop) {
+            existingBackdrop.remove();
+        }
+        
+        // Remove modal-open class from body
+        document.body.classList.remove('modal-open');
+        
+        // Remove any existing modal instances to prevent conflicts
+        if (window.bootstrap && bootstrap.Modal) {
+            const existingInstance = bootstrap.Modal.getInstance(modalElem);
+            if (existingInstance) {
+                try {
+                    existingInstance.dispose();
+                } catch (e) {
+                    console.log('Disposed existing modal instance');
+                }
+            }
+        }
+        
+        // Small delay to ensure state is properly reset
+        setTimeout(() => {
+            try {
+                // Now show modal using Bootstrap
+                if (window.bootstrap && bootstrap.Modal && bootstrap.Modal.getOrCreateInstance) {
+                    // Bootstrap 5+
+                    const modal = bootstrap.Modal.getOrCreateInstance(modalElem);
+                    modal.show();
+                } else if (window.$ && window.$.fn && window.$.fn.modal) {
+                    // Bootstrap 4 fallback
+                    $(modalElem).modal('show');
+                } else {
+                    // Manual fallback if Bootstrap is not available
+                    modalElem.style.display = 'block';
+                    modalElem.classList.add('show');
+                    modalElem.setAttribute('aria-hidden', 'false');
+                    document.body.classList.add('modal-open');
+                    
+                    // Create backdrop manually
+                    const backdrop = document.createElement('div');
+                    backdrop.className = 'modal-backdrop fade show';
+                    document.body.appendChild(backdrop);
+                }
+            } catch (innerError) {
+                console.error('Error in modal show attempt:', innerError);
+                // Final fallback
+                modalElem.style.display = 'block';
+                modalElem.classList.add('show');
+                modalElem.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('modal-open');
+                
+                // Create backdrop manually
+                if (!document.querySelector('.modal-backdrop')) {
+                    const backdrop = document.createElement('div');
+                    backdrop.className = 'modal-backdrop fade show';
+                    document.body.appendChild(backdrop);
+                }
+            }
+        }, 50);
+        
+    } catch (error) {
+        console.error('Error showing modal:', error);
+        // Fallback: try to show modal with minimal state
+        modalElem.style.display = 'block';
+        modalElem.classList.add('show');
+        modalElem.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+        
+        // Create backdrop manually if needed
+        if (!document.querySelector('.modal-backdrop')) {
+            const backdrop = document.createElement('div');
+            backdrop.className = 'modal-backdrop fade show';
+            document.body.appendChild(backdrop);
+        }
+    }
+}
+
+window.loadDirectChatMessages = function(chatId, showLoading = true) {
+    console.log('loadDirectChatMessages called for chatId:', chatId, 'userType:', window.currentUserType, 'showLoading:', showLoading);
+    
+    // Ensure we have a valid chatId
+    if (!chatId) {
+        console.error('No chatId provided to loadDirectChatMessages');
+        return;
+    }
+    
     let endpoint = '';
     if (window.currentUserType === 'seller') {
         endpoint = `/seller/direct-chat/${chatId}/messages`;
@@ -687,6 +1158,14 @@ window.loadDirectChatMessages = function(chatId) {
     } else {
         endpoint = `/direct-chat/${chatId}/messages`;
     }
+    console.log('Using endpoint:', endpoint);
+    
+    // Show loading state only if explicitly requested
+    const container = document.getElementById('direct-chat-messages');
+    if (showLoading && container) {
+        container.innerHTML = '<div class="text-center text-muted py-4">Loading messages...</div>';
+    }
+    
     // Load messages and offers in parallel
     Promise.all([
         fetch(endpoint).then(res => res.json().catch(err => {
@@ -696,8 +1175,11 @@ window.loadDirectChatMessages = function(chatId) {
         loadCustomerOffers(chatId)
     ])
     .then(([messageData, offerData]) => {
+        console.log('Admin chat: Message data received:', messageData);
+        console.log('Admin chat: Offer data received:', offerData);
         window.currentDirectChatMessages = (messageData && Array.isArray(messageData.messages)) ? messageData.messages : [];
         window.currentCustomerOffers = offerData.offers || [];
+        console.log('Admin chat: Loaded', window.currentDirectChatMessages.length, 'messages and', window.currentCustomerOffers.length, 'offers');
         // --- Set chat header avatar and name to match the latest message from the other party ---
         const messages = window.currentDirectChatMessages || [];
         let partnerMsg = messages.slice().reverse().find(msg => msg.sender_type !== window.currentUserType);
@@ -755,35 +1237,250 @@ function renderDirectChatMessages(messages) {
         }
         const isAdmin = window.currentUserType === 'admin';
         messages.forEach(msg => {
-            let isMe;
-            if (isAdmin) {
-                isMe = msg.sender_type === 'user';
-            } else {
-                isMe = (msg.sender_type === window.currentUserType && String(msg.sender_id) === String(window.currentUserId));
-            }
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'd-flex mb-2 ' + (isMe ? 'justify-content-end' : 'justify-content-start');
-            msgDiv.innerHTML = `
-                ${isMe
-                    ? `<div class='chat-bubble me-bubble d-flex align-items-end flex-row-reverse' style='gap:10px;max-width:80%;'>
-                            <img src='${msg.avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle ms-2' style='width:40px;height:40px;object-fit:cover;'>
-                            <div class='chat-text bg-primary text-white p-2 rounded' style='min-width:60px;max-width:350px;word-break:break-word;'>
-                                <div>${escapeHtml(msg.message || '')}</div>
-                                ${msg.file_name ? renderDirectChatFile(msg, true) : ''}
-                                <div class='small text-end mt-1' style='color:#5c4848;'>${formatTime(msg.created_at)}</div>
-                            </div>
-                       </div>`
-                    : `<div class='chat-bubble other-bubble d-flex align-items-end' style='gap:10px;max-width:80%;'>
-                            <img src='${msg.avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle me-2' style='width:40px;height:40px;object-fit:cover;'>
-                            <div class='chat-text bg-light p-2 rounded text-dark' style='min-width:60px;max-width:350px;word-break:break-word;'>
-                                <div>${escapeHtml(msg.message || '')}</div>
-                                ${msg.file_name ? renderDirectChatFile(msg, false) : ''}
-                                <div class='small text-end mt-1' style='color:#5c4848;'>${formatTime(msg.created_at)}</div>
-                            </div>
-                       </div>`
+            // Check if this is a brief details message
+            let messageContent = msg.message || '';
+            let isBriefDetails = false;
+            let briefDetails = null;
+            
+            try {
+                const parsedMessage = JSON.parse(messageContent);
+                if (parsedMessage.type === 'brief_details') {
+                    isBriefDetails = true;
+                    briefDetails = parsedMessage;
                 }
-            `;
-            container.appendChild(msgDiv);
+            } catch (e) {
+                // Not a JSON message, treat as regular text
+            }
+            
+            if (isBriefDetails) {
+                // Render beautiful brief details card
+                // Determine alignment: right for current user's briefs, left for others
+                // For admin: always left (admin is viewing as third party)
+                // For user: right if user posted the brief, left if seller posted
+                // For seller: right if seller posted the brief, left if user posted
+                let isMyBrief = false;
+                console.log('Brief alignment debug:', {
+                    currentUserType: window.currentUserType,
+                    currentUserId: window.currentUserId,
+                    briefDetails: briefDetails
+                });
+                
+                if (window.currentUserType === 'admin') {
+                    isMyBrief = true; // Admin sees briefs on the right side
+                    console.log('Admin: brief will be on right (function 1)');
+                    console.log('Admin chat debug - currentUserType:', window.currentUserType, 'isAdmin check:', window.currentUserType === 'admin');
+                } else if (window.currentUserType === 'user') {
+                    // For user: if the brief was posted by a user (not seller), align to user side
+                    isMyBrief = true; // Brief is always from user side in user chat
+                    console.log('User: brief is from user side, isMyBrief:', isMyBrief);
+                } else if (window.currentUserType === 'seller') {
+                    // For seller: if the brief was posted by a user (not seller), align to user side (left)
+                    isMyBrief = false; // Brief is always from user side in seller chat
+                    console.log('Seller: brief is from user side, isMyBrief:', isMyBrief);
+                }
+                console.log('Final alignment decision (function 1): isMyBrief =', isMyBrief, 'alignment =', isMyBrief ? 'right' : 'left');
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'd-flex mb-3 ' + (isMyBrief ? 'justify-content-end' : 'justify-content-start');
+                msgDiv.innerHTML = `
+                    <div class='chat-bubble ${isMyBrief ? 'me-bubble flex-row-reverse' : 'other-bubble'} d-flex align-items-start' style='gap:12px;max-width:90%;'>
+                        <img src='${briefDetails.user_avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle ${isMyBrief ? 'ms-2' : 'me-2'}' style='width:40px;height:40px;object-fit:cover;flex-shrink:0;'>
+                        <div class='brief-details-card' style='
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            border-radius: 16px;
+                            padding: 20px;
+                            min-width: 320px;
+                            max-width: 480px;
+                            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+                            border: 1px solid rgba(255, 255, 255, 0.2);
+                            backdrop-filter: blur(10px);
+                            position: relative;
+                            overflow: hidden;
+                        '>
+                            <!-- Decorative elements -->
+                            <div style='
+                                position: absolute;
+                                top: -20px;
+                                right: -20px;
+                                width: 60px;
+                                height: 60px;
+                                background: rgba(255, 255, 255, 0.1);
+                                border-radius: 50%;
+                                z-index: 0;
+                            '></div>
+                            <div style='
+                                position: absolute;
+                                bottom: -30px;
+                                left: -30px;
+                                width: 80px;
+                                height: 80px;
+                                background: rgba(255, 255, 255, 0.05);
+                                border-radius: 50%;
+                                z-index: 0;
+                            '></div>
+                            
+                            <!-- Header -->
+                            <div class='d-flex align-items-center mb-3' style='position: relative; z-index: 1;'>
+                                <div style='
+                                    background: rgba(255, 255, 255, 0.2);
+                                    border-radius: 12px;
+                                    padding: 8px 12px;
+                                    margin-right: 12px;
+                                '>
+                                    <i class='fas fa-briefcase' style='font-size: 16px;'></i>
+                                </div>
+                                <div>
+                                    <h6 class='mb-0' style='font-weight: 600; font-size: 16px;'>Customer Brief</h6>
+                                    <small style='opacity: 0.8; font-size: 12px;'>Project Details</small>
+                                </div>
+                            </div>
+                            
+                            <!-- Content -->
+                            <div style='position: relative; z-index: 1;'>
+                                <!-- Title -->
+                                <div class='mb-3'>
+                                    <div style='
+                                        background: rgba(255, 255, 255, 0.15);
+                                        border-radius: 8px;
+                                        padding: 12px;
+                                        border-left: 4px solid rgba(255, 255, 255, 0.5);
+                                    '>
+                                        <h6 class='mb-1' style='font-weight: 600; font-size: 14px; opacity: 0.9;'>Title</h6>
+                                        <p class='mb-0' style='font-size: 15px; line-height: 1.4;'>${escapeHtml(briefDetails.title)}</p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Description -->
+                                <div class='mb-3'>
+                                    <div style='
+                                        background: rgba(255, 255, 255, 0.1);
+                                        border-radius: 8px;
+                                        padding: 12px;
+                                    '>
+                                        <h6 class='mb-1' style='font-weight: 600; font-size: 14px; opacity: 0.9;'>Description</h6>
+                                        <p class='mb-0' style='font-size: 14px; line-height: 1.5; opacity: 0.95;'>${escapeHtml(briefDetails.description)}</p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Details Grid -->
+                                <div class='row mb-3' style='gap: 8px;'>
+                                    <div class='col-6' style='
+                                        background: rgba(255, 255, 255, 0.1);
+                                        border-radius: 8px;
+                                        padding: 10px;
+                                        text-align: center;
+                                    '>
+                                        <div style='font-size: 12px; opacity: 0.8; margin-bottom: 4px;'>Delivery Time</div>
+                                        <div style='font-weight: 600; font-size: 14px;'>${briefDetails.delivery_time} days</div>
+                                    </div>
+                                    <div class='col-6' style='
+                                        background: rgba(255, 255, 255, 0.1);
+                                        border-radius: 8px;
+                                        padding: 10px;
+                                        text-align: center;
+                                    '>
+                                        <div style='font-size: 12px; opacity: 0.8; margin-bottom: 4px;'>Created</div>
+                                        <div style='font-weight: 600; font-size: 14px;'>${briefDetails.created_at}</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Tags -->
+                                <div class='mb-3'>
+                                    <div style='font-size: 12px; opacity: 0.8; margin-bottom: 6px;'>Tags</div>
+                                    <div style='display: flex; flex-wrap: wrap; gap: 6px;'>
+                                        ${briefDetails.tags.split(',').map(tag => `
+                                            <span style='
+                                                background: rgba(255, 255, 255, 0.2);
+                                                color: white;
+                                                padding: 4px 10px;
+                                                border-radius: 20px;
+                                                font-size: 11px;
+                                                font-weight: 500;
+                                                border: 1px solid rgba(255, 255, 255, 0.3);
+                                            '>${escapeHtml(tag.trim())}</span>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                                
+                                <!-- Price -->
+                                <div class='mb-3'>
+                                    <div style='font-size: 12px; opacity: 0.8; margin-bottom: 6px;'>Budget</div>
+                                    ${briefDetails.request_quote ? 
+                                        `<div style='
+                                            background: rgba(255, 255, 255, 0.2);
+                                            border-radius: 8px;
+                                            padding: 8px 12px;
+                                            text-align: center;
+                                            font-weight: 600;
+                                            font-size: 14px;
+                                            border: 1px solid rgba(255, 255, 255, 0.3);
+                                        '>
+                                            <i class='fas fa-quote-left me-1'></i>Request a Quote
+                                        </div>` : 
+                                        `<div style='
+                                            background: rgba(255, 255, 255, 0.2);
+                                            border-radius: 8px;
+                                            padding: 8px 12px;
+                                            text-align: center;
+                                            font-weight: 600;
+                                            font-size: 14px;
+                                            border: 1px solid rgba(255, 255, 255, 0.3);
+                                        '>
+                                            <i class='fas fa-dollar-sign me-1'></i>${parseFloat(briefDetails.price).toFixed(2)}
+                                        </div>`
+                                    }
+                                </div>
+                                
+                                <!-- Footer -->
+                                <div class='d-flex justify-content-between align-items-center' style='
+                                    border-top: 1px solid rgba(255, 255, 255, 0.2);
+                                    padding-top: 12px;
+                                    margin-top: 12px;
+                                '>
+                                    <div style='display: flex; align-items: center; gap: 8px;'>
+                                        <img src='${briefDetails.user_avatar || '/assets/img/users/profile.jpeg'}' 
+                                             style='width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255, 255, 255, 0.3);'>
+                                        <small style='opacity: 0.9; font-size: 12px;'>Posted by ${escapeHtml(briefDetails.user_name)}</small>
+                                    </div>
+                                    <small style='opacity: 0.7; font-size: 11px;'>${formatTime(msg.created_at)}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(msgDiv);
+            } else {
+                // Render regular message
+                let isMe;
+                if (isAdmin) {
+                    isMe = msg.sender_type === 'user';
+                } else {
+                    isMe = (msg.sender_type === window.currentUserType && String(msg.sender_id) === String(window.currentUserId));
+                }
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'd-flex mb-2 ' + (isMe ? 'justify-content-end' : 'justify-content-start');
+                msgDiv.innerHTML = `
+                    ${isMe
+                        ? `<div class='chat-bubble me-bubble d-flex align-items-end flex-row-reverse' style='gap:10px;max-width:80%;'>
+                                <img src='${msg.avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle ms-2' style='width:40px;height:40px;object-fit:cover;'>
+                                <div class='chat-text bg-primary text-white p-2 rounded' style='min-width:60px;max-width:350px;word-break:break-word;'>
+                                    <div>${escapeHtml(msg.message || '')}</div>
+                                    ${msg.file_name ? renderDirectChatFile(msg, true) : ''}
+                                    <div class='small text-end mt-1' style='color:#5c4848;'>${formatTime(msg.created_at)}</div>
+                                </div>
+                           </div>`
+                        : `<div class='chat-bubble other-bubble d-flex align-items-end' style='gap:10px;max-width:80%;'>
+                                <img src='${msg.avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle me-2' style='width:40px;height:40px;object-fit:cover;'>
+                                <div class='chat-text bg-light p-2 rounded text-dark' style='min-width:60px;max-width:350px;word-break:break-word;'>
+                                    <div>${escapeHtml(msg.message || '')}</div>
+                                    ${msg.file_name ? renderDirectChatFile(msg, false) : ''}
+                                    <div class='small text-end mt-1' style='color:#5c4848;'>${formatTime(msg.created_at)}</div>
+                                </div>
+                           </div>`
+                    }
+                `;
+                container.appendChild(msgDiv);
+            }
         });
     } catch (e) {
         console.error('Error rendering chat messages:', e);
@@ -933,8 +1630,47 @@ function sendDirectChatMessage(chatId) {
     const input = document.getElementById('direct-chat-input');
     const message = input.value.trim();
     const formData = new FormData();
-    formData.append('chat_id', chatId);
-    formData.append('message', message);
+    
+    // Check if this is a seller sending a message and there's pending brief context
+    const isSeller = window.currentUserType === 'seller';
+    const hasPendingBriefContext = window.pendingBriefContext && isSeller;
+    
+    // Always add brief context if available, regardless of existing messages
+    // This ensures that when coming from brief details page, the brief card is always added
+    let shouldAddBriefContext = hasPendingBriefContext;
+    
+    if (chatId && hasPendingBriefContext) {
+        console.log('Brief context available for existing chat - will add brief card before seller message');
+    }
+    
+    // Handle case when no chat ID exists yet (new chat)
+    if (!chatId && window.pendingChatParams) {
+        // Add chat creation parameters
+        formData.append('user_id', window.pendingChatParams.user_id);
+        formData.append('seller_id', window.pendingChatParams.seller_id);
+        if (window.pendingChatParams.subuser_id) {
+            formData.append('subuser_id', window.pendingChatParams.subuser_id);
+        }
+        formData.append('message', message);
+        
+        // Add brief context if available
+        if (shouldAddBriefContext) {
+            formData.append('brief_context', JSON.stringify(window.pendingBriefContext));
+            console.log('Adding brief context to new chat message:', window.pendingBriefContext);
+        }
+        
+        console.log('Creating new chat with params:', window.pendingChatParams);
+    } else {
+        // Existing chat
+        formData.append('chat_id', chatId);
+        formData.append('message', message);
+        
+        // Add brief context if available
+        if (shouldAddBriefContext) {
+            formData.append('brief_context', JSON.stringify(window.pendingBriefContext));
+            console.log('Adding brief context to existing chat message:', window.pendingBriefContext);
+        }
+    }
     
     // Add selected files
     if (selectedFiles.length > 0) {
@@ -948,11 +1684,11 @@ function sendDirectChatMessage(chatId) {
     
     let endpoint = '';
     if (window.currentUserType === 'seller') {
-        endpoint = `/seller/direct-chat/${chatId}/send?v=${Date.now()}`;
+        endpoint = chatId ? `/seller/direct-chat/${chatId}/send?v=${Date.now()}` : `/seller/direct-chat/send?v=${Date.now()}`;
     } else if (window.currentUserType === 'admin') {
-        endpoint = `/admin/direct-chat/${chatId}/send?v=${Date.now()}`;
+        endpoint = chatId ? `/admin/direct-chat/${chatId}/send?v=${Date.now()}` : `/admin/direct-chat/send?v=${Date.now()}`;
     } else {
-        endpoint = `/direct-chat/${chatId}/send?v=${Date.now()}`;
+        endpoint = chatId ? `/direct-chat/${chatId}/send?v=${Date.now()}` : `/direct-chat/send?v=${Date.now()}`;
     }
     
     console.log('Direct chat send endpoint:', endpoint);
@@ -992,7 +1728,41 @@ function sendDirectChatMessage(chatId) {
             progressBar.classList.add('d-none');
         }
         
-        loadDirectChatMessages(chatId);
+        // Handle new chat creation
+        if (!chatId && data.message && data.message.chat_id) {
+            const newChatId = data.message.chat_id;
+            window.currentDirectChatId = newChatId;
+            
+            // Clear pending chat params
+            window.pendingChatParams = null;
+            
+            console.log('New chat created with ID:', newChatId);
+            
+            // Subscribe to real-time events for the new chat
+            if (typeof subscribeToDirectChatChannel === 'function') {
+                subscribeToDirectChatChannel(newChatId);
+            }
+            
+            // Load messages for the new chat
+            loadDirectChatMessages(newChatId, false); // Do not show loading after sending
+        } else if (chatId) {
+            // Existing chat
+            loadDirectChatMessages(chatId, false); // Do not show loading after sending
+        }
+        
+        // Clear pending brief context after successful message send
+        if (window.pendingBriefContext) {
+            console.log('Clearing pending brief context after message sent');
+            window.pendingBriefContext = null;
+        }
+        
+        // Debug: Log the current state
+        console.log('Message sent successfully. Current state:', {
+            chatId: chatId || data.message?.chat_id,
+            hasPendingBriefContext: !!window.pendingBriefContext,
+            currentUserType: window.currentUserType,
+            briefContextSent: shouldAddBriefContext
+        });
     })
     .catch(error => {
         console.error('Error sending message:', error);
@@ -1001,16 +1771,33 @@ function sendDirectChatMessage(chatId) {
 }
 
 function subscribeToDirectChatChannel(chatId) {
-    if (typeof Pusher === 'undefined') return;
+    console.log('subscribeToDirectChatChannel called for chatId:', chatId, 'userType:', window.currentUserType);
+    if (typeof Pusher === 'undefined') {
+        console.error('Pusher is not defined, cannot subscribe to real-time updates');
+        return;
+    }
+    if (!chatId) {
+        console.log('No chat ID provided for subscription, skipping real-time subscription');
+        return;
+    }
+    
     if (window.currentDirectChatPusherChannel) {
         window.currentDirectChatPusherChannel.unbind_all();
         window.currentDirectChatPusherChannel.unsubscribe();
+    }
+    if (window.currentDirectChatMessageChannel) {
+        window.currentDirectChatMessageChannel.unbind_all();
+        window.currentDirectChatMessageChannel.unsubscribe();
     }
     var pusherKeyMeta = document.querySelector('meta[name="pusher-key"]');
     var pusherClusterMeta = document.querySelector('meta[name="pusher-cluster"]');
     var pusherKey = window.pusherKey || (pusherKeyMeta ? pusherKeyMeta.getAttribute('content') : null);
     var pusherCluster = window.pusherCluster || (pusherClusterMeta ? pusherClusterMeta.getAttribute('content') : null);
-    if (!pusherKey || !pusherCluster) return;
+    console.log('Pusher config - Key:', pusherKey ? 'Found' : 'Missing', 'Cluster:', pusherCluster ? 'Found' : 'Missing');
+    if (!pusherKey || !pusherCluster) {
+        console.error('Pusher key or cluster not found, cannot subscribe to real-time updates');
+        return;
+    }
     if (!window.directChatPusherInstance) {
         window.directChatPusherInstance = new Pusher(pusherKey, {
             cluster: pusherCluster
@@ -1019,6 +1806,25 @@ function subscribeToDirectChatChannel(chatId) {
     var channelName = 'offer-channel.' + chatId;
     console.log('Subscribing to Pusher channel:', channelName);
     window.currentDirectChatPusherChannel = window.directChatPusherInstance.subscribe(channelName);
+    
+    // Also subscribe to the message channel for this specific chat
+    var messageChannelName = 'chat-' + chatId;
+    console.log('Subscribing to message channel:', messageChannelName);
+    window.currentDirectChatMessageChannel = window.directChatPusherInstance.subscribe(messageChannelName);
+    
+    // Bind message events
+    window.currentDirectChatMessageChannel.bind('message.sent', function(data) {
+        console.log('Received real-time message:', data);
+        console.log('Current chat ID:', window.currentDirectChatId, 'Message chat ID:', chatId);
+        // Reload messages to show the new message
+        if (typeof loadDirectChatMessages === 'function') {
+            console.log('Reloading messages for chat ID:', chatId);
+            loadDirectChatMessages(chatId);
+        } else {
+            console.error('loadDirectChatMessages function not found');
+        }
+    });
+    
     window.currentDirectChatPusherChannel.bind('customer-offer.created', function(data) {
         console.log('Received real-time offer CREATED event (classic Pusher):', data);
         if (!window.currentCustomerOffers) window.currentCustomerOffers = [];
@@ -1109,28 +1915,298 @@ function renderDirectChatMessage(msg) {
     } else {
         isMe = (msg.sender_type === window.currentUserType && String(msg.sender_id) === String(window.currentUserId));
     }
+    
+    // Check if this is a brief details message
+    let messageContent = msg.message || '';
+    let isBriefDetails = false;
+    let briefDetails = null;
+    
+    try {
+        const parsedMessage = JSON.parse(messageContent);
+        if (parsedMessage.type === 'brief_details') {
+            isBriefDetails = true;
+            briefDetails = parsedMessage;
+        }
+    } catch (e) {
+        // Not a JSON message, treat as regular text
+    }
+    
     const msgDiv = document.createElement('div');
     msgDiv.className = 'd-flex mb-2 ' + (isMe ? 'justify-content-end' : 'justify-content-start');
-    msgDiv.innerHTML = `
-        ${isMe
-            ? `<div class='chat-bubble me-bubble d-flex align-items-end flex-row-reverse' style='gap:10px;max-width:80%;'>
-                    <img src='${msg.avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle ms-2' style='width:40px;height:40px;object-fit:cover;'>
-                    <div class='chat-text bg-primary text-white p-2 rounded' style='min-width:60px;max-width:350px;word-break:break-word;'>
-                        <div>${escapeHtml(msg.message || '')}</div>
-                        ${msg.file_name ? renderDirectChatFile(msg, true) : ''}
-                        <div class='small text-end mt-1' style='color:#5c4848;'>${formatTime(msg.created_at)}</div>
-                    </div>
-               </div>`
-            : `<div class='chat-bubble other-bubble d-flex align-items-end' style='gap:10px;max-width:80%;'>
-                    <img src='${msg.avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle me-2' style='width:40px;height:40px;object-fit:cover;'>
-                    <div class='chat-text bg-light p-2 rounded text-dark' style='min-width:60px;max-width:350px;word-break:break-word;'>
-                        <div>${escapeHtml(msg.message || '')}</div>
-                        ${msg.file_name ? renderDirectChatFile(msg, false) : ''}
-                        <div class='small text-end mt-1' style='color:#5c4848;'>${formatTime(msg.created_at)}</div>
-                    </div>
-               </div>`
+    
+    if (isBriefDetails) {
+        // Render beautiful brief details card
+        // Determine alignment: right for current user's briefs, left for others
+        // For admin: always left (admin is viewing as third party)
+        // For user: right if user posted the brief, left if seller posted
+        // For seller: right if seller posted the brief, left if user posted
+        let isMyBrief = false;
+        console.log('Brief alignment debug (function 2):', {
+            currentUserType: window.currentUserType,
+            currentUserId: window.currentUserId,
+            briefDetails: briefDetails
+        });
+        
+        if (window.currentUserType === 'admin') {
+            isMyBrief = true; // Admin sees briefs on the right side
+            console.log('Admin: brief will be on right (function 2)');
+            console.log('Admin chat debug (function 2) - currentUserType:', window.currentUserType, 'isAdmin check:', window.currentUserType === 'admin');
+        } else if (window.currentUserType === 'user') {
+            // For user: if the brief was posted by a user (not seller), align to user side
+            isMyBrief = true; // Brief is always from user side in user chat
+            console.log('User: brief is from user side, isMyBrief:', isMyBrief, '(function 2)');
+        } else if (window.currentUserType === 'seller') {
+            // For seller: if the brief was posted by a user (not seller), align to user side (left)
+            isMyBrief = false; // Brief is always from user side in seller chat
+            console.log('Seller: brief is from user side, isMyBrief:', isMyBrief, '(function 2)');
         }
-    `;
+        console.log('Final alignment decision (function 2): isMyBrief =', isMyBrief, 'alignment =', isMyBrief ? 'right' : 'left');
+        msgDiv.className = 'd-flex mb-3 ' + (isMyBrief ? 'justify-content-end' : 'justify-content-start');
+        msgDiv.innerHTML = `
+            <div class='chat-bubble ${isMyBrief ? 'me-bubble flex-row-reverse' : 'other-bubble'} d-flex align-items-start' style='gap:12px;max-width:90%;'>
+                <img src='${briefDetails.user_avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle ${isMyBrief ? 'ms-2' : 'me-2'}' style='width:40px;height:40px;object-fit:cover;flex-shrink:0;'>
+                <div class='brief-details-card' style='
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    border-radius: 16px;
+                    padding: 20px;
+                    min-width: 320px;
+                    max-width: 480px;
+                    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    backdrop-filter: blur(10px);
+                    position: relative;
+                    overflow: hidden;
+                '>
+                    <!-- Decorative elements -->
+                    <div style='
+                        position: absolute;
+                        top: -20px;
+                        right: -20px;
+                        width: 60px;
+                        height: 60px;
+                        background: rgba(255, 255, 255, 0.1);
+                        border-radius: 50%;
+                        z-index: 0;
+                    '></div>
+                    <div style='
+                        position: absolute;
+                        bottom: -30px;
+                        left: -30px;
+                        width: 80px;
+                        height: 80px;
+                        background: rgba(255, 255, 255, 0.05);
+                        border-radius: 50%;
+                        z-index: 0;
+                    '></div>
+                    
+                    <!-- Header -->
+                    <div class='d-flex align-items-center mb-3' style='position: relative; z-index: 1;'>
+                        <div style='
+                            background: rgba(255, 255, 255, 0.2);
+                            border-radius: 12px;
+                            padding: 8px 12px;
+                            margin-right: 12px;
+                        '>
+                            <i class='fas fa-briefcase' style='font-size: 16px;'></i>
+                        </div>
+                        <div>
+                            <h6 class='mb-0' style='font-weight: 600; font-size: 16px;'>Customer Brief</h6>
+                            <small style='opacity: 0.8; font-size: 12px;'>Project Details</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Content -->
+                    <div style='position: relative; z-index: 1;'>
+                        <!-- Title -->
+                        <div class='mb-3'>
+                            <div style='
+                                background: rgba(255, 255, 255, 0.15);
+                                border-radius: 8px;
+                                padding: 12px;
+                                border-left: 4px solid rgba(255, 255, 255, 0.5);
+                            '>
+                                <h6 class='mb-1' style='font-weight: 600; font-size: 14px; opacity: 0.9;'>Title</h6>
+                                <p class='mb-0' style='font-size: 15px; line-height: 1.4;'>${escapeHtml(briefDetails.title)}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Description -->
+                        <div class='mb-3'>
+                            <div style='
+                                background: rgba(255, 255, 255, 0.1);
+                                border-radius: 8px;
+                                padding: 12px;
+                            '>
+                                <h6 class='mb-1' style='font-weight: 600; font-size: 14px; opacity: 0.9;'>Description</h6>
+                                <p class='mb-0' style='font-size: 14px; line-height: 1.5; opacity: 0.95;'>${escapeHtml(briefDetails.description)}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Details Grid -->
+                        <div class='row mb-3' style='gap: 8px;'>
+                            <div class='col-6' style='
+                                background: rgba(255, 255, 255, 0.1);
+                                border-radius: 8px;
+                                padding: 10px;
+                                text-align: center;
+                            '>
+                                <div style='font-size: 12px; opacity: 0.8; margin-bottom: 4px;'>Delivery Time</div>
+                                <div style='font-weight: 600; font-size: 14px;'>${briefDetails.delivery_time} days</div>
+                            </div>
+                            <div class='col-6' style='
+                                background: rgba(255, 255, 255, 0.1);
+                                border-radius: 8px;
+                                padding: 10px;
+                                text-align: center;
+                            '>
+                                <div style='font-size: 12px; opacity: 0.8; margin-bottom: 4px;'>Created</div>
+                                <div style='font-weight: 600; font-size: 14px;'>${briefDetails.created_at}</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tags -->
+                        <div class='mb-3'>
+                            <div style='font-size: 12px; opacity: 0.8; margin-bottom: 6px;'>Tags</div>
+                            <div style='display: flex; flex-wrap: wrap; gap: 6px;'>
+                                ${briefDetails.tags.split(',').map(tag => `
+                                    <span style='
+                                        background: rgba(255, 255, 255, 0.2);
+                                        color: white;
+                                        padding: 4px 10px;
+                                        border-radius: 20px;
+                                        font-size: 11px;
+                                        font-weight: 500;
+                                        border: 1px solid rgba(255, 255, 255, 0.3);
+                                    '>${escapeHtml(tag.trim())}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <!-- Price -->
+                        <div class='mb-3'>
+                            <div style='font-size: 12px; opacity: 0.8; margin-bottom: 6px;'>Budget</div>
+                            ${briefDetails.request_quote ? 
+                                `<div style='
+                                    background: rgba(255, 255, 255, 0.2);
+                                    border-radius: 8px;
+                                    padding: 8px 12px;
+                                    text-align: center;
+                                    font-weight: 600;
+                                    font-size: 14px;
+                                    border: 1px solid rgba(255, 255, 255, 0.3);
+                                '>
+                                    <i class='fas fa-quote-left me-1'></i>Request a Quote
+                                </div>` : 
+                                `<div style='
+                                    background: rgba(255, 255, 255, 0.2);
+                                    border-radius: 8px;
+                                    padding: 8px 12px;
+                                    text-align: center;
+                                    font-weight: 600;
+                                    font-size: 14px;
+                                    border: 1px solid rgba(255, 255, 255, 0.3);
+                                '>
+                                    <i class='fas fa-dollar-sign me-1'></i>${parseFloat(briefDetails.price).toFixed(2)}
+                                </div>`
+                            }
+                        </div>
+                        
+                        <!-- Attachments -->
+                        ${briefDetails.attachments && briefDetails.attachments.length > 0 ? `
+                        <div class='mb-3'>
+                            <div style='font-size: 12px; opacity: 0.8; margin-bottom: 6px;'>Attachments (${briefDetails.attachments.length})</div>
+                            <div style='display: flex; flex-direction: column; gap: 8px;'>
+                                ${briefDetails.attachments.map((attachment, index) => {
+                                    const attachmentName = briefDetails.attachment_names[index] || 'Attachment ' + (index + 1);
+                                    const fileExt = attachmentName.split('.').pop().toLowerCase();
+                                    const iconClass = {
+                                        'pdf': 'fas fa-file-pdf text-danger',
+                                        'doc': 'fas fa-file-word text-primary',
+                                        'docx': 'fas fa-file-word text-primary',
+                                        'txt': 'fas fa-file-alt text-secondary',
+                                        'jpg': 'fas fa-file-image text-success',
+                                        'jpeg': 'fas fa-file-image text-success',
+                                        'png': 'fas fa-file-image text-success',
+                                        'gif': 'fas fa-file-image text-success',
+                                        'zip': 'fas fa-file-archive text-warning',
+                                        'rar': 'fas fa-file-archive text-warning'
+                                    }[fileExt] || 'fas fa-file text-muted';
+                                    
+                                    return `
+                                        <div style='
+                                            background: rgba(255, 255, 255, 0.15);
+                                            border-radius: 8px;
+                                            padding: 8px 12px;
+                                            display: flex;
+                                            align-items: center;
+                                            gap: 8px;
+                                            border: 1px solid rgba(255, 255, 255, 0.2);
+                                        '>
+                                            <i class='${iconClass}' style='font-size: 1.2rem;'></i>
+                                            <div style='flex-grow: 1; min-width: 0;'>
+                                                <div style='font-weight: 600; font-size: 13px; text-truncate;'>${attachmentName}</div>
+                                                <div style='font-size: 11px; opacity: 0.8;'>${fileExt.toUpperCase()} File</div>
+                                            </div>
+                                            <a href='/assets/file/customer-briefs/${attachment}' target='_blank' style='
+                                                background: rgba(255, 255, 255, 0.2);
+                                                color: white;
+                                                padding: 4px 8px;
+                                                border-radius: 4px;
+                                                text-decoration: none;
+                                                font-size: 11px;
+                                                border: 1px solid rgba(255, 255, 255, 0.3);
+                                            '>
+                                                <i class='fas fa-download me-1'></i>Download
+                                            </a>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        <!-- Footer -->
+                        <div class='d-flex justify-content-between align-items-center' style='
+                            border-top: 1px solid rgba(255, 255, 255, 0.2);
+                            padding-top: 12px;
+                            margin-top: 12px;
+                        '>
+                            <div style='display: flex; align-items: center; gap: 8px;'>
+                                <img src='${briefDetails.user_avatar || '/assets/img/users/profile.jpeg'}' 
+                                     style='width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255, 255, 255, 0.3);'>
+                                <small style='opacity: 0.9; font-size: 12px;'>Posted by ${escapeHtml(briefDetails.user_name)}</small>
+                            </div>
+                            <small style='opacity: 0.7; font-size: 11px;'>${formatTime(msg.created_at)}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        // Render regular message
+        msgDiv.innerHTML = `
+            ${isMe
+                ? `<div class='chat-bubble me-bubble d-flex align-items-end flex-row-reverse' style='gap:10px;max-width:80%;'>
+                        <img src='${msg.avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle ms-2' style='width:40px;height:40px;object-fit:cover;'>
+                        <div class='chat-text bg-primary text-white p-2 rounded' style='min-width:60px;max-width:350px;word-break:break-word;'>
+                            <div>${escapeHtml(msg.message || '')}</div>
+                            ${msg.file_name ? renderDirectChatFile(msg, true) : ''}
+                            <div class='small text-end mt-1' style='color:#5c4848;'>${formatTime(msg.created_at)}</div>
+                        </div>
+                   </div>`
+                : `<div class='chat-bubble other-bubble d-flex align-items-end' style='gap:10px;max-width:80%;'>
+                        <img src='${msg.avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle me-2' style='width:40px;height:40px;object-fit:cover;'>
+                        <div class='chat-text bg-light p-2 rounded text-dark' style='min-width:60px;max-width:350px;word-break:break-word;'>
+                            <div>${escapeHtml(msg.message || '')}</div>
+                            ${msg.file_name ? renderDirectChatFile(msg, false) : ''}
+                            <div class='small text-end mt-1' style='color:#5c4848;'>${formatTime(msg.created_at)}</div>
+                        </div>
+                   </div>`
+            }
+        `;
+    }
+    
     container.appendChild(msgDiv);
 }
 
@@ -1165,13 +2241,132 @@ function formatTime(timestamp) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Global error handler for modal-related errors and DataTable conflicts
+    window.addEventListener('error', function(event) {
+        // Handle DataTable errors
+        if (event.error && event.error.message && (
+            event.error.message.includes('DataTable is not a function') ||
+            event.error.message.includes('Cannot read properties of undefined') ||
+            event.error.message.includes('defaults')
+        )) {
+            console.warn('DataTable error detected, skipping DataTable initialization...');
+            event.preventDefault();
+            return;
+        }
+        
+        // Handle RealTimeNotifications duplicate declaration errors
+        if (event.error && event.error.message && (
+            event.error.message.includes('RealTimeNotifications') ||
+            event.error.message.includes('RealtimeNotifications') ||
+            event.error.message.includes('has already been declared')
+        )) {
+            console.warn('RealTimeNotifications error detected, skipping...');
+            event.preventDefault();
+            return;
+        }
+        
+        // Handle modal aria-hidden errors
+        if (event.error && event.error.message && event.error.message.includes('aria-hidden')) {
+            console.warn('Modal aria-hidden error detected, attempting to fix...');
+            const modalElem = document.getElementById('directChatModal');
+            if (modalElem) {
+                // Force complete modal reset
+                modalElem.style.display = 'none';
+                modalElem.classList.remove('show');
+                modalElem.removeAttribute('aria-hidden');
+                modalElem.setAttribute('aria-hidden', 'true');
+                
+                // Clear backdrop
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) backdrop.remove();
+                
+                // Remove modal-open class
+                document.body.classList.remove('modal-open');
+                
+                // Force dispose of Bootstrap modal instance
+                if (window.bootstrap && bootstrap.Modal) {
+                    const instance = bootstrap.Modal.getInstance(modalElem);
+                    if (instance) {
+                        try {
+                            instance.dispose();
+                        } catch (e) {
+                            console.log('Disposed modal instance on error');
+                        }
+                    }
+                }
+            }
+            event.preventDefault();
+        }
+    });
+    
+    // Modal cleanup event listeners
+    const modalElem = document.getElementById('directChatModal');
+    if (modalElem) {
+        // Listen for modal hidden event to clean up state
+        modalElem.addEventListener('hidden.bs.modal', function() {
+            // Force complete modal reset
+            this.style.display = 'none';
+            this.classList.remove('show');
+            this.removeAttribute('aria-hidden');
+            this.setAttribute('aria-hidden', 'true');
+            
+            // Clear any remaining backdrop
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) {
+                backdrop.remove();
+            }
+            
+            // Remove modal-open class
+            document.body.classList.remove('modal-open');
+            
+            // Clear file preview
+            clearFilePreview();
+            
+            // Unsubscribe from real-time channels
+            if (window.currentDirectChatPusherChannel) {
+                window.currentDirectChatPusherChannel.unbind_all();
+                window.currentDirectChatPusherChannel.unsubscribe();
+                window.currentDirectChatPusherChannel = null;
+            }
+            if (window.currentDirectChatMessageChannel) {
+                window.currentDirectChatMessageChannel.unbind_all();
+                window.currentDirectChatMessageChannel.unsubscribe();
+                window.currentDirectChatMessageChannel = null;
+            }
+            
+            // Force dispose of Bootstrap modal instance
+            if (window.bootstrap && bootstrap.Modal) {
+                const instance = bootstrap.Modal.getInstance(this);
+                if (instance) {
+                    try {
+                        instance.dispose();
+                    } catch (e) {
+                        console.log('Disposed modal instance on hide');
+                    }
+                }
+            }
+        });
+        
+        // Listen for modal shown event to ensure proper state
+        modalElem.addEventListener('shown.bs.modal', function() {
+            // Ensure proper state after modal is shown
+            this.removeAttribute('aria-hidden');
+            this.setAttribute('aria-hidden', 'false');
+            
+            // Focus on input if it exists
+            const input = document.getElementById('direct-chat-input');
+            if (input) {
+                setTimeout(() => input.focus(), 100);
+            }
+        });
+    }
+    
     const chatForm = document.getElementById('direct-chat-form');
     if (chatForm) {
         chatForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            if (window.currentDirectChatId) {
-                sendDirectChatMessage(window.currentDirectChatId);
-            }
+            // Send message even if no chat ID exists (will create new chat)
+            sendDirectChatMessage(window.currentDirectChatId);
         });
     }
     

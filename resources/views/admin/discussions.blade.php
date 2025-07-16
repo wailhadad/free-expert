@@ -1,7 +1,10 @@
 @extends('backend.layout')
 @section('content')
 <div class="container py-4">
-  <h2 class="mb-4">All Direct Discussions</h2>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>All Direct Discussions</h2>
+
+  </div>
   <div id="admin-discussions-list" class="list-group">
     <!-- JS will populate this list -->
   </div>
@@ -11,10 +14,23 @@
 <script src="{{ asset('assets/js/direct-chat.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  // Initial load
+  loadAdminDiscussions();
+  
+  // Set up periodic refresh every 30 seconds
+  setInterval(loadAdminDiscussions, 30000);
+  
+  // Check if real-time update function is available
+  console.log('Admin discussions: updateDiscussionBadge available:', typeof window.updateDiscussionBadge === 'function');
+  console.log('Admin discussions: RealTimeNotifications available:', typeof window.RealTimeNotifications !== 'undefined');
+  
+  function loadAdminDiscussions() {
+    console.log('Admin discussions: Loading discussions...');
   fetch('/admin/direct-chat/discussions')
     .then(res => res.json())
     .then(data => {
       console.log('Admin discussions data:', data);
+      console.log('Admin discussions: Found', data.chats.length, 'chats');
       const list = document.getElementById('admin-discussions-list');
       list.innerHTML = '';
       // Only show chats with at least one message
@@ -90,6 +106,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
     });
+  }
+  
+
 });
 </script>
 @endpush

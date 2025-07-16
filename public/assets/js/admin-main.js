@@ -610,10 +610,12 @@ $(function ($) {
 
 
   // DataTable Start
-  $('#basic-datatables').DataTable({
-    ordering: false,
-    responsive: true
-  });
+  if (typeof $.fn.DataTable !== 'undefined' && $('#basic-datatables').length > 0) {
+    $('#basic-datatables').DataTable({
+      ordering: false,
+      responsive: true
+    });
+  }
   // DataTable End
 
 

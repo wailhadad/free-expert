@@ -597,36 +597,77 @@ window.currentUserId = '{{ $userId ?? '' }}';
 
 @section('script')
   <script src="{{ asset('assets/js/seller-contact.js') }}"></script>
-  <script type="text/javascript" src="{{ asset('assets/js/service.js') }}"></script>
+  <script type="text/javascript">
+    try {
+      // Load service.js dynamically to prevent blocking
+      const script = document.createElement('script');
+      script.src = "{{ asset('assets/js/service.js') }}?v={{ time() }}&cb={{ uniqid() }}";
+      script.onerror = function() {
+        console.warn('Service.js failed to load, but continuing...');
+      };
+      document.head.appendChild(script);
+    } catch (error) {
+      console.warn('Error loading service.js:', error);
+    }
+  </script>
 @endsection
 
 @push('scripts')
 <script src="{{ asset('assets/js/direct-chat.js') }}"></script>
 <script>
-document.getElementById('contact-now-btn')?.addEventListener('click', function() {
-  if (this.getAttribute('data-login-required')) {
-    window.location.href = '{{ route('user.login') }}';
-    return;
+// Wait for DOM to be ready
+document.addEventListener('DOMContentLoaded', function() {
+  const contactBtn = document.getElementById('contact-now-btn');
+  if (contactBtn) {
+    contactBtn.addEventListener('click', function() {
+      console.log('Contact Now button clicked');
+      
+      if (this.getAttribute('data-login-required')) {
+        window.location.href = '{{ route('user.login') }}';
+        return;
+      }
+      
+      const sellerId = this.getAttribute('data-seller-id');
+      const sellerName = this.getAttribute('data-seller-username');
+      const sellerAvatar = this.getAttribute('data-seller-avatar');
+      
+      console.log('Starting chat with seller:', sellerId, sellerName);
+      
+      fetch('/direct-chat/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        },
+        body: JSON.stringify({ seller_id: sellerId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log('Chat response:', data);
+        if (data.chat && data.chat.id) {
+          // Existing chat found or new chat created - open modal with chat ID
+          if (typeof window.openDirectChatModal === 'function') {
+            window.openDirectChatModal(data.chat.id, sellerName, sellerAvatar, data.chat.seller_id);
+          } else {
+            console.error('openDirectChatModal function not found');
+            alert('Chat functionality not available. Please refresh the page and try again.');
+          }
+        } else if (data.error) {
+          alert(data.error);
+        } else {
+          // Unexpected response
+          console.error('Unexpected response from server:', data);
+          alert('Unexpected response from server. Please try again.');
+        }
+      })
+      .catch(error => {
+        console.error('Error starting chat:', error);
+        alert('Error starting chat. Please try again.');
+      });
+    });
+  } else {
+    console.error('Contact Now button not found');
   }
-  const sellerId = this.getAttribute('data-seller-id');
-  const sellerName = this.getAttribute('data-seller-username');
-  const sellerAvatar = this.getAttribute('data-seller-avatar');
-  fetch('/direct-chat/start', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-    },
-    body: JSON.stringify({ seller_id: sellerId })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.chat && data.chat.id) {
-      window.openDirectChatModal(data.chat.id, sellerName, sellerAvatar, data.chat.seller_id);
-    } else if (data.error) {
-      alert(data.error);
-    }
-  });
 });
 </script>
 @endpush

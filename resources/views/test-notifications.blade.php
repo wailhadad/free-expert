@@ -276,7 +276,6 @@
         }
     </script>
 
-<!-- Ensure real-time notifications JS is loaded for badge updates -->
-<script src="{{ asset('assets/js/real-time-notifications.js') }}"></script>
+<!-- Real-time notifications JS is already loaded in the layout -->
 </body>
 </html> 

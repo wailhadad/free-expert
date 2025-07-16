@@ -30,6 +30,18 @@
             {{ __('Service Wishlist') }}
           </a>
         </li>
+        <li>
+          <a href="{{ route('user.customer-briefs.index') }}" class="{{ request()->routeIs('user.customer-briefs.*') ? 'active' : '' }}">
+            <i class="fas fa-briefcase"></i> {{ __('Briefs') }}
+          </a>
+        </li>
+      @endif
+      @if (!$basicInfo->is_service)
+        <li>
+          <a href="{{ route('user.customer-briefs.index') }}" class="{{ request()->routeIs('user.customer-briefs.*') ? 'active' : '' }}">
+            <i class="fas fa-briefcase"></i> {{ __('Briefs') }}
+          </a>
+        </li>
       @endif
       @if ($basicInfo->support_ticket_status == 1)
         <li>

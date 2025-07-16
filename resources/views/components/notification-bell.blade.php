@@ -390,14 +390,12 @@ li.notification-bell-wrapper .dropdown-menu .dropdown-divider {
         });
     });
 </script>
-<script src="https://js.pusher.com/7.2/pusher.min.js"></script>
 <script>
     // Define Pusher variables like in message.js
     let pusherKey = '{{ $bs->pusher_key ?? env('PUSHER_APP_KEY') }}';
     let pusherCluster = '{{ $bs->pusher_cluster ?? env('PUSHER_APP_CLUSTER') }}';
     window.notifUnreadCount = {{ $unreadCount }};
 </script>
-<script src="{{ asset('assets/js/real-time-notifications.js') }}"></script>
 <script>
 // Debug: Check if real-time notifications are initialized
 console.log('Notification bell component loaded');
@@ -412,9 +410,13 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, checking for real-time notifications initialization');
     if (typeof RealTimeNotifications !== 'undefined') {
         console.log('RealTimeNotifications class found');
-        // Initialize the real-time notifications system
+        // Initialize the real-time notifications system only if not already initialized
+        if (!window.realTimeNotifications) {
         window.realTimeNotifications = new RealTimeNotifications();
         console.log('RealTimeNotifications initialized');
+        } else {
+            console.log('RealTimeNotifications already initialized, skipping');
+        }
     } else {
         console.warn('RealTimeNotifications class not found');
     }

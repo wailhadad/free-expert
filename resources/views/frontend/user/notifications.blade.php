@@ -182,14 +182,11 @@
 </div>
 @endsection
 @push('scripts')
-<!-- WebSocket setup for real-time notifications -->
-<script src="https://js.pusher.com/7.2/pusher.min.js"></script>
 <script>
     // Define Pusher variables like in message.js
     let pusherKey = '{{ $bs->pusher_key ?? env('PUSHER_APP_KEY') }}';
     let pusherCluster = '{{ $bs->pusher_cluster ?? env('PUSHER_APP_CLUSTER') }}';
 </script>
-<script src="{{ asset('assets/js/real-time-notifications.js') }}"></script>
 
 <script>
 // Legacy functions for backward compatibility
