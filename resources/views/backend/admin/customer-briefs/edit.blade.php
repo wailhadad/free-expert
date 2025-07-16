@@ -37,7 +37,7 @@
             <label class="form-label">Status</label>
             <select name="status" class="form-select" required>
                 <option value="active" @if(old('status', $brief->status) == 'active') selected @endif>Active</option>
-                <option value="inactive" @if(old('status', $brief->status) == 'inactive') selected @endif>Inactive</option>
+                <option value="closed" @if(old('status', $brief->status) == 'closed') selected @endif>Closed</option>
                 <option value="archived" @if(old('status', $brief->status) == 'archived') selected @endif>Archived</option>
             </select>
         </div>

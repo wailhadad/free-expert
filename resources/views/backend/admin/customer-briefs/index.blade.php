@@ -69,7 +69,7 @@
                         @endif
                     </td>
                     <td style="border-right: 2px solid #23263a;">
-                        <span class="badge bg-success text-white" style="font-size: 1em;">Active</span>
+                        <span class="badge {{ $brief->status === 'active' ? 'bg-primary' : 'bg-secondary' }} text-white" style="font-size: 1em;">{{ $brief->status === 'active' ? 'Active' : 'Closed' }}</span>
                     </td>
                     <td>
                         <div class="d-flex align-items-center justify-content-center gap-2 flex-nowrap">

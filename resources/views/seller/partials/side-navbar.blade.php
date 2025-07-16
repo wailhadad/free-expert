@@ -236,6 +236,13 @@
           </a>
         </li>
 
+        <li class="nav-item {{ request()->routeIs('seller.notifications.*') ? 'active' : '' }}">
+          <a href="{{ route('seller.notifications.index') }}">
+            <i class="fas fa-bell"></i>
+            <p>Notifications</p>
+          </a>
+        </li>
+
         <li
           class="nav-item @if (request()->routeIs('seller.withdraw')) active 
             @elseif (request()->routeIs('seller.withdraw.create'))  active @endif">

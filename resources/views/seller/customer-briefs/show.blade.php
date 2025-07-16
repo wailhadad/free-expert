@@ -21,7 +21,7 @@
                         </div>
                         <div class="col-md-6">
                             <h6 class="fw-semibold text-light mb-2">Status</h6>
-                            <span class="badge bg-success text-white" style="font-size: 1em; padding: 0.5em 1em;">{{ ucfirst($brief->status) }}</span>
+                            <span class="badge bg-success text-white" style="font-size: 1em; padding: 0.5em 1em;">{{ $brief->status === 'active' ? 'Active' : 'Closed' }}</span>
                         </div>
                     </div>
                     

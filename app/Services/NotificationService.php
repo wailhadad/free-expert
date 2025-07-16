@@ -128,4 +128,64 @@ class NotificationService
         $this->notifySellers($data);
         $this->notifyUsers($data);
     }
+
+    /**
+     * Notify sellers about new customer briefs that match their service tags.
+     *
+     * @param  \App\Models\CustomerBrief  $brief
+     * @return void
+     */
+    public function notifySellersAboutNewBrief($brief)
+    {
+        // Get all sellers
+        $sellers = Seller::all();
+        
+        // Get brief tags
+        $briefTags = array_map('trim', explode(',', $brief->tags));
+        
+        // Filter sellers whose services match the brief tags
+        $matchingSellers = $sellers->filter(function($seller) use ($briefTags) {
+            // Get tags from seller's service contents
+            $serviceTags = $seller->services()->with('content')->get()->flatMap(function($service) {
+                return $service->content->pluck('tags')->filter();
+            })->toArray();
+            
+            $allTags = collect($serviceTags)->flatMap(function($tags) {
+                return array_map('trim', explode(',', $tags));
+            })->unique()->filter()->values()->all();
+            
+            // Check if there's any intersection between brief tags and seller tags
+            return count(array_intersect($briefTags, $allTags)) > 0;
+        });
+        
+        if ($matchingSellers->count() > 0) {
+            // Prepare notification data
+            $notificationData = [
+                'type' => 'customer_brief',
+                'title' => 'New Customer Brief Available',
+                'message' => "A new customer brief matching your services has been posted: \"{$brief->title}\"",
+                'url' => route('seller.customer-briefs.index'),
+                'icon' => 'fas fa-briefcase',
+                'extra' => [
+                    'brief_id' => $brief->id,
+                    'brief_title' => $brief->title,
+                    'brief_tags' => $briefTags,
+                    'delivery_time' => $brief->delivery_time,
+                    'price' => $brief->price,
+                    'request_quote' => $brief->request_quote,
+                    'customer_name' => $brief->user ? $brief->user->username : 'Unknown',
+                ],
+            ];
+            
+            // Send notifications to matching sellers
+            $this->sendRealTimeToMany($matchingSellers, $notificationData);
+            
+            \Log::info('Customer brief notifications sent', [
+                'brief_id' => $brief->id,
+                'brief_title' => $brief->title,
+                'matching_sellers_count' => $matchingSellers->count(),
+                'seller_ids' => $matchingSellers->pluck('id')->toArray(),
+            ]);
+        }
+    }
 } 

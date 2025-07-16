@@ -68,6 +68,14 @@ class CustomerBriefController extends Controller
         $brief->status = 'active';
         $brief->save();
         
+        // Send real-time notifications to matching sellers
+        try {
+            $notificationService = new \App\Services\NotificationService();
+            $notificationService->notifySellersAboutNewBrief($brief);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send customer brief notifications: ' . $e->getMessage());
+        }
+        
         return redirect()->route('user.customer-briefs.index')->with('success', 'Customer brief created successfully.');
     }
 
@@ -150,5 +158,20 @@ class CustomerBriefController extends Controller
         $brief = $customerBrief;
         $breadcrumb = app(\App\Http\Controllers\FrontEnd\MiscellaneousController::class)::getBreadcrumb();
         return view('user.customer-briefs.show', compact('brief', 'breadcrumb'));
+    }
+
+    // Toggle brief status (activate/close)
+    public function toggleStatus(CustomerBrief $customerBrief)
+    {
+        $user = Auth::user();
+        if ($customerBrief->user_id !== $user->id) {
+            abort(403, 'You can only modify your own briefs.');
+        }
+        
+        $newStatus = $customerBrief->status === 'active' ? 'closed' : 'active';
+        $customerBrief->update(['status' => $newStatus]);
+        
+        $action = $newStatus === 'active' ? 'activated' : 'closed';
+        return redirect()->route('user.customer-briefs.index')->with('success', "Customer brief {$action} successfully.");
     }
 } 

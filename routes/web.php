@@ -474,6 +474,7 @@ Route::middleware(['auth:web'])->group(function () {
         'update' => 'user.customer-briefs.update',
         'destroy' => 'user.customer-briefs.destroy',
     ]);
+    Route::post('user/customer-briefs/{customerBrief}/toggle-status', [CustomerBriefController::class, 'toggleStatus'])->name('user.customer-briefs.toggle-status');
 });
 
 // Test route for logging
@@ -482,4 +483,23 @@ Route::get('/test-log', function() {
     \Log::warning('Test warning message in English');
     \Log::error('Test error message in English');
     return response()->json(['message' => 'Log test completed']);
+});
+
+// Test route for customer brief notifications
+Route::get('/test-customer-brief-notification', function() {
+    // Create a test customer brief
+    $brief = new \App\Models\CustomerBrief();
+    $brief->id = 999; // Temporary ID for testing
+    $brief->title = 'Test Customer Brief';
+    $brief->tags = 'design,web,development';
+    $brief->delivery_time = 5;
+    $brief->price = 100;
+    $brief->request_quote = false;
+    $brief->user = \App\Models\User::first();
+    
+    // Test the notification service
+    $notificationService = new \App\Services\NotificationService();
+    $notificationService->notifySellersAboutNewBrief($brief);
+    
+    return response()->json(['message' => 'Customer brief notification test completed']);
 });

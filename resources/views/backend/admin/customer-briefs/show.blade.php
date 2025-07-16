@@ -23,7 +23,7 @@
                             <span class="badge bg-success text-white rounded-pill" style="font-size: 1em; padding: 0.5em 1em;">${{ number_format($brief->price, 2) }}</span>
                         @endif
                     </p>
-                    <p><strong>Status:</strong> <span class="badge bg-success text-white rounded-pill" style="font-size: 1em; padding: 0.5em 1em;">Active</span></p>
+                    <p><strong>Status:</strong> <span class="badge {{ $brief->status === 'active' ? 'bg-primary' : 'bg-secondary' }} text-white rounded-pill" style="font-size: 1em; padding: 0.5em 1em;">{{ $brief->status === 'active' ? 'Active' : 'Closed' }}</span></p>
                     
                     <!-- Attachments Section -->
                     @if($brief->hasAttachments())

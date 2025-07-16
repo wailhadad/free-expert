@@ -26,7 +26,7 @@
                 <div class="col-md-6">
                   <p class="mb-3"><strong class="text-muted">Delivery Time:</strong> {{ $brief->delivery_time }} days</p>
                   <p class="mb-3"><strong class="text-muted">Status:</strong> 
-                    <span class="badge bg-{{ $brief->status == 'active' ? 'success' : 'secondary' }}">{{ ucfirst($brief->status) }}</span>
+                    <span class="badge bg-{{ $brief->status == 'active' ? 'primary' : 'secondary' }}">{{ $brief->status === 'active' ? 'Active' : 'Closed' }}</span>
                   </p>
                 </div>
                 <div class="col-md-12">
@@ -102,10 +102,16 @@
                 </div>
                 @endif
                 <div class="col-12 d-flex gap-3 mt-4">
-                                  <a href="{{ route('user.customer-briefs.edit', $brief) }}" class="btn btn-outline-primary px-4 py-2" style="border-radius: 2rem;">
-                  <i class="fas fa-edit me-2"></i> Edit Brief
-                </a>
-                <a href="{{ route('user.customer-briefs.index') }}" class="btn btn-outline-secondary px-4 py-2" style="border-radius: 2rem;">
+                  <a href="{{ route('user.customer-briefs.edit', $brief) }}" class="btn btn-outline-primary px-4 py-2" style="border-radius: 2rem;">
+                    <i class="fas fa-edit me-2"></i> Edit Brief
+                  </a>
+                  <button type="button" class="btn px-4 py-2 {{ $brief->status === 'active' ? 'btn-outline-warning' : 'btn-outline-success' }}" 
+                          style="border-radius: 2rem;"
+                          data-bs-toggle="modal" data-bs-target="#toggleStatusModal{{ $brief->id }}">
+                    <i class="fas {{ $brief->status === 'active' ? 'fa-times' : 'fa-play' }} me-2"></i>
+                    {{ $brief->status === 'active' ? 'Close' : 'Activate' }} Brief
+                  </button>
+                  <a href="{{ route('user.customer-briefs.index') }}" class="btn btn-outline-secondary px-4 py-2" style="border-radius: 2rem;">
                     <i class="fas fa-arrow-left me-2"></i> Back to List
                   </a>
                 </div>
@@ -116,4 +122,53 @@
       </div>
     </div>
   </section>
-@endsection 
+
+  <!-- Toggle Status Confirmation Modal -->
+  <div class="modal fade" id="toggleStatusModal{{ $brief->id }}" tabindex="-1" aria-labelledby="toggleStatusModalLabel{{ $brief->id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
+        <div class="modal-header border-0 {{ $brief->status === 'active' ? 'bg-warning' : 'bg-success' }} text-white" style="border-radius: 1rem 1rem 0 0;">
+          <h5 class="modal-title fw-bold" id="toggleStatusModalLabel{{ $brief->id }}">
+            <i class="fas {{ $brief->status === 'active' ? 'fa-times' : 'fa-play' }} me-2"></i>{{ $brief->status === 'active' ? 'Close' : 'Activate' }} Brief
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="text-center mb-3">
+            <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+              <i class="fas {{ $brief->status === 'active' ? 'fa-times' : 'fa-play' }} {{ $brief->status === 'active' ? 'text-warning' : 'text-success' }}" style="font-size: 2rem;"></i>
+            </div>
+            <h6 class="fw-bold text-dark mb-2">Are you sure you want to {{ $brief->status === 'active' ? 'close' : 'activate' }} this brief?</h6>
+            <p class="text-muted mb-0">
+              <strong>"{{ $brief->title }}"</strong> will be {{ $brief->status === 'active' ? 'hidden from sellers' : 'visible to sellers' }}.
+            </p>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-secondary px-4 py-2" data-bs-dismiss="modal" style="border-radius: 0.5rem;">
+            <i class="fas fa-times me-2"></i>Cancel
+          </button>
+          <form action="{{ route('user.customer-briefs.toggle-status', $brief) }}" method="POST" class="d-inline">
+            @csrf
+            <button type="submit" class="btn {{ $brief->status === 'active' ? 'btn-warning' : 'btn-success' }} px-4 py-2" style="border-radius: 0.5rem; color: black;">
+              <i class="fas {{ $brief->status === 'active' ? 'fa-times' : 'fa-play' }} me-2"></i>{{ $brief->status === 'active' ? 'Close' : 'Activate' }} Brief
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+@endsection
+
+@push('styles')
+<style>
+/* Modal button hover effects */
+.btn-warning:hover {
+  color: white !important;
+}
+
+.btn-success:hover {
+  color: white !important;
+}
+</style>
+@endpush 
