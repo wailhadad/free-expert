@@ -277,6 +277,16 @@ $(document).ready(function () {
 
     let action = $(this).attr('action');
     let fd = new FormData($(this)[0]);
+    
+    // Debug: Log form data
+    console.log('Form action:', action);
+    console.log('Slider images count:', $('input[name="slider_images[]"]').length);
+    console.log('Slider images values:', $('input[name="slider_images[]"]').map(function() { return this.value; }).get());
+    
+    // Log all form data
+    for (let pair of fd.entries()) {
+      console.log(pair[0] + ': ' + pair[1]);
+    }
 
     $.ajax({
       url: action,
@@ -285,18 +295,46 @@ $(document).ready(function () {
       contentType: false,
       processData: false,
       success: function (data) {
+        console.log('Service form success response:', data);
         $('.request-loader').removeClass('show');
 
         if (data.status == 'success') {
-          location.reload();
+          console.log('Service created successfully, redirecting...');
+          
+          // Clear any error states
+          $('#serviceErrors').hide();
+          $('.is-invalid').removeClass('is-invalid');
+          $('.has-error').removeClass('has-error');
+          
+          window.location.href = '/seller/service-management/services?language=en';
+        } else {
+          console.log('Unexpected response status:', data.status);
         }
       },
       error: function (error) {
+        console.log('Service form error:', error);
+        console.log('Error response:', error.responseJSON);
+        
         let errors = ``;
 
-        for (let x in error.responseJSON.errors) {
+        // Check if there are specific field errors
+        if (error.responseJSON.errors && Object.keys(error.responseJSON.errors).length > 0) {
+          for (let x in error.responseJSON.errors) {
+            errors += `<li>
+                  <p class="text-danger mb-0">${error.responseJSON.errors[x][0]}</p>
+                </li>`;
+          }
+        } 
+        // If no field errors but there's a general message, display it
+        else if (error.responseJSON.message) {
           errors += `<li>
-                <p class="text-danger mb-0">${error.responseJSON.errors[x][0]}</p>
+                <p class="text-danger mb-0">${error.responseJSON.message}</p>
+              </li>`;
+        }
+        // Fallback for other error types
+        else {
+          errors += `<li>
+                <p class="text-danger mb-0">An error occurred while creating the service. Please try again.</p>
               </li>`;
         }
 

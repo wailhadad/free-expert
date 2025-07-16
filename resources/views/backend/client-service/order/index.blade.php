@@ -369,3 +369,75 @@
     </div>
   </div>
 @endsection
+
+@push('scripts')
+<script>
+$(document).ready(function() {
+  // Ensure loader is hidden when page loads
+  $('.request-loader').removeClass('show');
+  
+  // Add error handling for any JavaScript issues
+  window.addEventListener('error', function(event) {
+    console.error('JavaScript error:', event.error);
+    // Hide loader if there's an error
+    $('.request-loader').removeClass('show');
+  });
+  
+  // Hide loader after a timeout as fallback
+  setTimeout(function() {
+    $('.request-loader').removeClass('show');
+  }, 5000);
+  
+  // Override delete button functionality to use AJAX
+  $('.deleteBtn').off('click').on('click', function (e) {
+    e.preventDefault();
+    const $form = $(this).closest('.deleteForm');
+    const $loader = $('.request-loader');
+    
+    swal({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      type: 'warning',
+      buttons: {
+        confirm: {
+          text: 'Yes, delete it',
+          className: 'btn btn-success'
+        },
+        cancel: {
+          visible: true,
+          className: 'btn btn-danger'
+        }
+      }
+    }).then((Delete) => {
+      if (Delete) {
+        $loader.addClass('show');
+        
+        // Use AJAX instead of form submission
+        $.ajax({
+          url: $form.attr('action'),
+          method: 'POST',
+          data: $form.serialize(),
+          success: function(response) {
+            $loader.removeClass('show');
+            location.reload();
+          },
+          error: function(xhr, status, error) {
+            $loader.removeClass('show');
+            console.error('Delete error:', error);
+            
+            // Show error message
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+              swal('Error', xhr.responseJSON.message, 'error');
+            } else {
+              swal('Error', 'Failed to delete order. Please try again.', 'error');
+            }
+          }
+        });
+      } else {
+        swal.close();
+      }
+    });
+  });
+});
+</script>
+@endpush

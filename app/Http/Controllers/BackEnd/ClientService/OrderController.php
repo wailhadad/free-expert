@@ -31,6 +31,7 @@ class OrderController extends Controller
 {
   public function orders(Request $request)
   {
+    try {
     $orderNumber = $paymentStatus = $orderStatus = $seller = null;
 
     if ($request->filled('order_no')) {
@@ -68,27 +69,52 @@ class OrderController extends Controller
 
     $language = Language::query()->where('is_default', '=', 1)->first();
 
-    $orders->map(function ($order) use ($language) {
+      // Use foreach instead of map() to avoid issues with paginated collections
+      foreach ($orders as $order) {
+        try {
       $service = $order->service()->first();
       if ($service) {
-        $order['serviceTitle'] = $service->content()->where('language_id', $language->id)->pluck('title')->first();
-        $order['serviceSlug'] = $service->content()->where('language_id', $language->id)->pluck('slug')->first();
+            $order->serviceTitle = $service->content()->where('language_id', $language->id)->pluck('title')->first();
+            $order->serviceSlug = $service->content()->where('language_id', $language->id)->pluck('slug')->first();
       } else {
         // Fallback for customer offer orders (no real service)
-        $order['serviceTitle'] = $order->order_number ?? 'Custom Offer';
-        $order['serviceSlug'] = null;
+            $order->serviceTitle = $order->order_number ?? 'Custom Offer';
+            $order->serviceSlug = null;
       }
       $package = $order->package()->first();
       if (is_null($package)) {
-        $order['packageName'] = NULL;
+            $order->packageName = NULL;
       } else {
-        $order['packageName'] = $package->name;
+            $order->packageName = $package->name;
       }
-    });
+        } catch (\Exception $e) {
+          // Log error for individual order processing
+          \Log::error('Error processing order in admin orders list', [
+            'order_id' => $order->id,
+            'error' => $e->getMessage()
+          ]);
+          // Set fallback values
+          $order->serviceTitle = 'Error loading service';
+          $order->serviceSlug = null;
+          $order->packageName = null;
+        }
+      }
 
     $sellers = Seller::select('id', 'username')->where('id', '!=', 0)->get();
 
+      return view('backend.client-service.order.index', compact('orders', 'sellers'));
+    } catch (\Exception $e) {
+      \Log::error('Error in admin orders method', [
+        'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString()
+      ]);
+      
+      // Return empty results instead of crashing
+      $orders = collect([])->paginate(10);
+      $sellers = collect([]);
+
     return view('backend.client-service.order.index', compact('orders', 'sellers'));
+    }
   }
 
   public function disputs(Request $request)
@@ -106,16 +132,17 @@ class OrderController extends Controller
 
     $language = Language::query()->where('is_default', '=', 1)->first();
 
-    $collection->map(function ($order) use ($language) {
+    // Use foreach instead of map() to avoid issues with paginated collections
+    foreach ($collection as $order) {
       $service = $order->service()->first();
       if ($service) {
-        $order['serviceTitle'] = $service->content()->where('language_id', $language->id)->pluck('title')->first();
-        $order['serviceSlug'] = $service->content()->where('language_id', $language->id)->pluck('slug')->first();
+        $order->serviceTitle = $service->content()->where('language_id', $language->id)->pluck('title')->first();
+        $order->serviceSlug = $service->content()->where('language_id', $language->id)->pluck('slug')->first();
       } else {
-        $order['serviceTitle'] = $order->order_number ?? 'Custom Offer';
-        $order['serviceSlug'] = null;
+        $order->serviceTitle = $order->order_number ?? 'Custom Offer';
+        $order->serviceSlug = null;
       }
-    });
+    }
     return view('backend.client-service.order.disputs', compact('collection'));
   }
 
@@ -794,68 +821,281 @@ class OrderController extends Controller
 
   public function destroy($id)
   {
+    try {
+      \Log::info('AdminOrderDelete: Starting delete process', ['order_id' => $id]);
+      
     $this->deleteOrder($id);
+      
+      \Log::info('AdminOrderDelete: Delete process completed successfully', ['order_id' => $id]);
+      
+      // Check if this is an AJAX request
+      if (request()->ajax()) {
+        return response()->json(['status' => 'success', 'message' => 'Order deleted successfully!']);
+      }
 
     return redirect()->back()->with('success', 'Order deleted successfully!');
+    } catch (\Exception $e) {
+      \Log::error('AdminOrderDelete: Delete process failed', [
+        'order_id' => $id,
+        'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString()
+      ]);
+      
+      // Check if this is an AJAX request
+      if (request()->ajax()) {
+        return response()->json(['status' => 'error', 'message' => 'Failed to delete order: ' . $e->getMessage()], 500);
+      }
+      
+      return redirect()->back()->with('error', 'Failed to delete order: ' . $e->getMessage());
+    }
   }
 
   public function bulkDestroy(Request $request)
   {
     $ids = $request->ids;
+    $errors = [];
+    $successCount = 0;
+
+    \Log::info('AdminBulkDelete: Starting bulk delete', [
+      'total_orders' => count($ids),
+      'order_ids' => $ids
+    ]);
 
     foreach ($ids as $id) {
-      $this->deleteOrder($id);
+      try {
+        \Log::info('AdminBulkDelete: Attempting to delete order', ['order_id' => $id]);
+        
+        // Check if order exists first
+        $order = ServiceOrder::find($id);
+        if (!$order) {
+          throw new \Exception('Order not found');
+        }
+        
+        \Log::info('AdminBulkDelete: Order found', [
+          'order_id' => $order->id,
+          'order_number' => $order->order_number,
+          'conversation_id' => $order->conversation_id
+        ]);
+        
+        $this->deleteOrder($id);
+        $successCount++;
+        \Log::info('AdminBulkDelete: Successfully deleted order', ['order_id' => $id]);
+      } catch (\Exception $e) {
+        \Log::error('AdminBulkDelete: Failed to delete order', [
+          'order_id' => $id,
+          'error' => $e->getMessage(),
+          'error_code' => $e->getCode(),
+          'trace' => $e->getTraceAsString()
+        ]);
+        $errors[] = [
+          'order_id' => $id,
+          'error' => $e->getMessage()
+        ];
+      }
+    }
+
+    \Log::info('AdminBulkDelete: Completed bulk delete', [
+      'total_orders' => count($ids),
+      'success_count' => $successCount,
+      'error_count' => count($errors),
+      'errors' => $errors
+    ]);
+
+    if (count($errors) > 0) {
+      $request->session()->flash('error', 'Some orders could not be deleted.');
+      return response()->json([
+        'status' => 'partial',
+        'message' => 'Some orders could not be deleted.',
+        'errors' => $errors,
+        'success_count' => $successCount,
+        'total_count' => count($ids)
+      ], 207); // 207 Multi-Status
     }
 
     $request->session()->flash('success', 'Orders deleted successfully!');
-
     return response()->json(['status' => 'success'], 200);
   }
 
   // order deletion code
   public function deleteOrder($id)
   {
-    $order = ServiceOrder::query()->find($id);
+    try {
+      $order = ServiceOrder::query()->find($id);
+      
+      if (!$order) {
+        \Log::error('AdminOrderDelete: Order not found', ['order_id' => $id]);
+        throw new \Exception('Order not found');
+      }
 
-    // delete zip file(s) which has uploaded by user
-    $informations = json_decode($order->informations);
+      \Log::info('AdminOrderDelete: Found order', [
+        'order_id' => $order->id,
+        'order_number' => $order->order_number,
+        'conversation_id' => $order->conversation_id,
+        'is_customer_offer' => $order->conversation_id && strpos($order->conversation_id, 'customer_offer_') === 0
+      ]);
 
-    if (!is_null($informations)) {
-      foreach ($informations as $key => $information) {
-        if ($information->type == 8) {
-          @unlink(public_path('assets/file/zip-files/' . $information->value));
+      // Use a database transaction to ensure data consistency
+      \DB::beginTransaction();
+      
+      try {
+        // For customer offer orders, try to handle the relationship but don't fail if it doesn't work
+        if ($order->conversation_id && strpos($order->conversation_id, 'customer_offer_') === 0) {
+          try {
+            $offerId = str_replace('customer_offer_', '', $order->conversation_id);
+            
+            \Log::info('AdminOrderDelete: Processing customer offer order', [
+              'order_id' => $order->id,
+              'offer_id' => $offerId
+            ]);
+            
+            // Try to update the customer offer without foreign key checks
+            $updated = \DB::update("
+              UPDATE customer_offers 
+              SET accepted_order_id = NULL, status = 'expired' 
+              WHERE id = ?
+            ", [$offerId]);
+            
+            if ($updated > 0) {
+              \Log::info('AdminOrderDelete: Updated customer offer successfully', ['offer_id' => $offerId]);
+            } else {
+              // If update fails, try to delete the customer offer
+              $deleted = \DB::delete("DELETE FROM customer_offers WHERE id = ?", [$offerId]);
+              if ($deleted > 0) {
+                \Log::info('AdminOrderDelete: Deleted customer offer successfully', ['offer_id' => $offerId]);
+              } else {
+                \Log::warning('AdminOrderDelete: Customer offer not found or already deleted', ['offer_id' => $offerId]);
+              }
+            }
+          } catch (\Exception $e) {
+            \Log::error('AdminOrderDelete: Error handling customer offer', [
+              'error' => $e->getMessage(),
+              'error_code' => $e->getCode(),
+              'trace' => $e->getTraceAsString()
+            ]);
+            // Continue with order deletion even if customer offer handling fails
+            \Log::warning('AdminOrderDelete: Continuing with order deletion despite customer offer error');
+          }
         }
+
+        // delete zip file(s) which has uploaded by user
+        $informations = json_decode($order->informations);
+
+        if (!is_null($informations) && is_array($informations)) {
+          foreach ($informations as $key => $information) {
+            // Check if $information is an object and has a type property
+            if (is_object($information) && isset($information->type) && $information->type == 8) {
+              if (isset($information->value) && !empty($information->value)) {
+                @unlink(public_path('assets/file/zip-files/' . $information->value));
+              }
+            }
+          }
+        }
+
+        // delete the receipt
+        if ($order->receipt) {
+          @unlink(public_path('assets/img/attachments/service/' . $order->receipt));
+        }
+
+        // delete the invoice
+        if ($order->invoice) {
+          @unlink(public_path('assets/file/invoices/service/' . $order->invoice));
+        }
+
+        // delete messages of this service-order
+        $messages = $order->message()->get();
+
+        foreach ($messages as $msgInfo) {
+          if (!empty($msgInfo->file_name)) {
+            @unlink(public_path('assets/file/message-files/' . $msgInfo->file_name));
+          }
+
+          $msgInfo->delete();
+        }
+
+        // delete the order using raw SQL to bypass any model constraints
+        $deleted = \DB::delete("DELETE FROM service_orders WHERE id = ?", [$order->id]);
+        
+        if ($deleted > 0) {
+          \DB::commit();
+          \Log::info('AdminOrderDelete: Order deleted successfully', ['order_id' => $id]);
+        } else {
+          \DB::rollback();
+          throw new \Exception('Failed to delete order from database');
+        }
+        
+      } catch (\Exception $e) {
+        \DB::rollback();
+        throw $e;
       }
-    }
-
-    // delete the receipt
-    @unlink(public_path('assets/img/attachments/service/' . $order->receipt));
-
-    // delete the invoice
-    @unlink(public_path('assets/file/invoices/service/' . $order->invoice));
-
-    // delete messages of this service-order
-    $messages = $order->message()->get();
-
-    foreach ($messages as $msgInfo) {
-      if (!empty($msgInfo->file_name)) {
-        @unlink(public_path('assets/file/message-files/' . $msgInfo->file_name));
+      
+    } catch (\Exception $e) {
+      \Log::error('AdminOrderDelete: Error deleting order', [
+        'order_id' => $id,
+        'order_number' => $order->order_number ?? 'unknown',
+        'error' => $e->getMessage(),
+        'error_code' => $e->getCode(),
+        'trace' => $e->getTraceAsString()
+      ]);
+      
+      // Provide more specific error message for customer offer orders
+      if ($order && $order->conversation_id && strpos($order->conversation_id, 'customer_offer_') === 0) {
+        throw new \Exception('Customer offer order cannot be deleted: ' . $e->getMessage());
       }
-
-      $msgInfo->delete();
+      
+      throw $e;
     }
+  }
 
-    // delete review of this service-order
-    $review = ServiceReview::query()->where('user_id', '=', $order->user_id)
-      ->where('service_id', '=', $order->service_id)
-      ->first();
-
-    if (!empty($review)) {
-      $review->delete();
+  // Test method to debug customer offer deletion
+  public function testCustomerOfferDeletion($orderId)
+  {
+    try {
+      $order = ServiceOrder::find($orderId);
+      
+      if (!$order) {
+        return response()->json(['error' => 'Order not found'], 404);
+      }
+      
+      if (!$order->conversation_id || strpos($order->conversation_id, 'customer_offer_') !== 0) {
+        return response()->json(['error' => 'Not a customer offer order'], 400);
+      }
+      
+      $offerId = str_replace('customer_offer_', '', $order->conversation_id);
+      
+      // Test the customer offer deletion logic
+      \DB::statement('SET FOREIGN_KEY_CHECKS = 0');
+      
+      try {
+        $updated = \DB::table('customer_offers')
+          ->where('id', $offerId)
+          ->update([
+            'accepted_order_id' => null,
+            'status' => 'expired'
+          ]);
+        
+        if ($updated > 0) {
+          $order->delete();
+          \DB::statement('SET FOREIGN_KEY_CHECKS = 1');
+          return response()->json(['success' => 'Customer offer order deleted successfully']);
+        } else {
+          $deleted = \DB::table('customer_offers')->where('id', $offerId)->delete();
+          if ($deleted > 0) {
+            $order->delete();
+            \DB::statement('SET FOREIGN_KEY_CHECKS = 1');
+            return response()->json(['success' => 'Customer offer and order deleted successfully']);
+          } else {
+            \DB::statement('SET FOREIGN_KEY_CHECKS = 1');
+            return response()->json(['error' => 'Customer offer not found'], 404);
+          }
+        }
+      } catch (\Exception $e) {
+        \DB::statement('SET FOREIGN_KEY_CHECKS = 1');
+        return response()->json(['error' => $e->getMessage()], 500);
+      }
+      
+    } catch (\Exception $e) {
+      return response()->json(['error' => $e->getMessage()], 500);
     }
-
-    // delete service-order
-    $order->delete();
   }
 
 

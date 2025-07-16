@@ -266,7 +266,7 @@
                                 {{ __('Select') }}
                               </button>
 
-                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton-{{ $order->id }}">
+                              <div class="dropdown-menu order-actions-dropdown" aria-labelledby="dropdownMenuButton-{{ $order->id }}">
                                 <a href="{{ route('seller.service_order.details', ['id' => $order->id]) }}"
                                   class="dropdown-item">
                                   {{ __('Details') }}

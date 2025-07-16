@@ -286,6 +286,20 @@ class UserController extends Controller
 
     if (count($serviceOrders) > 0) {
       foreach ($serviceOrders as $order) {
+        // Check if this is a customer offer order and handle the relationship
+        if ($order->conversation_id && strpos($order->conversation_id, 'customer_offer_') === 0) {
+          $offerId = str_replace('customer_offer_', '', $order->conversation_id);
+          $customerOffer = \App\Models\CustomerOffer::find($offerId);
+          
+          if ($customerOffer) {
+            // Update the customer offer to remove the order reference
+            $customerOffer->update([
+              'accepted_order_id' => null,
+              'status' => 'expired' // or 'declined' depending on your business logic
+            ]);
+          }
+        }
+
         // delete messages of each order
         $messages = $order->message()->get();
 

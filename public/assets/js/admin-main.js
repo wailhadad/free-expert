@@ -586,6 +586,8 @@ $(function ($) {
         for (let i = 0; i < ids.length; i++) {
           fd.append('ids[]', ids[i]);
         }
+        // Add CSRF token
+        fd.append('_token', $('meta[name="csrf-token"]').attr('content'));
 
         $.ajax({
           url: href,
@@ -593,12 +595,45 @@ $(function ($) {
           data: fd,
           contentType: false,
           processData: false,
+          beforeSend: function() {
+            console.log('AJAX request starting...');
+            console.log('URL:', href);
+            console.log('CSRF Token:', $('meta[name="csrf-token"]').attr('content'));
+          },
           success: function (data) {
+            console.log('AJAX success:', data);
             $(".request-loader").removeClass('show');
 
             if (data.status == "success") {
               location.reload();
+            } else if (data.status == "partial") {
+              // Just reload the page to show the session flash message
+              location.reload();
             }
+          },
+          error: function (xhr, status, error) {
+            console.log('AJAX error:', xhr, status, error);
+            console.log('Response Text:', xhr.responseText);
+            console.log('Status Code:', xhr.status);
+            $(".request-loader").removeClass('show');
+            
+            // Handle error response
+            let errorMessage = 'An error occurred while deleting orders.';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+              errorMessage = xhr.responseJSON.message;
+            }
+            
+            swal({
+              title: 'Error',
+              text: errorMessage,
+              icon: 'error', // use icon instead of type
+              buttons: {
+                confirm: {
+                  text: 'OK',
+                  className: 'btn btn-danger'
+                }
+              }
+            });
           }
         });
       } else {

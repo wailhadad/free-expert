@@ -43,8 +43,8 @@
         <div class="card-body">
           <div class="row">
             <div class="col-lg-8 offset-lg-2">
-              <div class="alert alert-danger pb-1 mdb_display_none" id="serviceErrors">
-                <button type="button" class="close" data-dismiss="alert">×</button>
+              <div class="alert alert-danger pb-1" id="serviceErrors" style="display: none;">
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 <ul></ul>
               </div>
 
@@ -138,7 +138,7 @@
                         <h5 class="mb-0">
                           <button type="button"
                             class="btn btn-link {{ $language->direction == 1 ? 'rtl text-right' : '' }}"
-                            data-toggle="collapse" data-target="#collapse{{ $language->id }}"
+                            data-bs-toggle="collapse" data-bs-target="#collapse{{ $language->id }}"
                             aria-expanded="{{ $language->is_default == 1 ? 'true' : 'false' }}"
                             aria-controls="collapse{{ $language->id }}">
                             {{ $language->name . __(' Language') }}
@@ -154,7 +154,7 @@
                           <div class="row">
                             <div class="col-lg-6">
                               <div class="form-group {{ $language->direction == 1 ? 'rtl text-right' : '' }}">
-                                <label>{{ __('Title') . '*' }}</label>
+                                <label>{{ __('Title') . ($language->is_default ? '*' : '') }}</label>
                                 <input type="text" class="form-control" name="{{ $language->code }}_title"
                                   placeholder="Enter Service Title">
                               </div>
@@ -179,7 +179,7 @@
                               <div class="form-group {{ $language->direction == 1 ? 'rtl text-right' : '' }}">
                                 @php $categories = $language->categories; @endphp
 
-                                <label>{{ __('Category') . '*' }}</label>
+                                <label>{{ __('Category') . ($language->is_default ? '*' : '') }}</label>
                                 <select name="{{ $language->code }}_category_id"
                                   class="form-control service-category-seller" data-lang_code="{{ $language->code }}">
                                   <option selected disabled>{{ __('Select a Category') }}
@@ -195,7 +195,7 @@
 
                             <div class="col-lg-6">
                               <div class="form-group {{ $language->direction == 1 ? 'rtl text-right' : '' }}">
-                                <label>{{ __('Subcategory') . '*' }}</label>
+                                <label>{{ __('Subcategory') . ($language->is_default ? '*' : '') }}</label>
                                 <select name="{{ $language->code }}_subcategory_id" class="form-control" disabled>
                                   <option selected disabled>
                                     {{ __('Select a Subcategory') }}</option>
@@ -207,7 +207,7 @@
                           <div class="row">
                             <div class="col-lg-12">
                               <div class="form-group {{ $language->direction == 1 ? 'rtl text-right' : '' }}">
-                                <label>{{ __('Description') . '*' }}</label>
+                                <label>{{ __('Description') . ($language->is_default ? '*' : '') }}</label>
                                 <textarea id="descriptionTmce{{ $language->id }}" class="form-control summernote"
                                   name="{{ $language->code }}_description" placeholder="Enter Service Description" data-height="300"></textarea>
                               </div>
@@ -227,7 +227,7 @@
                               <div class="form-group {{ $language->direction == 1 ? 'rtl text-right' : '' }}">
                                 @php $forms = $language->forms; @endphp
 
-                                <label>{{ __('Form') . '*' }}</label>
+                                <label>{{ __('Form') }}</label>
                                 <select name="{{ $language->code }}_form_id" class="form-control">
                                   <option selected disabled>{{ __('Select a Form') }}
                                   </option>
@@ -239,7 +239,7 @@
                                 </select>
 
                                 <p class="mt-2 mb-0 text-warning">
-                                  {{ '*' . __('The selected form will be used during the purchase of this service.') }}
+                                  {{ __('The selected form will be used during the purchase of this service.') }}
                                 </p>
                               </div>
                             </div>
@@ -319,12 +319,35 @@
   <script>
     // Fix for Bootstrap accordion in RTL and general UI
     $(document).ready(function() {
+      // Hide error box on page load
+      $('#serviceErrors').hide();
+      
       $('.version-header button').on('click', function(e) {
         var target = $(this).data('target');
         // Close all
         $('.collapse').collapse('hide');
         // Open the clicked one
         $(target).collapse('show');
+      });
+      
+      // Debug: Check for fields with red borders
+      setTimeout(function() {
+        var invalidFields = $('.is-invalid, .has-error, [style*="border-color: red"], [style*="border: 1px solid red"]');
+        if (invalidFields.length > 0) {
+          console.log('Found fields with validation errors:', invalidFields);
+          invalidFields.each(function(index, field) {
+            console.log('Field ' + index + ':', field.name || field.id || field.className, field);
+          });
+        } else {
+          console.log('No fields with validation errors found');
+        }
+      }, 1000);
+      
+      // Clear error states when form is reset
+      $('#serviceForm').on('reset', function() {
+        $('#serviceErrors').hide();
+        $('.is-invalid').removeClass('is-invalid');
+        $('.has-error').removeClass('has-error');
       });
     });
   </script>

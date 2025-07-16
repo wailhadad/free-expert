@@ -46,22 +46,30 @@ class ServiceUpdateRequest extends FormRequest
     $languages = Language::all();
 
     foreach ($languages as $language) {
-      $ruleArray[$language->code . '_title'] = [
-        'required',
-        'max:255'
-      ];
-      $ruleArray[$language->code . '_category_id'] = 'required';
+      if ($language->is_default) {
+        $ruleArray[$language->code . '_title'] = [
+          'required',
+          'max:255'
+        ];
+        $ruleArray[$language->code . '_category_id'] = 'required';
 
-      $categoryId = $this[$language->code . '_category_id'];
-      $category = ServiceCategory::query()->find($categoryId);
+        $categoryId = $this[$language->code . '_category_id'];
+        $category = ServiceCategory::query()->find($categoryId);
 
-      if (!is_null($category)) {
-        $subcategories = $category->subcategory()->where('status', 1)->get();
-        $ruleArray[$language->code . '_subcategory_id'] = count($subcategories) > 0 ? 'required' : '';
+        if (!is_null($category)) {
+          $subcategories = $category->subcategory()->where('status', 1)->get();
+          $ruleArray[$language->code . '_subcategory_id'] = count($subcategories) > 0 ? 'required' : '';
+        }
+
+        $ruleArray[$language->code . '_description'] = 'min:30';
+        $ruleArray[$language->code . '_form_id'] = 'nullable';
+      } else {
+        $ruleArray[$language->code . '_title'] = ['nullable', 'max:255'];
+        $ruleArray[$language->code . '_category_id'] = 'nullable';
+        $ruleArray[$language->code . '_subcategory_id'] = 'nullable';
+        $ruleArray[$language->code . '_description'] = 'nullable';
+        $ruleArray[$language->code . '_form_id'] = 'nullable';
       }
-
-      $ruleArray[$language->code . '_description'] = 'min:30';
-      $ruleArray[$language->code . '_form_id'] = 'required';
     }
 
     return $ruleArray;

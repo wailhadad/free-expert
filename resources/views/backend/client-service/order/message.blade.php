@@ -37,8 +37,7 @@
           <div id="reload-div">
             <div class="message-wrapper">
               <h4 class="mb-3">
-                {{ '#' . $order->order_number }} -
-                {{ strlen($serviceInfo->title) > 50 ? mb_substr($serviceInfo->title, 0, 50, 'UTF-8') . '...' : $serviceInfo->title }}
+                {{ '#' . $order->order_number }}
               </h4>
 
               <div class="row">

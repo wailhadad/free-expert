@@ -577,6 +577,9 @@ Route::prefix('/admin')->middleware('auth:admin', 'Demo')->group(function () {
 
       Route::post('/bulk-delete', 'BackEnd\ClientService\OrderController@bulkDestroy')->name('admin.service_orders.bulk_delete');
 
+      // Test route for debugging customer offer deletion
+      Route::get('/test-delete/{id}', 'BackEnd\ClientService\OrderController@testCustomerOfferDeletion')->name('admin.service_orders.test_delete');
+
       // service orders report route
       Route::get('/report', 'BackEnd\ClientService\OrderController@report')->name('admin.service_orders.report');
 

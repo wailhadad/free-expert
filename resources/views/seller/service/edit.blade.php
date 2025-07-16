@@ -179,7 +179,7 @@
                         <h5 class="mb-0">
                           <button type="button"
                             class="btn btn-link {{ $language->direction == 1 ? 'rtl text-right' : '' }}"
-                            data-toggle="collapse" data-target="#collapse{{ $language->id }}"
+                            data-bs-toggle="collapse" data-bs-target="#collapse{{ $language->id }}"
                             aria-expanded="{{ $language->is_default == 1 ? 'true' : 'false' }}"
                             aria-controls="collapse{{ $language->id }}">
                             {{ $language->name . __(' Language') }}
@@ -195,7 +195,7 @@
                           <div class="row">
                             <div class="col-lg-6">
                               <div class="form-group {{ $language->direction == 1 ? 'rtl text-right' : '' }}">
-                                <label>{{ __('Title') . '*' }}</label>
+                                <label>{{ __('Title') . ($language->is_default ? '*' : '') }}</label>
                                 <input type="text" class="form-control" name="{{ $language->code }}_title"
                                   placeholder="Enter Service Title"
                                   value="{{ is_null($serviceData) ? '' : $serviceData->title }}">
@@ -243,7 +243,7 @@
                               <div class="form-group {{ $language->direction == 1 ? 'rtl text-right' : '' }}">
                                 @php $categories = $language->categories; @endphp
 
-                                <label>{{ __('Category') . '*' }}</label>
+                                <label>{{ __('Category') . ($language->is_default ? '*' : '') }}</label>
                                 <select name="{{ $language->code }}_category_id" class="form-control service-category"
                                   data-lang_code="{{ $language->code }}">
                                   @if (is_null($categories))
@@ -278,7 +278,7 @@
                                   }
                                 @endphp
 
-                                <label>{{ __('Subcategory') . '*' }}</label>
+                                <label>{{ __('Subcategory') . ($language->is_default ? '*' : '') }}</label>
                                 <select name="{{ $language->code }}_subcategory_id" class="form-control">
                                   @if (is_null($subcategories))
                                     <option selected disabled>
@@ -302,7 +302,7 @@
                           <div class="row">
                             <div class="col-lg-12">
                               <div class="form-group {{ $language->direction == 1 ? 'rtl text-right' : '' }}">
-                                <label>{{ __('Description') . '*' }}</label>
+                                <label>{{ __('Description') . ($language->is_default ? '*' : '') }}</label>
                                 <textarea class="form-control summernote" name="{{ $language->code }}_description"
                                   placeholder="Enter Service Description" data-height="300">{{ is_null($serviceData) ? '' : replaceBaseUrl($serviceData->description, 'summernote') }}</textarea>
                               </div>
@@ -322,7 +322,7 @@
                               <div class="form-group {{ $language->direction == 1 ? 'rtl text-right' : '' }}">
                                 @php $forms = $language->forms; @endphp
 
-                                <label>{{ __('Form') . '*' }}</label>
+                                <label>{{ __('Form') }}</label>
                                 <select name="{{ $language->code }}_form_id" class="form-control">
                                   @if (is_null($forms))
                                     <option selected disabled>{{ __('Select a Form') }}

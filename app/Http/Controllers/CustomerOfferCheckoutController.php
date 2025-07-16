@@ -121,6 +121,14 @@ class CustomerOfferCheckoutController extends Controller
                 ->withInput();
         }
 
+        // Check seller's order limit before creating the order
+        if ($offer->seller_id) {
+            $checkPermission = sellerPermission($offer->seller_id, 'service-order');
+            if ($checkPermission['status'] == 'false') {
+                return redirect()->back()->with('error', 'The seller maximum order limit exceeded.');
+            }
+        }
+
         // Create a dummy service for the order
         $dummyService = new Service();
         $dummyService->id = 0; // Dummy ID

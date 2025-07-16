@@ -164,20 +164,27 @@ class ServiceController extends Controller
         $languages = Language::all();
 
         foreach ($languages as $language) {
-            $serviceContent = new ServiceContent();
-            $serviceContent->language_id = $language->id;
-            $serviceContent->service_category_id = $request[$language->code . '_category_id'];
-            $serviceContent->service_subcategory_id = !empty($request[$language->code . '_subcategory_id']) ? $request[$language->code . '_subcategory_id'] : NULL;
-            $serviceContent->service_id = $service->id;
-            $serviceContent->form_id = $request[$language->code . '_form_id'];
-            $serviceContent->title = $request[$language->code . '_title'];
-            $serviceContent->slug = createSlug($request[$language->code . '_title']);
-            $serviceContent->description = Purifier::clean($request[$language->code . '_description'], 'youtube');
-            $serviceContent->tags = $request[$language->code . '_tags'];
-            $serviceContent->skills = json_encode($request[$language->code . '_skills']);
-            $serviceContent->meta_keywords = $request[$language->code . '_meta_keywords'];
-            $serviceContent->meta_description = $request[$language->code . '_meta_description'];
-            $serviceContent->save();
+            // Only create service content if the language has required data
+            if ($language->is_default || 
+                ($request->filled($language->code . '_title') && 
+                 $request->filled($language->code . '_category_id') && 
+                 $request->filled($language->code . '_description'))) {
+                
+                $serviceContent = new ServiceContent();
+                $serviceContent->language_id = $language->id;
+                $serviceContent->service_category_id = $request[$language->code . '_category_id'];
+                $serviceContent->service_subcategory_id = !empty($request[$language->code . '_subcategory_id']) ? $request[$language->code . '_subcategory_id'] : NULL;
+                $serviceContent->service_id = $service->id;
+                $serviceContent->form_id = $request[$language->code . '_form_id'];
+                $serviceContent->title = $request[$language->code . '_title'];
+                $serviceContent->slug = createSlug($request[$language->code . '_title']);
+                $serviceContent->description = Purifier::clean($request[$language->code . '_description'], 'youtube');
+                $serviceContent->tags = $request[$language->code . '_tags'];
+                $serviceContent->skills = json_encode($request[$language->code . '_skills']);
+                $serviceContent->meta_keywords = $request[$language->code . '_meta_keywords'];
+                $serviceContent->meta_description = $request[$language->code . '_meta_description'];
+                $serviceContent->save();
+            }
         }
 
         $request->session()->flash('success', 'New service added successfully!');
@@ -439,6 +446,20 @@ class ServiceController extends Controller
 
         if (count($orders) > 0) {
             foreach ($orders as $order) {
+                // Check if this is a customer offer order and handle the relationship
+                if ($order->conversation_id && strpos($order->conversation_id, 'customer_offer_') === 0) {
+                    $offerId = str_replace('customer_offer_', '', $order->conversation_id);
+                    $customerOffer = \App\Models\CustomerOffer::find($offerId);
+                    
+                    if ($customerOffer) {
+                        // Update the customer offer to remove the order reference
+                        $customerOffer->update([
+                            'accepted_order_id' => null,
+                            'status' => 'expired' // or 'declined' depending on your business logic
+                        ]);
+                    }
+                }
+
                 // delete zip file which has uploaded by the user
                 $informations = json_decode($order->informations);
 
