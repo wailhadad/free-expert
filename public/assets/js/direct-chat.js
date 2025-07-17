@@ -1285,166 +1285,88 @@ function renderDirectChatMessages(messages) {
                     <div class='chat-bubble ${isMyBrief ? 'me-bubble flex-row-reverse' : 'other-bubble'} d-flex align-items-start' style='gap:12px;max-width:90%;'>
                         <img src='${briefDetails.user_avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle ${isMyBrief ? 'ms-2' : 'me-2'}' style='width:40px;height:40px;object-fit:cover;flex-shrink:0;'>
                         <div class='brief-details-card' style='
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            color: white;
-                            border-radius: 16px;
-                            padding: 20px;
-                            min-width: 320px;
-                            max-width: 480px;
-                            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
-                            border: 1px solid rgba(255, 255, 255, 0.2);
-                            backdrop-filter: blur(10px);
-                            position: relative;
-                            overflow: hidden;
+                            background: #f8f9fa;
+                            color: #333;
+                            border-radius: 8px;
+                            padding: 16px;
+                            min-width: 400px;
+                            max-width: 600px;
+                            border: 1px solid #e9ecef;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
                         '>
-                            <!-- Decorative elements -->
-                            <div style='
-                                position: absolute;
-                                top: -20px;
-                                right: -20px;
-                                width: 60px;
-                                height: 60px;
-                                background: rgba(255, 255, 255, 0.1);
-                                border-radius: 50%;
-                                z-index: 0;
-                            '></div>
-                            <div style='
-                                position: absolute;
-                                bottom: -30px;
-                                left: -30px;
-                                width: 80px;
-                                height: 80px;
-                                background: rgba(255, 255, 255, 0.05);
-                                border-radius: 50%;
-                                z-index: 0;
-                            '></div>
+                            <!-- Posted by info -->
+                            <div class='d-flex align-items-center mb-3' style='border-bottom: 1px solid #dee2e6; padding-bottom: 8px;'>
+                                <img src='${briefDetails.user_avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle me-2' style='width:24px;height:24px;object-fit:cover;'>
+                                <span style='font-size: 12px; color: #6c757d;'>Posted by <strong>${briefDetails.user_name}</strong></span>
+                            </div>
                             
-                            <!-- Header -->
-                            <div class='d-flex align-items-center mb-3' style='position: relative; z-index: 1;'>
-                                <div style='
-                                    background: rgba(255, 255, 255, 0.2);
-                                    border-radius: 12px;
-                                    padding: 8px 12px;
-                                    margin-right: 12px;
-                                '>
-                                    <i class='fas fa-briefcase' style='font-size: 16px;'></i>
-                                </div>
-                                <div>
-                                    <h6 class='mb-0' style='font-weight: 600; font-size: 16px;'>Customer Brief</h6>
-                                    <small style='opacity: 0.8; font-size: 12px;'>Project Details</small>
+                            <!-- Title -->
+                            <div class='mb-3'>
+                                <h6 class='mb-1' style='font-weight: 600; font-size: 16px; color: #333;'>${escapeHtml(briefDetails.title)}</h6>
+                            </div>
+                            
+                            <!-- Description -->
+                            <div class='mb-3'>
+                                <p class='mb-0' style='font-size: 14px; line-height: 1.6; color: #555;'>${escapeHtml(briefDetails.description)}</p>
+                            </div>
+                            
+                            <!-- Details inline -->
+                            <div class='mb-3' style='display: flex; gap: 20px; font-size: 13px; color: #666;'>
+                                <span><strong>Delivery Time:</strong> ${briefDetails.delivery_time} days</span>
+                                <span><strong>Created:</strong> ${briefDetails.created_at}</span>
+                            </div>
+                            
+                            <!-- Tags -->
+                            <div class='mb-3'>
+                                <div style='font-size: 13px; color: #666; margin-bottom: 6px;'><strong>Tags:</strong></div>
+                                <div style='display: flex; flex-wrap: wrap; gap: 6px;'>
+                                    ${briefDetails.tags.split(',').map(tag => `
+                                        <span style='
+                                            background: #e9ecef;
+                                            color: #495057;
+                                            padding: 3px 8px;
+                                            border-radius: 12px;
+                                            font-size: 11px;
+                                            font-weight: 500;
+                                        '>${escapeHtml(tag.trim())}</span>
+                                    `).join('')}
                                 </div>
                             </div>
                             
-                            <!-- Content -->
-                            <div style='position: relative; z-index: 1;'>
-                                <!-- Title -->
-                                <div class='mb-3'>
-                                    <div style='
-                                        background: rgba(255, 255, 255, 0.15);
-                                        border-radius: 8px;
-                                        padding: 12px;
-                                        border-left: 4px solid rgba(255, 255, 255, 0.5);
-                                    '>
-                                        <h6 class='mb-1' style='font-weight: 600; font-size: 14px; opacity: 0.9;'>Title</h6>
-                                        <p class='mb-0' style='font-size: 15px; line-height: 1.4;'>${escapeHtml(briefDetails.title)}</p>
-                                    </div>
-                                </div>
-                                
-                                <!-- Description -->
-                                <div class='mb-3'>
-                                    <div style='
-                                        background: rgba(255, 255, 255, 0.1);
-                                        border-radius: 8px;
-                                        padding: 12px;
-                                    '>
-                                        <h6 class='mb-1' style='font-weight: 600; font-size: 14px; opacity: 0.9;'>Description</h6>
-                                        <p class='mb-0' style='font-size: 14px; line-height: 1.5; opacity: 0.95;'>${escapeHtml(briefDetails.description)}</p>
-                                    </div>
-                                </div>
-                                
-                                <!-- Details Grid -->
-                                <div class='row mb-3' style='gap: 8px;'>
-                                    <div class='col-6' style='
-                                        background: rgba(255, 255, 255, 0.1);
-                                        border-radius: 8px;
-                                        padding: 10px;
-                                        text-align: center;
-                                    '>
-                                        <div style='font-size: 12px; opacity: 0.8; margin-bottom: 4px;'>Delivery Time</div>
-                                        <div style='font-weight: 600; font-size: 14px;'>${briefDetails.delivery_time} days</div>
-                                    </div>
-                                    <div class='col-6' style='
-                                        background: rgba(255, 255, 255, 0.1);
-                                        border-radius: 8px;
-                                        padding: 10px;
-                                        text-align: center;
-                                    '>
-                                        <div style='font-size: 12px; opacity: 0.8; margin-bottom: 4px;'>Created</div>
-                                        <div style='font-weight: 600; font-size: 14px;'>${briefDetails.created_at}</div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Tags -->
-                                <div class='mb-3'>
-                                    <div style='font-size: 12px; opacity: 0.8; margin-bottom: 6px;'>Tags</div>
-                                    <div style='display: flex; flex-wrap: wrap; gap: 6px;'>
-                                        ${briefDetails.tags.split(',').map(tag => `
-                                            <span style='
-                                                background: rgba(255, 255, 255, 0.2);
-                                                color: white;
-                                                padding: 4px 10px;
-                                                border-radius: 20px;
-                                                font-size: 11px;
-                                                font-weight: 500;
-                                                border: 1px solid rgba(255, 255, 255, 0.3);
-                                            '>${escapeHtml(tag.trim())}</span>
-                                        `).join('')}
-                                    </div>
-                                </div>
-                                
-                                <!-- Price -->
-                                <div class='mb-3'>
-                                    <div style='font-size: 12px; opacity: 0.8; margin-bottom: 6px;'>Budget</div>
+                            <!-- Budget -->
+                            <div class='mb-3'>
+                                <div style='font-size: 13px; color: #666;'><strong>Budget:</strong> 
                                     ${briefDetails.request_quote ? 
-                                        `<div style='
-                                            background: rgba(255, 255, 255, 0.2);
-                                            border-radius: 8px;
-                                            padding: 8px 12px;
-                                            text-align: center;
-                                            font-weight: 600;
-                                            font-size: 14px;
-                                            border: 1px solid rgba(255, 255, 255, 0.3);
-                                        '>
-                                            <i class='fas fa-quote-left me-1'></i>Request a Quote
-                                        </div>` : 
-                                        `<div style='
-                                            background: rgba(255, 255, 255, 0.2);
-                                            border-radius: 8px;
-                                            padding: 8px 12px;
-                                            text-align: center;
-                                            font-weight: 600;
-                                            font-size: 14px;
-                                            border: 1px solid rgba(255, 255, 255, 0.3);
-                                        '>
-                                            <i class='fas fa-dollar-sign me-1'></i>${parseFloat(briefDetails.price).toFixed(2)}
-                                        </div>`
+                                        `<span style='color: #007bff; font-weight: 600;'>Request a Quote</span>` : 
+                                        `<span style='color: #28a745; font-weight: 600;'>$${parseFloat(briefDetails.price).toFixed(2)}</span>`
                                     }
                                 </div>
-                                
-                                <!-- Footer -->
-                                <div class='d-flex justify-content-between align-items-center' style='
-                                    border-top: 1px solid rgba(255, 255, 255, 0.2);
-                                    padding-top: 12px;
-                                    margin-top: 12px;
-                                '>
-                                    <div style='display: flex; align-items: center; gap: 8px;'>
-                                        <img src='${briefDetails.user_avatar || '/assets/img/users/profile.jpeg'}' 
-                                             style='width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255, 255, 255, 0.3);'>
-                                        <small style='opacity: 0.9; font-size: 12px;'>Posted by ${escapeHtml(briefDetails.user_name)}</small>
-                                    </div>
-                                    <small style='opacity: 0.7; font-size: 11px;'>${formatTime(msg.created_at)}</small>
+                            </div>
+                            
+                            <!-- Attachments -->
+                            ${briefDetails.attachments && briefDetails.attachments.length > 0 ? `
+                            <div class='mb-3'>
+                                <div style='font-size: 13px; color: #666; margin-bottom: 6px;'><strong>Attachments (${briefDetails.attachments.length}):</strong></div>
+                                <div style='display: flex; flex-direction: column; gap: 4px;'>
+                                    ${briefDetails.attachments.map(attachment => `
+                                        <div style='
+                                            background: #f8f9fa;
+                                            border: 1px solid #dee2e6;
+                                            border-radius: 4px;
+                                            padding: 6px 10px;
+                                            display: flex;
+                                            align-items: center;
+                                            gap: 6px;
+                                            font-size: 12px;
+                                            color: #495057;
+                                        '>
+                                            <i class='fas fa-paperclip' style='font-size: 10px; color: #6c757d;'></i>
+                                            <span>${escapeHtml(attachment.name)}</span>
+                                        </div>
+                                    `).join('')}
                                 </div>
                             </div>
+                            ` : ''}
                         </div>
                     </div>
                 `;
@@ -1966,220 +1888,113 @@ function renderDirectChatMessage(msg) {
             <div class='chat-bubble ${isMyBrief ? 'me-bubble flex-row-reverse' : 'other-bubble'} d-flex align-items-start' style='gap:12px;max-width:90%;'>
                 <img src='${briefDetails.user_avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle ${isMyBrief ? 'ms-2' : 'me-2'}' style='width:40px;height:40px;object-fit:cover;flex-shrink:0;'>
                 <div class='brief-details-card' style='
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    border-radius: 16px;
-                    padding: 20px;
-                    min-width: 320px;
-                    max-width: 480px;
-                    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
-                    border: 1px solid rgba(255, 255, 255, 0.2);
-                    backdrop-filter: blur(10px);
-                    position: relative;
-                    overflow: hidden;
+                    background: #f8f9fa;
+                    color: #333;
+                    border-radius: 8px;
+                    padding: 16px;
+                    min-width: 400px;
+                    max-width: 600px;
+                    border: 1px solid #e9ecef;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
                 '>
-                    <!-- Decorative elements -->
-                    <div style='
-                        position: absolute;
-                        top: -20px;
-                        right: -20px;
-                        width: 60px;
-                        height: 60px;
-                        background: rgba(255, 255, 255, 0.1);
-                        border-radius: 50%;
-                        z-index: 0;
-                    '></div>
-                    <div style='
-                        position: absolute;
-                        bottom: -30px;
-                        left: -30px;
-                        width: 80px;
-                        height: 80px;
-                        background: rgba(255, 255, 255, 0.05);
-                        border-radius: 50%;
-                        z-index: 0;
-                    '></div>
+                    <!-- Posted by info -->
+                    <div class='d-flex align-items-center mb-3' style='border-bottom: 1px solid #dee2e6; padding-bottom: 8px;'>
+                        <img src='${briefDetails.user_avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle me-2' style='width:24px;height:24px;object-fit:cover;'>
+                        <span style='font-size: 12px; color: #6c757d;'>Posted by <strong>${briefDetails.user_name}</strong></span>
+                    </div>
                     
-                    <!-- Header -->
-                    <div class='d-flex align-items-center mb-3' style='position: relative; z-index: 1;'>
-                        <div style='
-                            background: rgba(255, 255, 255, 0.2);
-                            border-radius: 12px;
-                            padding: 8px 12px;
-                            margin-right: 12px;
-                        '>
-                            <i class='fas fa-briefcase' style='font-size: 16px;'></i>
-                        </div>
-                        <div>
-                            <h6 class='mb-0' style='font-weight: 600; font-size: 16px;'>Customer Brief</h6>
-                            <small style='opacity: 0.8; font-size: 12px;'>Project Details</small>
+                    <!-- Title -->
+                    <div class='mb-3'>
+                        <h6 class='mb-1' style='font-weight: 600; font-size: 16px; color: #333;'>${escapeHtml(briefDetails.title)}</h6>
+                    </div>
+                    
+                    <!-- Description -->
+                    <div class='mb-3'>
+                        <p class='mb-0' style='font-size: 14px; line-height: 1.6; color: #555;'>${escapeHtml(briefDetails.description)}</p>
+                    </div>
+                    
+                    <!-- Details inline -->
+                    <div class='mb-3' style='display: flex; gap: 20px; font-size: 13px; color: #666;'>
+                        <span><strong>Delivery Time:</strong> ${briefDetails.delivery_time} days</span>
+                        <span><strong>Created:</strong> ${briefDetails.created_at}</span>
+                    </div>
+                    
+                    <!-- Tags -->
+                    <div class='mb-3'>
+                        <div style='font-size: 13px; color: #666; margin-bottom: 6px;'><strong>Tags:</strong></div>
+                        <div style='display: flex; flex-wrap: wrap; gap: 6px;'>
+                            ${briefDetails.tags.split(',').map(tag => `
+                                <span style='
+                                    background: #e9ecef;
+                                    color: #495057;
+                                    padding: 3px 8px;
+                                    border-radius: 12px;
+                                    font-size: 11px;
+                                    font-weight: 500;
+                                '>${escapeHtml(tag.trim())}</span>
+                            `).join('')}
                         </div>
                     </div>
                     
-                    <!-- Content -->
-                    <div style='position: relative; z-index: 1;'>
-                        <!-- Title -->
-                        <div class='mb-3'>
-                            <div style='
-                                background: rgba(255, 255, 255, 0.15);
-                                border-radius: 8px;
-                                padding: 12px;
-                                border-left: 4px solid rgba(255, 255, 255, 0.5);
-                            '>
-                                <h6 class='mb-1' style='font-weight: 600; font-size: 14px; opacity: 0.9;'>Title</h6>
-                                <p class='mb-0' style='font-size: 15px; line-height: 1.4;'>${escapeHtml(briefDetails.title)}</p>
-                            </div>
-                        </div>
-                        
-                        <!-- Description -->
-                        <div class='mb-3'>
-                            <div style='
-                                background: rgba(255, 255, 255, 0.1);
-                                border-radius: 8px;
-                                padding: 12px;
-                            '>
-                                <h6 class='mb-1' style='font-weight: 600; font-size: 14px; opacity: 0.9;'>Description</h6>
-                                <p class='mb-0' style='font-size: 14px; line-height: 1.5; opacity: 0.95;'>${escapeHtml(briefDetails.description)}</p>
-                            </div>
-                        </div>
-                        
-                        <!-- Details Grid -->
-                        <div class='row mb-3' style='gap: 8px;'>
-                            <div class='col-6' style='
-                                background: rgba(255, 255, 255, 0.1);
-                                border-radius: 8px;
-                                padding: 10px;
-                                text-align: center;
-                            '>
-                                <div style='font-size: 12px; opacity: 0.8; margin-bottom: 4px;'>Delivery Time</div>
-                                <div style='font-weight: 600; font-size: 14px;'>${briefDetails.delivery_time} days</div>
-                            </div>
-                            <div class='col-6' style='
-                                background: rgba(255, 255, 255, 0.1);
-                                border-radius: 8px;
-                                padding: 10px;
-                                text-align: center;
-                            '>
-                                <div style='font-size: 12px; opacity: 0.8; margin-bottom: 4px;'>Created</div>
-                                <div style='font-weight: 600; font-size: 14px;'>${briefDetails.created_at}</div>
-                            </div>
-                        </div>
-                        
-                        <!-- Tags -->
-                        <div class='mb-3'>
-                            <div style='font-size: 12px; opacity: 0.8; margin-bottom: 6px;'>Tags</div>
-                            <div style='display: flex; flex-wrap: wrap; gap: 6px;'>
-                                ${briefDetails.tags.split(',').map(tag => `
-                                    <span style='
-                                        background: rgba(255, 255, 255, 0.2);
-                                        color: white;
-                                        padding: 4px 10px;
-                                        border-radius: 20px;
-                                        font-size: 11px;
-                                        font-weight: 500;
-                                        border: 1px solid rgba(255, 255, 255, 0.3);
-                                    '>${escapeHtml(tag.trim())}</span>
-                                `).join('')}
-                            </div>
-                        </div>
-                        
-                        <!-- Price -->
-                        <div class='mb-3'>
-                            <div style='font-size: 12px; opacity: 0.8; margin-bottom: 6px;'>Budget</div>
+                    <!-- Budget -->
+                    <div class='mb-3'>
+                        <div style='font-size: 13px; color: #666;'><strong>Budget:</strong> 
                             ${briefDetails.request_quote ? 
-                                `<div style='
-                                    background: rgba(255, 255, 255, 0.2);
-                                    border-radius: 8px;
-                                    padding: 8px 12px;
-                                    text-align: center;
-                                    font-weight: 600;
-                                    font-size: 14px;
-                                    border: 1px solid rgba(255, 255, 255, 0.3);
-                                '>
-                                    <i class='fas fa-quote-left me-1'></i>Request a Quote
-                                </div>` : 
-                                `<div style='
-                                    background: rgba(255, 255, 255, 0.2);
-                                    border-radius: 8px;
-                                    padding: 8px 12px;
-                                    text-align: center;
-                                    font-weight: 600;
-                                    font-size: 14px;
-                                    border: 1px solid rgba(255, 255, 255, 0.3);
-                                '>
-                                    <i class='fas fa-dollar-sign me-1'></i>${parseFloat(briefDetails.price).toFixed(2)}
-                                </div>`
+                                `<span style='color: #007bff; font-weight: 600;'>Request a Quote</span>` : 
+                                `<span style='color: #28a745; font-weight: 600;'>$${parseFloat(briefDetails.price).toFixed(2)}</span>`
                             }
                         </div>
-                        
-                        <!-- Attachments -->
-                        ${briefDetails.attachments && briefDetails.attachments.length > 0 ? `
-                        <div class='mb-3'>
-                            <div style='font-size: 12px; opacity: 0.8; margin-bottom: 6px;'>Attachments (${briefDetails.attachments.length})</div>
-                            <div style='display: flex; flex-direction: column; gap: 8px;'>
-                                ${briefDetails.attachments.map((attachment, index) => {
-                                    const attachmentName = briefDetails.attachment_names[index] || 'Attachment ' + (index + 1);
-                                    const fileExt = attachmentName.split('.').pop().toLowerCase();
-                                    const iconClass = {
-                                        'pdf': 'fas fa-file-pdf text-danger',
-                                        'doc': 'fas fa-file-word text-primary',
-                                        'docx': 'fas fa-file-word text-primary',
-                                        'txt': 'fas fa-file-alt text-secondary',
-                                        'jpg': 'fas fa-file-image text-success',
-                                        'jpeg': 'fas fa-file-image text-success',
-                                        'png': 'fas fa-file-image text-success',
-                                        'gif': 'fas fa-file-image text-success',
-                                        'zip': 'fas fa-file-archive text-warning',
-                                        'rar': 'fas fa-file-archive text-warning'
-                                    }[fileExt] || 'fas fa-file text-muted';
-                                    
-                                    return `
-                                        <div style='
-                                            background: rgba(255, 255, 255, 0.15);
-                                            border-radius: 8px;
-                                            padding: 8px 12px;
-                                            display: flex;
-                                            align-items: center;
-                                            gap: 8px;
-                                            border: 1px solid rgba(255, 255, 255, 0.2);
+                    </div>
+                    
+                    <!-- Attachments -->
+                    ${briefDetails.attachments && briefDetails.attachments.length > 0 ? `
+                    <div class='mb-3'>
+                        <div style='font-size: 13px; color: #666; margin-bottom: 6px;'><strong>Attachments (${briefDetails.attachments.length}):</strong></div>
+                        <div style='display: flex; flex-direction: column; gap: 4px;'>
+                            ${briefDetails.attachments.map((attachment, index) => {
+                                const attachmentName = briefDetails.attachment_names[index] || 'Attachment ' + (index + 1);
+                                const fileExt = attachmentName.split('.').pop().toLowerCase();
+                                const iconClass = {
+                                    'pdf': 'fas fa-file-pdf text-danger',
+                                    'doc': 'fas fa-file-word text-primary',
+                                    'docx': 'fas fa-file-word text-primary',
+                                    'txt': 'fas fa-file-alt text-secondary',
+                                    'jpg': 'fas fa-file-image text-success',
+                                    'jpeg': 'fas fa-file-image text-success',
+                                    'png': 'fas fa-file-image text-success',
+                                    'gif': 'fas fa-file-image text-success',
+                                    'zip': 'fas fa-file-archive text-warning',
+                                    'rar': 'fas fa-file-archive text-warning'
+                                }[fileExt] || 'fas fa-file text-muted';
+                                
+                                return `
+                                    <div style='
+                                        background: #f8f9fa;
+                                        border: 1px solid #dee2e6;
+                                        border-radius: 4px;
+                                        padding: 6px 10px;
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 6px;
+                                        font-size: 12px;
+                                        color: #495057;
+                                    '>
+                                        <i class='${iconClass}' style='font-size: 10px;'></i>
+                                        <span>${escapeHtml(attachmentName)}</span>
+                                        <a href='/assets/file/customer-briefs/${attachment}' target='_blank' style='
+                                            color: #007bff;
+                                            text-decoration: none;
+                                            margin-left: auto;
+                                            font-size: 11px;
                                         '>
-                                            <i class='${iconClass}' style='font-size: 1.2rem;'></i>
-                                            <div style='flex-grow: 1; min-width: 0;'>
-                                                <div style='font-weight: 600; font-size: 13px; text-truncate;'>${attachmentName}</div>
-                                                <div style='font-size: 11px; opacity: 0.8;'>${fileExt.toUpperCase()} File</div>
-                                            </div>
-                                            <a href='/assets/file/customer-briefs/${attachment}' target='_blank' style='
-                                                background: rgba(255, 255, 255, 0.2);
-                                                color: white;
-                                                padding: 4px 8px;
-                                                border-radius: 4px;
-                                                text-decoration: none;
-                                                font-size: 11px;
-                                                border: 1px solid rgba(255, 255, 255, 0.3);
-                                            '>
-                                                <i class='fas fa-download me-1'></i>Download
-                                            </a>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-                        ` : ''}
-                        
-                        <!-- Footer -->
-                        <div class='d-flex justify-content-between align-items-center' style='
-                            border-top: 1px solid rgba(255, 255, 255, 0.2);
-                            padding-top: 12px;
-                            margin-top: 12px;
-                        '>
-                            <div style='display: flex; align-items: center; gap: 8px;'>
-                                <img src='${briefDetails.user_avatar || '/assets/img/users/profile.jpeg'}' 
-                                     style='width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255, 255, 255, 0.3);'>
-                                <small style='opacity: 0.9; font-size: 12px;'>Posted by ${escapeHtml(briefDetails.user_name)}</small>
-                            </div>
-                            <small style='opacity: 0.7; font-size: 11px;'>${formatTime(msg.created_at)}</small>
+                                            <i class='fas fa-download me-1'></i>Download
+                                        </a>
+                                    </div>
+                                `;
+                            }).join('')}
                         </div>
                     </div>
+                    ` : ''}
                 </div>
             </div>
         `;

@@ -107,10 +107,61 @@ window.currentUserAvatar = @json($userAvatar);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
+
+/* Enhanced Chat Modal Styling */
+#directChatModal .modal-dialog {
+  margin: 1.75rem auto;
+}
+
+#directChatModal .modal-content {
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+#directChatModal .modal-header {
+  border-bottom: 1px solid #e9ecef;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px 12px 0 0;
+}
+
+#directChatModal .modal-body {
+  background-color: #f8f9fa;
+}
+
+#directChatModal .modal-footer {
+  border-top: 1px solid #e9ecef;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 0 0 12px 12px;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+  #directChatModal .modal-dialog {
+    max-width: 95% !important;
+    width: 95% !important;
+    margin: 0.5rem auto;
+  }
+  
+  #directChatModal .modal-body {
+    height: 400px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  #directChatModal .modal-dialog {
+    max-width: 98% !important;
+    width: 98% !important;
+    margin: 0.25rem auto;
+  }
+  
+  #directChatModal .modal-body {
+    height: 350px !important;
+  }
+}
 </style>
 @endpush
 <div class="modal fade" id="directChatModal" tabindex="-1" aria-labelledby="directChatModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-xl"> <!-- Changed to modal-xl for larger chat window -->
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 90%; width: 1200px;"> <!-- Custom larger size for bigger chat window -->
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="directChatModalLabel">
@@ -136,7 +187,7 @@ window.currentUserAvatar = @json($userAvatar);
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
-      <div class="modal-body p-0" style="height:400px;overflow-y:auto;">
+      <div class="modal-body p-0" style="height:600px;overflow-y:auto;"> <!-- Increased height from 400px to 600px -->
         <div id="direct-chat-messages" class="p-3 chat-wrapper" style="height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:0.5rem;"></div>
       </div>
       <div class="modal-footer">
