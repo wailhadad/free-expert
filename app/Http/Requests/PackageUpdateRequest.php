@@ -30,7 +30,6 @@ class PackageUpdateRequest extends FormRequest
             'number_of_service_add' => 'required',
             'number_of_service_featured' => 'required',
             'number_of_form_add' => 'required',
-            'number_of_service_order' => 'required',
             'live_chat_status' => 'required',
             'qr_builder_status' => 'required',
             'recommended' => 'required',

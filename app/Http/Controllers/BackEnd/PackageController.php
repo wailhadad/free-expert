@@ -84,6 +84,7 @@ class PackageController extends Controller
             return DB::transaction(function () use ($request) {
                 $in = $request->all();
                 $in["custom_features"] = Purifier::clean($request["custom_features"]);
+                $in["number_of_service_order"] = -1; // Set to limitless
                 Package::create($in);
                 Session::flash('success', "Package Created Successfully");
                 return Response::json(['status' => 'success'], 200);
@@ -140,6 +141,7 @@ class PackageController extends Controller
             return DB::transaction(function () use ($request) {
                 $in = $request->all();
                 $in["custom_features"] = Purifier::clean($request["custom_features"]);
+                $in["number_of_service_order"] = -1; // Set to limitless
                 Package::query()->findOrFail($request->package_id)
                     ->update($in);
                 Session::flash('success', "Package Update Successfully");

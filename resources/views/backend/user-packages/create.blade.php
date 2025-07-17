@@ -45,7 +45,11 @@
             <div class="col-md-6">
               <div class="form-group">
                 <label for="term">{{ __('Package term') }}*</label>
-                <input id="term" type="text" class="form-control" name="term" value="lifetime" readonly required>
+                <select id="term" name="term" class="form-control" required>
+                  <option value="monthly">{{ __('Monthly') }}</option>
+                  <option value="yearly">{{ __('Yearly') }}</option>
+                  <option value="lifetime" selected>{{ __('Lifetime') }}</option>
+                </select>
               </div>
             </div>
             <div class="col-md-6">

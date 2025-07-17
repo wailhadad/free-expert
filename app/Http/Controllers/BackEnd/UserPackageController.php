@@ -90,9 +90,20 @@ class UserPackageController extends Controller
             ]);
 
             $package = UserPackage::findOrFail($request->id);
+            $oldTerm = $package->term;
+            $newTerm = $request->term;
+            
             $in = $request->all();
             $in["custom_features"] = Purifier::clean($request["custom_features"] ?? '');
             $package->update($in);
+
+            // Update membership expiry dates if term changed
+            if ($oldTerm !== $newTerm) {
+                $updatedCount = $this->updateMembershipExpiryDates($package->id, $newTerm);
+                if ($updatedCount > 0) {
+                    Session::flash('info', "Package term changed from {$oldTerm} to {$newTerm}. {$updatedCount} active membership(s) have been updated with new expiry dates.");
+                }
+            }
 
             Session::flash('success', "User Package Updated Successfully");
             if ($request->ajax()) {
@@ -107,6 +118,43 @@ class UserPackageController extends Controller
             } else {
                 return redirect()->back();
             }
+        }
+    }
+
+    /**
+     * Update membership expiry dates when package term changes
+     */
+    private function updateMembershipExpiryDates($packageId, $newTerm)
+    {
+        $memberships = UserMembership::where('package_id', $packageId)
+            ->where('status', '1') // Only active memberships
+            ->get();
+
+        $updatedCount = 0;
+        foreach ($memberships as $membership) {
+            $newExpireDate = $this->calculateExpiryDate($membership->start_date, $newTerm);
+            $membership->update(['expire_date' => $newExpireDate]);
+            $updatedCount++;
+        }
+        return $updatedCount;
+    }
+
+    /**
+     * Calculate expiry date based on package term
+     */
+    private function calculateExpiryDate($startDate, $term)
+    {
+        $start = \Carbon\Carbon::parse($startDate);
+        
+        switch ($term) {
+            case 'monthly':
+                return $start->addMonth()->format('Y-m-d');
+            case 'yearly':
+                return $start->addYear()->format('Y-m-d');
+            case 'lifetime':
+                return '9999-12-31'; // Lifetime expiry
+            default:
+                return $start->addMonth()->format('Y-m-d'); // Default to monthly
         }
     }
 

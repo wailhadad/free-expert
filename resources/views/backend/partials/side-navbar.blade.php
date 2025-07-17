@@ -129,13 +129,13 @@
 
                 <li class="{{ request()->routeIs('admin.package.index') ? 'active' : '' }}">
                   <a href="{{ route('admin.package.index', ['language' => $defaultLang->code]) }}">
-                    <span class="sub-item">Seller Packages</span>
+                    <span class="sub-item">Freelance Packages</span>
                   </a>
                 </li>
 
                 <li class="{{ request()->routeIs('admin.user_package.index') ? 'active' : '' }}">
                   <a href="{{ route('admin.user_package.index') }}">
-                    <span class="sub-item">Customer Packages</span>
+                    <span class="sub-item">Agency Packages</span>
                   </a>
                 </li>
               </ul>
@@ -155,12 +155,12 @@
               <ul class="nav nav-collapse">
                 <li class="@if (request()->routeIs('admin.payment-log.index')) active @endif">
                   <a href="{{ route('admin.payment-log.index') }}">
-                    <span class="sub-item">Seller Subscriptions</span>
+                    <span class="sub-item">Freelancers Subscriptions</span>
                   </a>
                 </li>
                 <li class="@if (request()->routeIs('admin.user_membership.index')) active @endif">
                   <a href="{{ route('admin.user_membership.index') }}">
-                    <span class="sub-item">Customer Subscriptions</span>
+                    <span class="sub-item">Agency Subscriptions</span>
                   </a>
                 </li>
               </ul>

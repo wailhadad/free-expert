@@ -224,14 +224,6 @@
               </div>
               <div class="col-md-6">
                 <div class="form-group">
-                  <label class="form-label">{{ __('Number of service orders') }} *</label>
-                  <input type="number" name="number_of_service_order" class="form-control"
-                    placeholder="{{ __('Enter number of service orders') }}">
-                  <p id="err_number_of_service_order" class="mb-0 text-danger em"></p>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-group">
                   <label for="status">{{ __('Live Chat') }}*</label>
                   <div class="selectgroup w-100">
                     <label class="selectgroup-item">

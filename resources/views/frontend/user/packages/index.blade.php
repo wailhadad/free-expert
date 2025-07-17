@@ -9,6 +9,24 @@
 @section('content')
   @includeIf('frontend.partials.breadcrumb', ['breadcrumb' => $breadcrumb, 'title' => $title])
 
+  <style>
+    .package-card {
+      height: 500px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .package-card .card-body {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    
+    .package-card .card-body .mt-auto {
+      margin-top: auto !important;
+    }
+  </style>
+
   <!--====== Start Agency Packages Section ======-->
   <section class="user-dashboard pt-100 pb-60">
     <div class="container">
@@ -56,7 +74,7 @@
                       <div class="row">
                         @foreach ($packages as $package)
                           <div class="col-lg-4 col-md-6 mb-4">
-                            <div class="card h-100 {{ $package->recommended ? 'border-primary' : '' }}">
+                            <div class="card h-100 package-card {{ $package->recommended ? 'border-primary' : '' }}">
                               @if($package->recommended)
                                 <div class="card-header bg-primary text-white text-center">
                                   <strong>{{ __('RECOMMENDED') }}</strong>
@@ -71,6 +89,19 @@
                                     {{ $bs->base_currency_symbol }}{{ $package->price }}
                                   </span>
                                   <small class="text-muted">/ {{ ucfirst($package->term) }}</small>
+                                  @if($package->term === 'lifetime')
+                                    <div class="mt-1">
+                                      <span class="badge badge-success">{{ __('One-time payment') }}</span>
+                                    </div>
+                                  @elseif($package->term === 'yearly')
+                                    <div class="mt-1">
+                                      <span class="badge badge-info">{{ __('Billed annually') }}</span>
+                                    </div>
+                                  @elseif($package->term === 'monthly')
+                                    <div class="mt-1">
+                                      <span class="badge badge-warning">{{ __('Billed monthly') }}</span>
+                                    </div>
+                                  @endif
                                 </div>
 
                                 <ul class="list-unstyled mb-4">

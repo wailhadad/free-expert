@@ -4,6 +4,59 @@
 @endphp
 @section('styles')
   <link rel="stylesheet" href="{{ asset('assets/css/buy_plan.css') }}">
+  <style>
+    .card-pricing2 {
+      position: relative;
+    }
+    
+    .card-pricing2 .pricing-header {
+      position: relative;
+    }
+    
+    /* Badge positioning - top right corner with stacking */
+    .card-pricing2 .badge-container {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+      z-index: 3;
+    }
+    
+    .card-pricing2 .badge {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    
+    .card-pricing2 .badge.badge-info {
+      background: linear-gradient(90deg, #17a2b8 0%, #138496 100%);
+      color: white;
+    }
+    
+    .card-pricing2 .badge.badge-danger {
+      background: linear-gradient(90deg, #dc3545 0%, #c82333 100%);
+      color: white;
+    }
+    
+    .card-pricing2 .badge.badge-warning {
+      background: linear-gradient(90deg, #ffc107 0%, #e0a800 100%);
+      color: #212529;
+    }
+    
+    /* Ensure title doesn't overlap with badges */
+    .card-pricing2 .pricing-header h3.fw-bold {
+      padding-right: 120px;
+      margin-bottom: 0;
+    }
+  </style>
 @endsection
 
 @php
@@ -88,16 +141,27 @@
             <h3 class="fw-bold d-inline-block">
               {{ $package->title }}
             </h3>
-            @if (isset($current_package->id) && $current_package->id === $package->id)
-              <h3 class="badge badge-danger d-inline-block float-right ml-2">{{ __('Current') }}</h3>
-            @endif
-            @if ($package_count >= 2)
-              @if ($next_package)
-                @if ($next_package->id == $package->id)
-                  <h3 class="badge badge-warning d-inline-block float-right ml-2">{{ __('Next') }}</h3>
+            <div class="badge-container">
+              @if ($package->recommended == 1)
+                <h3 class="badge badge-info">
+                  <i class="fas fa-star"></i> {{ __('Recommended') }}
+                </h3>
+              @endif
+              @if (isset($current_package->id) && $current_package->id === $package->id)
+                <h3 class="badge badge-danger">
+                  <i class="fas fa-check-circle"></i> {{ __('Current') }}
+                </h3>
+              @endif
+              @if ($package_count >= 2)
+                @if ($next_package)
+                  @if ($next_package->id == $package->id)
+                    <h3 class="badge badge-warning">
+                      <i class="fas fa-clock"></i> {{ __('Next') }}
+                    </h3>
+                  @endif
                 @endif
               @endif
-            @endif
+            </div>
             <span class="sub-title"></span>
           </div>
           <div class="price-value">
@@ -111,7 +175,6 @@
             <li>{{ __('Services') . ' :' }} {{ $package->number_of_service_add }}</li>
             <li>{{ __('Featured Services') . ' : ' }} {{ $package->number_of_service_featured }}</li>
             <li>{{ __('Custom Form') . ' : ' }} {{ $package->number_of_form_add }}</li>
-            <li>{{ __('Service Orders') . ' : ' }} {{ $package->number_of_service_order }}</li>
             <li class="{{ $package->live_chat_status == 0 ? 'disable' : '' }}">{{ __('Live Chat') }}</li>
             <li class="{{ $package->qr_builder_status == 0 ? 'disable' : '' }}">{{ __('QR Builder') }}</li>
             @if (!is_null($package->custom_features))

@@ -236,10 +236,11 @@ if (!function_exists('sellerPermission')) {
         if ($currentMembership) {
           if ($seller_id != 0) {
             $total_service_ordered = ServiceOrder::where([['seller_id', $seller_id], ['seller_membership_id', $currentMembership->id]])->count();
-            if ($total_service_ordered >= $currentPackage->number_of_service_order) {
-              return ['status' => 'false', 'total_service_ordered' => $total_service_ordered, 'package_support' => $currentPackage->number_of_service_order];
-            } else {
+            // Check if service orders are limitless (-1) or if limit not reached
+            if ($currentPackage->number_of_service_order == -1 || $total_service_ordered < $currentPackage->number_of_service_order) {
               return ['status' => 'true'];
+            } else {
+              return ['status' => 'false', 'total_service_ordered' => $total_service_ordered, 'package_support' => $currentPackage->number_of_service_order];
             }
           } else {
             return ['status' => 'true'];

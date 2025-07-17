@@ -59,6 +59,12 @@
         </a>
       </li>
 
+      <li>
+        <a href="{{ route('pricing') }}" class="{{ request()->routeIs('pricing') ? 'active' : '' }}">
+          <i class="fas fa-building"></i> {{ __('Agency') }}
+        </a>
+      </li>
+
       <!-- Agency Privileges Section -->
 
       @if(Auth::guard('web')->user() && Auth::guard('web')->user()->hasAgencyPrivileges())
