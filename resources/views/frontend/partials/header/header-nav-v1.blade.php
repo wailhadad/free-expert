@@ -40,9 +40,17 @@
           <!-- Navigation items -->
           <div class="collapse navbar-collapse">
             <ul id="mainMenu" class="navbar-nav mobile-item mx-auto">
-              @php $menuDatas = json_decode($menuInfos); @endphp
-              @foreach ($menuDatas as $menuData)
-                @php $href = get_href($menuData); @endphp
+                          @php $menuDatas = json_decode($menuInfos); @endphp
+            @foreach ($menuDatas as $menuData)
+              @php $href = get_href($menuData); @endphp
+              
+              {{-- Check if menu item should be shown only for logged-in users --}}
+              @php
+                $showForLoggedInOnly = in_array(strtolower($menuData->text), ['agency', 'dashboard']);
+                $isLoggedIn = auth('web')->check() || auth('seller')->check() || auth('admin')->check();
+              @endphp
+              
+              @if (!$showForLoggedInOnly || $isLoggedIn)
                 @if (!property_exists($menuData, 'children'))
                   <li class="nav-item">
                     <a class="nav-link {{ url()->current() == $href ? 'active' : '' }}"
@@ -65,7 +73,8 @@
                     </ul>
                   </li>
                 @endif
-              @endforeach
+              @endif
+            @endforeach
             </ul>
           </div>
           <div class="more-option mobile-item">

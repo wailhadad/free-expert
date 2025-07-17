@@ -41,25 +41,34 @@
             @php $menuDatas = json_decode($menuInfos); @endphp
             @foreach ($menuDatas as $menuData)
               @php $href = get_href($menuData); @endphp
-              @if (!property_exists($menuData, 'children'))
-                <li class="nav-item">
-                  <a class="nav-link" href="{{ $href }}">{{ $menuData->text }}</a>
-                </li>
-              @else
-                <li class="nav-item">
-                  <a class="nav-link toggle" href="{{ $href }}">{{ $menuData->text }}<i
-                      class="fal fa-plus"></i></a>
-                  <ul class="menu-dropdown">
-                    @php $childMenuDatas = $menuData->children; @endphp
+              
+              {{-- Check if menu item should be shown only for logged-in users --}}
+              @php
+                $showForLoggedInOnly = in_array(strtolower($menuData->text), ['agency', 'dashboard']);
+                $isLoggedIn = auth('web')->check() || auth('seller')->check() || auth('admin')->check();
+              @endphp
+              
+              @if (!$showForLoggedInOnly || $isLoggedIn)
+                @if (!property_exists($menuData, 'children'))
+                  <li class="nav-item">
+                    <a class="nav-link" href="{{ $href }}">{{ $menuData->text }}</a>
+                  </li>
+                @else
+                  <li class="nav-item">
+                    <a class="nav-link toggle" href="{{ $href }}">{{ $menuData->text }}<i
+                        class="fal fa-plus"></i></a>
+                    <ul class="menu-dropdown">
+                      @php $childMenuDatas = $menuData->children; @endphp
 
-                    @foreach ($childMenuDatas as $childMenuData)
-                      @php $child_href = get_href($childMenuData); @endphp
-                      <li class="nav-item">
-                        <a class="nav-link" href="{{ $child_href }}">{{ $childMenuData->text }}</a>
-                      </li>
-                    @endforeach
-                  </ul>
-                </li>
+                      @foreach ($childMenuDatas as $childMenuData)
+                        @php $child_href = get_href($childMenuData); @endphp
+                        <li class="nav-item">
+                          <a class="nav-link" href="{{ $child_href }}">{{ $childMenuData->text }}</a>
+                        </li>
+                      @endforeach
+                    </ul>
+                  </li>
+                @endif
               @endif
             @endforeach
             @include('components.discussion-envelope')
