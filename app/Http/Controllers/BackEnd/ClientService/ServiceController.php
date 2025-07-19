@@ -31,17 +31,19 @@ class ServiceController extends Controller
   public function settings(Request $request)
   {
     $language = Language::query()->where('code', '=', $request->language)->firstOrFail();
-    $service_settings = Basic::select('is_service', 'tax', 'chat_max_file')->first();
+    $service_settings = Basic::select('is_service', 'tax', 'profit_percentage', 'chat_max_file')->first();
     return view('backend.client-service.service.settings', compact('language', 'service_settings'));
   }
   public function settingsUpdate(Request $request)
   {
     $rules = [
       'tax' => 'required',
+      'profit_percentage' => 'required',
       'chat_max_file' => 'required',
     ];
     $messages = [
-      'chat_max_file.required' => 'Max file upload in chat box feild is required'
+      'chat_max_file.required' => 'Max file upload in chat box feild is required',
+      'profit_percentage.required' => 'Profit percentage field is required'
     ];
     $validator = Validator::make($request->all(), $rules, $messages);
     if ($validator->fails()) {
@@ -52,6 +54,7 @@ class ServiceController extends Controller
     $service_settings = Basic::first();
     $service_settings->update([
       'tax' => $request->tax,
+      'profit_percentage' => $request->profit_percentage,
       'chat_max_file' => $request->chat_max_file
     ]);
     Session::flash('success', 'Service settings update successfully!');

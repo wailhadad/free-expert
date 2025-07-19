@@ -176,6 +176,9 @@ class UserMembershipController extends Controller
             ]
         ]);
 
+        // Create transaction record for approved user membership
+        storeUserPackageTransaction($membership, $membership->payment_method, $bs);
+
         Session::flash('success', 'User membership approved successfully!');
         return back();
     }
@@ -368,6 +371,9 @@ class UserMembershipController extends Controller
                         'expire_date' => $membership->expire_date
                     ]
                 ]);
+                
+                // Create transaction record for approved user membership
+                storeUserPackageTransaction($membership, $membership->payment_method, $bs);
                 
                 Session::flash('success', 'Membership accepted, user notified and invoice sent.');
             } else { // Pending

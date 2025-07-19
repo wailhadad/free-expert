@@ -134,6 +134,16 @@ class CustomerOfferCheckoutController extends Controller
         $dummyService->id = 0; // Dummy ID
         $dummyService->seller_id = $offer->seller_id;
 
+        // Calculate tax and profit for customer offer orders
+        $basicSettings = \App\Models\BasicSettings\Basic::select('tax_percentage', 'profit_percentage')->first();
+        $taxPercentage = $basicSettings ? $basicSettings->tax_percentage : 0;
+        $profitPercentage = $basicSettings ? $basicSettings->profit_percentage : 0;
+        
+        // Calculate tax and profit
+        $taxAmount = ($offer->price * $taxPercentage) / 100;
+        $profitAmount = ($offer->price * $profitPercentage) / 100;
+        $grandTotal = $offer->price + $taxAmount;
+
         // Prepare order data
         $orderData = [
             'userId' => $user->id,
@@ -147,9 +157,9 @@ class CustomerOfferCheckoutController extends Controller
             'packagePrice' => $offer->price,
             'addons' => null,
             'addonPrice' => 0,
-            'tax_percentage' => 0,
-            'tax' => 0,
-            'grandTotal' => $offer->price,
+            'tax_percentage' => $taxPercentage,
+            'tax' => $taxAmount,
+            'grandTotal' => $grandTotal,
             'currencyText' => 'USD',
             'currencyTextPosition' => 'left',
             'currencySymbol' => $offer->currency_symbol,
@@ -165,6 +175,9 @@ class CustomerOfferCheckoutController extends Controller
         // Create order
         $orderProcess = new OrderProcessController();
         $order = $orderProcess->storeData($orderData);
+
+        // Update the order with profit amount for customer offers
+        $order->update(['profit_amount' => $profitAmount]);
 
         // After order is created, set offer status to 'accepted' and calculate dead_line
         $deadLine = null;

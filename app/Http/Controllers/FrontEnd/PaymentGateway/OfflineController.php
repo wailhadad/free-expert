@@ -81,7 +81,10 @@ class OfflineController extends Controller
       $orderProcess = new OrderProcessController();
 
       // store service order information in database
-      $orderProcess->storeData($data);
+      $orderInfo = $orderProcess->storeData($data);
+
+      // generate an invoice in pdf format for offline payments
+      $invoice = $orderProcess->generateInvoice($orderInfo);
 
       $serviceSlug = $data['slug'];
 

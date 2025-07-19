@@ -84,7 +84,7 @@
 
                       <td>
                         {{ $settings->base_currency_symbol_position == 'left' ? $settings->base_currency_symbol : '' }}
-                        {{ round($value + $subscriptionIncomes[$key] + $taxes[$key], 2) }}
+                        {{ round($value + $subscriptionIncomes[$key] + $taxes[$key] + $profits[$key], 2) }}
                         {{ $settings->base_currency_symbol_position == 'right' ? $settings->base_currency_symbol : '' }}
                       </td>
                     </tr>

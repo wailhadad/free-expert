@@ -58,6 +58,12 @@
                   <p class="text-danger" id="err_tax"></p>
                 </div>
                 <div class="form-group">
+                  <label for="">{{ __('Profit Percentage') . ' (%)' }}</label>
+                  <input type="number" name="profit_percentage" step="0.1" class="form-control"
+                    value="{{ $service_settings->profit_percentage }}">
+                  <p class="text-danger" id="err_profit_percentage"></p>
+                </div>
+                <div class="form-group">
                   <label for="">{{ __('Max file upload in chat box') }} ({{ __('KB') }})</label>
                   <input type="number" name="chat_max_file" step="100" class="form-control"
                     value="{{ $service_settings->chat_max_file }}">

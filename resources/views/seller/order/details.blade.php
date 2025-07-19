@@ -126,14 +126,14 @@
             @endif
             <div class="row mb-2">
               <div class="col-lg-3">
-                <strong>{{ __('Recived Amount') . ' :' }}</strong>
+                <strong>{{ __('Received Amount') . ' :' }}</strong>
               </div>
 
               <div class="col-lg-9">
                 @if (is_null($orderInfo->grand_total))
                   {{ __('Requested') }}
                 @else
-                  {{ $position == 'left' ? $currency . ' ' : '' }}{{ $orderInfo->grand_total - $orderInfo->tax }}{{ $position == 'right' ? ' ' . $currency : '' }}
+                  {{ $position == 'left' ? $currency . ' ' : '' }}{{ $orderInfo->grand_total - $orderInfo->tax - $orderInfo->profit_amount }}{{ $position == 'right' ? ' ' . $currency : '' }}
                 @endif
               </div>
             </div>
@@ -142,12 +142,26 @@
               <div class="row mb-2">
                 <div class="col-lg-3">
                   <strong>{{ __('Tax') }} ({{ $orderInfo->tax_percentage . '%' }}) <i
-                      class="fas fa-plus text-danger text-small"></i> : </strong>
+                      class="fas fa-minus text-danger text-small"></i> : </strong>
                 </div>
 
                 <div class="col-lg-9">
                   {{ $position == 'left' ? $currency . ' ' : '' }}{{ $orderInfo->tax }}{{ $position == 'right' ? ' ' . $currency : '' }}
                   {{ __('(Received by Admin)') }}
+                </div>
+              </div>
+            @endif
+
+            @if (!is_null($orderInfo->profit_amount) && $orderInfo->profit_amount > 0)
+              <div class="row mb-2">
+                <div class="col-lg-3">
+                  <strong>{{ __('Profit Deduction') }} <i
+                      class="fas fa-minus text-danger text-small"></i> : </strong>
+                </div>
+
+                <div class="col-lg-9">
+                  {{ $position == 'left' ? $currency . ' ' : '' }}{{ $orderInfo->profit_amount }}{{ $position == 'right' ? ' ' . $currency : '' }}
+                  {{ __('(Platform Fee)') }}
                 </div>
               </div>
             @endif

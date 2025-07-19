@@ -594,8 +594,17 @@ class UserController extends Controller
 
     //check live chat status active or not for this user
     if (!is_null($order->seller_id)) {
-
-      $checkPermission =  SellerPermissionHelper::getPackageInfo($order->seller_id, $order->seller_membership_id);
+      // First try the stored membership ID, if that fails, check current active membership
+      $checkPermission = SellerPermissionHelper::getPackageInfo($order->seller_id, $order->seller_membership_id);
+      
+      // If stored membership check fails, check current active membership
+      if ($checkPermission != true) {
+        $currentMembership = SellerPermissionHelper::userPackage($order->seller_id);
+        if ($currentMembership) {
+          $checkPermission = SellerPermissionHelper::getPackageInfoByMembership($currentMembership->id);
+        }
+      }
+      
       if ($checkPermission != true) {
         Session::flash('success', 'Live chat is not active for this seller order.');
         return redirect()->route('user.dashboard');
@@ -861,13 +870,44 @@ class UserController extends Controller
   {
     $user_id = Auth::guard('web')->user()->id;
     $order = ServiceOrder::where([['user_id', $user_id], ['id', $id]])->firstOrFail();
+    
+    // Check if this is a customer offer order - if so, skip email sending
+    // because customer offer orders are handled by the admin/seller controllers
+    $isCustomerOffer = isset($order->conversation_id) && strpos($order->conversation_id, 'customer_offer_') === 0;
+    
     if (!is_null($order->grand_total)) {
+      // Get profit percentage from settings
+      $basicSettings = \App\Models\BasicSettings\Basic::select('profit_percentage')->first();
+      $profitPercentage = $basicSettings ? $basicSettings->profit_percentage : 0;
+      $profitAmount = 0;
+      
+      // Calculate profit amount if there's a seller
+      if (!is_null($order->seller_id)) {
+        if ($isCustomerOffer) {
+          // For customer offer orders, use the existing profit amount if available
+          $profitAmount = $order->profit_amount ?? 0;
+          if ($profitAmount == 0) {
+            // If no profit amount stored, calculate it
+            $originalPrice = $order->grand_total - $order->tax;
+            $profitAmount = ($originalPrice * $profitPercentage) / 100;
+          }
+        } else {
+          // For regular service orders, calculate profit on the original price (before tax)
+          $originalPrice = $order->grand_total - $order->tax;
+          $profitAmount = ($originalPrice * $profitPercentage) / 100;
+        }
+      }
+      
       if (!is_null($order->seller_id)) {
         $arrData['seller_id'] = $order->seller_id;
         $seller = Seller::where('id', $order->seller_id)->first();
         if ($seller) {
+          // Calculate seller earnings: grand_total - tax - profit_percentage
+          $sellerEarnings = $order->grand_total - $order->tax;
+          $finalSellerEarnings = $sellerEarnings - $profitAmount;
+          
           $pre_balance = $seller->amount;
-          $after_balance = $seller->amount + ($order->grand_total - $order->tax);
+          $after_balance = $seller->amount + $finalSellerEarnings;
           $seller->amount = $after_balance;
           $seller->save();
         } else {
@@ -875,17 +915,42 @@ class UserController extends Controller
           $after_balance = null;
         }
 
-        //send email to seller 
-        $mailData = [];
+        // Send email to customer regardless of seller status (like admin controller)
+        // Only send email if NOT a customer offer order
+        if (!$isCustomerOffer) {
+          // Always send to main user's email_address, even if order has subuser_id
+          $mainUser = $order->user;
+          $recipientEmail = ($mainUser && !empty($mainUser->email_address)) ? $mainUser->email_address : null;
 
-        $mailData['subject'] = 'Completion Notification for Project ' . $order->order_number;
+          if ($recipientEmail) {
+            $mailData = [];
+            $mailData['subject'] = 'Completion Notification for Project ' . $order->order_number;
 
-        $mailData['body'] = 'Hi ' . $order->name . ',<br/><br/>We are pleased to inform you that your recent project with order number: #' . $order->order_number . 'has been successfully completed.';
+            // Get the real user's name, not the order name (which can be subuser name)
+            $realUserName = $order->real_user_name;
 
-        $mailData['recipient'] = $order->email_address;
+            $mailData['body'] = 'Hi ' . $realUserName . ',<br/><br/>We are pleased to inform you that your recent project with order number: #' . $order->order_number . ' has been successfully completed.';
+            $mailData['recipient'] = $recipientEmail;
 
-        BasicMailer::sendMail($mailData);
-        //send email to seller end 
+            \Log::info('UserController: Attempting to send order completion email', [
+              'order_id' => $order->id,
+              'email_address' => $recipientEmail,
+              'is_valid_email' => filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)
+            ]);
+            BasicMailer::sendMail($mailData);
+          } else {
+            \Log::warning('UserController: No valid recipient email for order completion notification', [
+              'order_id' => $order->id,
+              'user_id' => $order->user_id,
+              'subuser_id' => $order->subuser_id,
+            ]);
+          }
+        } else {
+          \Log::info('UserController: Skipping email for customer offer order - handled by controllers', [
+            'order_id' => $order->id,
+            'conversation_id' => $order->conversation_id
+          ]);
+        }
 
       } else {
         $pre_balance = null;
@@ -910,11 +975,12 @@ class UserController extends Controller
       storeTransaction($transaction_data);
       $data = [
         'life_time_earning' => $order->grand_total,
-        'total_profit' => is_null($order->seller_id) ? $order->grand_total : $order->tax,
+        'total_profit' => is_null($order->seller_id) ? $order->grand_total : ($order->tax + $profitAmount),
       ];
       storeEarnings($data);
     }
     $order->order_status = 'completed';
+    $order->profit_amount = $profitAmount;
     $order->save();
 
     //add balance to seller account and transcation end

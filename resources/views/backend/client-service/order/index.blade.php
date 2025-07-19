@@ -333,7 +333,7 @@
                                         <a href="#" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#receiptModal-{{ $order->id }}">{{ __('Receipt') }}</a>
                                     @endif
                                     @if (!is_null($order->invoice))
-                                        <a href="{{ asset('assets/file/invoices/service/' . $order->invoice) }}" class="dropdown-item" target="_blank">{{ __('Invoice') }}</a>
+                                        <a href="{{ asset('assets/file/invoices/order-invoices/' . $order->invoice) }}" class="dropdown-item" target="_blank">{{ __('Invoice') }}</a>
                                     @endif
                                     <a href="{{ route('admin.service_order.message', ['id' => $order->id]) }}" class="dropdown-item">{{ __('Chat with customer') }}</a>
                                     <form class="deleteForm d-block" action="{{ route('admin.service_order.delete', ['id' => $order->id]) }}" method="post">

@@ -87,7 +87,7 @@ class MyFatoorahController extends Controller
 
                     $activation = Carbon::parse($lastMemb->start_date);
                     $expire = Carbon::parse($lastMemb->expire_date);
-                    $file_name = $this->makeInvoice($requestData, "membership", $seller, $password, $amount, "Paypal", $requestData['phone'], $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb);
+                    $file_name = $this->makeInvoice($requestData, "membership", $seller, $password, $amount, "Paypal", $requestData['phone'], $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb, "seller-memberships");
 
                     $mailer = new MegaMailer();
                     $data = [
@@ -101,14 +101,18 @@ class MyFatoorahController extends Controller
                         'activation_date' => $activation->toFormattedDateString(),
                         'expire_date' => Carbon::parse($expire->toFormattedDateString())->format('Y') == '9999' ? 'Lifetime' : $expire->toFormattedDateString(),
                         'membership_invoice' => $file_name,
+
+                        'membership_invoice_path' => 'seller-memberships',
+
                         'website_title' => $bs->website_title,
                         'templateType' => 'registration_with_premium_package',
                         'type' => 'registrationWithPremiumPackage'
                     ];
                     $mailer->mailFromAdmin($data);
-                    @unlink(public_path('assets/front/invoices/' . $file_name));
+                                // Create transaction record for user package purchase
+            storeUserPackageTransaction($lastMemb, $requestData['payment_method'], $bs);
 
-                    session()->flash('success', 'Your payment has been completed.');
+            session()->flash('success', 'Your payment has been completed.');
                     Session::forget('request');
                     Session::forget('paymentFor');
                     return [
@@ -124,7 +128,7 @@ class MyFatoorahController extends Controller
                     $activation = Carbon::parse($lastMemb->start_date);
                     $expire = Carbon::parse($lastMemb->expire_date);
 
-                    $file_name = $this->makeInvoice($requestData, "extend", $seller, $password, $amount, $requestData["payment_method"], $seller->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb);
+                    $file_name = $this->makeInvoice($requestData, "extend", $seller, $password, $amount, $requestData["payment_method"], $seller->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb, "seller-memberships");
 
                     $mailer = new MegaMailer();
                     $data = [
@@ -136,21 +140,22 @@ class MyFatoorahController extends Controller
                         'activation_date' => $activation->toFormattedDateString(),
                         'expire_date' => Carbon::parse($expire->toFormattedDateString())->format('Y') == '9999' ? 'Lifetime' : $expire->toFormattedDateString(),
                         'membership_invoice' => $file_name,
+
+                        'membership_invoice_path' => 'seller-memberships',
+
                         'website_title' => $bs->website_title,
                         'templateType' => 'membership_extend',
                         'type' => 'membershipExtend'
                     ];
                     $mailer->mailFromAdmin($data);
-                    @unlink(public_path('assets/front/invoices/' . $file_name));
-
-                    //store data to transaction and earnings table
+                                        //store data to transaction and earnings table
                     $transaction_data = [];
                     $transaction_data['order_id'] = $lastMemb->id;
                     $transaction_data['transcation_type'] = 5;
                     $transaction_data['user_id'] = null;
                     $transaction_data['seller_id'] = $lastMemb->seller_id;
                     $transaction_data['payment_status'] = 'completed';
-                    $transaction_data['payment_method'] = $lastMemb->payment_method;
+                    $transaction_data['payment_method'] = $lastMemb->payment_method ?: 'Myfatoorah';
                     $transaction_data['grand_total'] = $lastMemb->price;
                     $transaction_data['pre_balance'] = null;
                     $transaction_data['tax'] = null;
@@ -220,13 +225,17 @@ class MyFatoorahController extends Controller
                 'activation_date' => $activation->toFormattedDateString(),
                 'expire_date' => Carbon::parse($expire->toFormattedDateString())->format('Y') == '9999' ? 'Lifetime' : $expire->toFormattedDateString(),
                 'membership_invoice' => $file_name,
+
+                'membership_invoice_path' => 'seller-memberships',
+
                 'website_title' => $bs->website_title,
                 'templateType' => 'user_package_purchase',
                 'type' => 'userPackagePurchase'
             ];
             $mailer->mailFromAdmin($data);
-            @unlink(public_path('assets/front/invoices/' . $file_name));
-            
+                        // Create transaction record for user package purchase
+            storeUserPackageTransaction($lastMemb, $requestData['payment_method'], $bs);
+
             session()->flash('success', 'Your payment has been completed.');
             Session::forget('request');
             Session::forget('paymentFor');

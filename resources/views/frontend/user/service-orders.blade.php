@@ -103,7 +103,16 @@
                                         @if ($order->payment_status == 'completed')
                                           @if (!is_null($order->seller_id))
                                             @php
-                                              $liveChatStatus = App\Http\Helpers\SellerPermissionHelper::getPackageInfoByMembership($order->seller_membership_id);
+                                              // First try the stored membership ID, if that fails, check current active membership
+                                              $liveChatStatus = App\Http\Helpers\SellerPermissionHelper::getPackageInfo($order->seller_id, $order->seller_membership_id);
+                                              
+                                              // If stored membership check fails, check current active membership
+                                              if ($liveChatStatus != true) {
+                                                $currentMembership = App\Http\Helpers\SellerPermissionHelper::userPackage($order->seller_id);
+                                                if ($currentMembership) {
+                                                  $liveChatStatus = App\Http\Helpers\SellerPermissionHelper::getPackageInfoByMembership($currentMembership->id);
+                                                }
+                                              }
                                             @endphp
                                             @if ($liveChatStatus == true)
                                               <a href="{{ route('user.service_order.message', ['id' => $order->id]) }}"

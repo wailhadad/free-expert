@@ -22,8 +22,24 @@ class Kernel extends ConsoleKernel
    * @param  \Illuminate\Console\Scheduling\Schedule  $schedule
    * @return void
    */
-  protected function schedule(Schedule $schedule)
+  protected function schedule(Schedule $schedule): void
   {
+    // $schedule->command('inspire')->hourly();
+    
+    // Auto-fix missing invoices every hour
+    $schedule->command('test:email --fix-all-invoices')->hourly();
+    
+    // Auto-fix orphaned transactions every hour
+    $schedule->command('test:email --fix-orphaned-transactions')->hourly();
+    
+    // Auto-fix missing seller_id in transactions every hour
+    $schedule->command('test:email --fix-missing-seller-id')->hourly();
+    
+    // Auto-fix missing membership invoices every hour
+    $schedule->command('test:email --membership-invoices')->hourly();
+    
+    // Auto-fix all transactions with missing seller_id or user_id every hour
+    $schedule->command('test:email --fix-all-transactions')->hourly();
   }
 
   /**

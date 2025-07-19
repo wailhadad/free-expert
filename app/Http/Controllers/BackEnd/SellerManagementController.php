@@ -455,11 +455,8 @@ class SellerManagementController extends Controller
             return back();
         }
         
-        // Only delete the file if it exists and email was sent successfully
-        if (isset($file_name) && file_exists(public_path('assets/file/invoices/seller-memberships/' . $file_name))) {
-            @unlink(public_path('assets/file/invoices/seller-memberships/' . $file_name));
-            \Log::info('SellerMembership: Invoice file deleted after email');
-        }
+        // Invoice file is now saved to database and kept for transaction view
+        \Log::info('SellerMembership: Invoice file saved to database and kept for transaction view');
     }
 
     public function addCurrPackage(Request $request)

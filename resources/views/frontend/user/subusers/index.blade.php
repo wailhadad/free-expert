@@ -105,19 +105,19 @@
                         <table class="table table-striped">
                           <thead>
                             <tr>
-                              <th>{{ __('Image') }}</th>
-                              <th>{{ __('Username') }}</th>
-                              <th>{{ __('Name') }}</th>
-                              <th>{{ __('Status') }}</th>
-                              <th>{{ __('Orders') }}</th>
-                              <th>{{ __('Created') }}</th>
-                              <th>{{ __('Actions') }}</th>
+                              <th class="text-center">{{ __('Image') }}</th>
+                              <th class="text-center">{{ __('Username') }}</th>
+                              <th class="text-center">{{ __('Name') }}</th>
+                              <th class="text-center">{{ __('Status') }}</th>
+                              <th class="text-center">{{ __('Orders') }}</th>
+                              <th class="text-center">{{ __('Created') }}</th>
+                              <th class="text-center">{{ __('Actions') }}</th>
                             </tr>
                           </thead>
                           <tbody>
                             @foreach ($subusers as $subuser)
                               <tr>
-                                <td>
+                                <td class="text-center">
                                   @if($subuser->image)
                                     <img src="{{ asset('assets/img/subusers/' . $subuser->image) }}" 
                                          alt="{{ $subuser->username }}" 
@@ -130,20 +130,20 @@
                                     </div>
                                   @endif
                                 </td>
-                                <td><strong>{{ $subuser->username }}</strong></td>
-                                <td>{{ $subuser->full_name }}</td>
-                                <td>
+                                <td class="text-center"><strong>{{ $subuser->username }}</strong></td>
+                                <td class="text-center">{{ $subuser->full_name }}</td>
+                                <td class="text-center">
                                   @if($subuser->status)
                                     <span class="badge badge-success text-black">{{ __('Active') }}</span>
                                   @else
                                     <span class="badge badge-danger text-black">{{ __('Inactive') }}</span>
                                   @endif
                                 </td>
-                                <td>
+                                <td class="text-center">
                                   <span class="badge badge-primary">{{ $subuser->serviceOrders()->count() }}</span>
                                 </td>
-                                <td>{{ $subuser->created_at->format('M d, Y') }}</td>
-                                <td>
+                                <td class="text-center">{{ $subuser->created_at->format('M d, Y') }}</td>
+                                <td class="text-center">
                                   <div class="btn-group" role="group">
                                     <a href="{{ route('user.subusers.edit', $subuser->id) }}" 
                                        class="btn btn-sm btn-outline-warning edit-btn" 
@@ -160,19 +160,13 @@
                                         <i class="fas {{ $subuser->status ? 'fa-pause' : 'fa-play' }}"></i>
                                       </button>
                                     </form>
-                                    @if($subuser->serviceOrders()->count() == 0)
-                                      <form action="{{ route('user.subusers.destroy', $subuser->id) }}" 
-                                            method="POST" 
-                                            style="display: inline;"
-                                            onsubmit="return confirm('{{ __('Are you sure you want to delete this subuser?') }}')">
-                                        @csrf
-                                        <button type="submit"
-                                                class="btn btn-sm btn-outline-danger text-black delete-btn" 
-                                                title="{{ __('Delete') }}">
-                                          <i class="fas fa-trash"></i>
-                                        </button>
-                                      </form>
-                                    @endif
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger text-black delete-btn" 
+                                            title="{{ __('Delete') }}"
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#deleteModal{{ $subuser->id }}">
+                                      <i class="fas fa-trash"></i>
+                                    </button>
                                   </div>
                                 </td>
                               </tr>
@@ -190,4 +184,147 @@
       </div>
     </div>
   </section>
+
+  <!-- Delete Confirmation Modals -->
+  @foreach ($subusers as $subuser)
+    <div class="modal fade" id="deleteModal{{ $subuser->id }}" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel{{ $subuser->id }}" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content border-0 shadow-lg">
+          <div class="modal-header bg-danger text-white border-0">
+            <div class="d-flex align-items-center">
+              <div class="modal-icon me-3">
+                <i class="fas fa-exclamation-triangle fa-2x"></i>
+              </div>
+              <div>
+                <h5 class="modal-title mb-0" id="deleteModalLabel{{ $subuser->id }}">
+                  {{ __('Delete Subuser') }}
+                </h5>
+                <small class="opacity-75">{{ __('This action cannot be undone') }}</small>
+              </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body p-4">
+            <div class="text-center mb-4">
+              <div class="delete-avatar mb-3">
+                @if($subuser->image)
+                  <img src="{{ asset('assets/img/subusers/' . $subuser->image) }}" 
+                       alt="{{ $subuser->username }}" 
+                       class="rounded-circle border border-3 border-danger" 
+                       width="80" height="80">
+                @else
+                  <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center border border-3 border-danger" 
+                       style="width: 80px; height: 80px; margin: 0 auto;">
+                    <i class="fas fa-user text-white fa-2x"></i>
+                  </div>
+                @endif
+              </div>
+              <h6 class="text-dark mb-2">{{ __('Are you sure you want to delete this subuser?') }}</h6>
+              <p class="text-muted mb-0">
+                <strong>"{{ $subuser->username }}"</strong> 
+                ({{ $subuser->first_name }} {{ $subuser->last_name }})
+              </p>
+            </div>
+            
+            @if($subuser->serviceOrders()->count() > 0)
+              <div class="alert alert-warning border-0" style="background-color: #fff3cd; border-left: 4px solid #ffc107 !important;">
+                <div class="d-flex align-items-start">
+                  <i class="fas fa-exclamation-triangle text-warning me-3 mt-1"></i>
+                  <div>
+                    <strong class="text-warning">{{ __('Warning!') }}</strong>
+                    <p class="mb-0 mt-1">{{ __('This subuser has') }} 
+                      <span class="badge bg-warning text-dark">{{ $subuser->serviceOrders()->count() }}</span> 
+                      {{ __('orders that will also be deleted.') }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            @endif
+            
+            <div class="delete-summary bg-light rounded p-3">
+              <h6 class="text-dark mb-3">{{ __('What will be deleted:') }}</h6>
+              <ul class="list-unstyled mb-0">
+                <li class="d-flex align-items-center mb-2">
+                  <i class="fas fa-user text-danger me-2"></i>
+                  <span>{{ __('Subuser profile and data') }}</span>
+                </li>
+                <li class="d-flex align-items-center mb-2">
+                  <i class="fas fa-shopping-cart text-danger me-2"></i>
+                  <span>{{ $subuser->serviceOrders()->count() }} {{ __('service orders') }}</span>
+                </li>
+                <li class="d-flex align-items-center mb-2">
+                  <i class="fas fa-comments text-danger me-2"></i>
+                  <span>{{ \App\Models\DirectChat::where('subuser_id', $subuser->id)->count() }} {{ __('chats') }}</span>
+                </li>
+                <li class="d-flex align-items-center">
+                  <i class="fas fa-file-alt text-danger me-2"></i>
+                  <span>{{ __('All related files and documents') }}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="modal-footer border-0 bg-light p-4">
+            <button type="button" class="btn btn-light btn-lg px-4" data-bs-dismiss="modal">
+              <i class="fas fa-times me-2"></i>{{ __('Cancel') }}
+            </button>
+            <form action="{{ route('user.subusers.destroy', $subuser->id) }}" method="POST" style="display: inline;">
+              @csrf
+              @method('DELETE')
+              <button type="submit" class="btn btn-danger btn-lg px-4">
+                <i class="fas fa-trash me-2"></i>{{ __('Delete Subuser') }}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  @endforeach
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize all modals properly
+      const modals = document.querySelectorAll('.modal');
+      modals.forEach(function(modalElement) {
+        const modal = new bootstrap.Modal(modalElement, {
+          backdrop: 'static',
+          keyboard: false
+        });
+        
+        // Ensure proper cleanup when modal is hidden
+        modalElement.addEventListener('hidden.bs.modal', function() {
+          // Remove any loading states
+          const submitBtn = this.querySelector('button[type="submit"]');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-trash me-2"></i>{{ __("Delete Subuser") }}';
+          }
+        });
+      });
+      
+      // Handle form submission with loading state
+      document.querySelectorAll('form[action*="destroy"]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+          const submitBtn = this.querySelector('button[type="submit"]');
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{{ __("Deleting...") }}';
+          }
+        });
+      });
+      
+      // Ensure cancel buttons work properly
+      document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(function(button) {
+        button.addEventListener('click', function(e) {
+          e.preventDefault();
+          const modalElement = this.closest('.modal');
+          if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+              modal.hide();
+            }
+          }
+        });
+      });
+    });
+  </script>
 @endsection 

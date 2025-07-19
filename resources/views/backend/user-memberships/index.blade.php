@@ -60,6 +60,7 @@
                         <th scope="col">{{ __('Payment Status') }}</th>
                         <th scope="col">{{ __('Payment Method') }}</th>
                         <th scope="col">{{ __('Receipt') }}</th>
+                        <th scope="col">{{ __('Invoice') }}</th>
                         <th scope="col">{{ __('Actions') }}</th>
                       </tr>
                     </thead>
@@ -105,15 +106,26 @@
                           <td>{{ $membership->payment_method }}</td>
                           <td>
                             @if (!empty($membership->receipt_name))
-                              <a class="btn btn-sm btn-info" href="#" data-toggle="modal"
-                                data-target="#receiptModal{{ $membership->id }}">{{ __('Show') }}</a>
+                              <a class="btn btn-sm btn-info" href="#" data-bs-toggle="modal"
+                                data-bs-target="#receiptModal{{ $membership->id }}">{{ __('Show') }}</a>
                             @else
                               -
                             @endif
                           </td>
                           <td>
-                            <a class="btn btn-sm btn-info" href="#" data-toggle="modal"
-                              data-target="#detailsModal{{ $membership->id }}">{{ __('Detail') }}</a>
+                            @if (!empty($membership->invoice))
+                              <a href="{{ asset('assets/file/invoices/user-memberships/' . $membership->invoice) }}" 
+                                 target="_blank" 
+                                 class="btn btn-sm btn-success">
+                                <i class="fas fa-file-pdf"></i> {{ __('View') }}
+                              </a>
+                            @else
+                              -
+                            @endif
+                          </td>
+                          <td>
+                            <a class="btn btn-sm btn-info" href="#" data-bs-toggle="modal"
+                              data-bs-target="#detailsModal{{ $membership->id }}">{{ __('Detail') }}</a>
                           </td>
                         </tr>
                         <div class="modal fade" id="receiptModal{{ $membership->id }}" tabindex="-1" role="dialog"
@@ -123,9 +135,7 @@
                               <div class="modal-header">
                                 <h5 class="modal-title" id="exampleModalLabel">{{ __('Receipt Image') }}
                                 </h5>
-                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                  <span aria-hidden="true">&times;</span>
-                                </button>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                               </div>
                               <div class="modal-body">
                                 @if (!empty($membership->receipt_name))
@@ -134,7 +144,7 @@
                                 @endif
                               </div>
                               <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('Close') }}
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Close') }}
                                 </button>
                               </div>
                             </div>
@@ -147,9 +157,7 @@
                               <div class="modal-header">
                                 <h5 class="modal-title" id="exampleModalLabel">{{ __('User Details') }}
                                 </h5>
-                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                  <span aria-hidden="true">&times;</span>
-                                </button>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                               </div>
                               <div class="modal-body">
                                 <label>{{ __('Username') }}</label>
@@ -169,14 +177,18 @@
                                 <label>{{ __('Price') }}</label>
                                 <p>{{ $membership->currency_symbol }}{{ number_format($membership->price, 2) }}</p>
 
-                                @if($membership->status == 1 && $membership->invoice)
-                                  <a href="{{ asset('assets/file/invoices/user-memberships/' . $membership->invoice) }}" target="_blank" class="btn btn-outline-danger mt-3">
-                                    <i class="fas fa-file-pdf"></i> {{ __('Download Invoice') }}
-                                  </a>
+                                @if($membership->status == 1 && !empty($membership->invoice))
+                                  <div class="mt-3">
+                                    <a href="{{ asset('assets/file/invoices/user-memberships/' . $membership->invoice) }}" 
+                                       target="_blank" 
+                                       class="btn btn-outline-success">
+                                      <i class="fas fa-file-pdf"></i> {{ __('Download Invoice') }}
+                                    </a>
+                                  </div>
                                 @endif
                               </div>
                               <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                                   {{ __('Close') }}
                                 </button>
                               </div>

@@ -40,6 +40,30 @@
     @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Subscription Log', $rolePermissions)))
       <div class="col-sm-6 col-md-3">
         <a href="{{ route('admin.monthly_profit') }}">
+          <div class="card card-stats card-primary card-round">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-5">
+                  <div class="icon-big text-center">
+                    <i class="fas fa-chart-line"></i>
+                  </div>
+                </div>
+
+                <div class="col-7 col-stats">
+                  <div class="numbers">
+                    <p class="card-category">{{ __('Total Profit') }}</p>
+                    <h4 class="card-title">{{ symbolPrice($actual_total_profit) }}</h4>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    @endif
+    @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Subscription Log', $rolePermissions)))
+      <div class="col-sm-6 col-md-3">
+        <a href="{{ route('admin.monthly_profit') }}">
           <div class="card card-stats card-dark card-round">
             <div class="card-body">
               <div class="row">
@@ -51,8 +75,8 @@
 
                 <div class="col-7 col-stats">
                   <div class="numbers">
-                    <p class="card-category">{{ __('Total Profit') }}</p>
-                    <h4 class="card-title">{{ symbolPrice($settings->total_profit) }}</h4>
+                    <p class="card-category">{{ __('Total Taxes') }}</p>
+                    <h4 class="card-title">{{ symbolPrice($actual_total_taxes) }}</h4>
                   </div>
                 </div>
               </div>

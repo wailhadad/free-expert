@@ -291,6 +291,27 @@ if (!function_exists('storeTransaction')) {
     ]);
   }
 }
+
+if (!function_exists('storeUserPackageTransaction')) {
+  function storeUserPackageTransaction($membership, $payment_method, $bs)
+  {
+    $transaction_data = [];
+    $transaction_data['order_id'] = $membership->id;
+    $transaction_data['transcation_type'] = 5;
+    $transaction_data['user_id'] = $membership->user_id;
+    $transaction_data['seller_id'] = null;
+    $transaction_data['payment_status'] = 'completed';
+    $transaction_data['payment_method'] = $payment_method;
+    $transaction_data['grand_total'] = $membership->price;
+    $transaction_data['pre_balance'] = null;
+    $transaction_data['tax'] = null;
+    $transaction_data['after_balance'] = null;
+    $transaction_data['gateway_type'] = 'online';
+    $transaction_data['currency_symbol'] = $membership->currency_symbol;
+    $transaction_data['currency_symbol_position'] = $bs->base_currency_symbol_position;
+    storeTransaction($transaction_data);
+  }
+}
 if (!function_exists('storeEarnings')) {
   function storeEarnings($data)
   {

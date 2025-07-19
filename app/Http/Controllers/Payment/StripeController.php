@@ -82,54 +82,66 @@ class StripeController extends Controller
                     $amount = $request->price;
                     $password = $request->password;
                     $checkout = new SellerCheckoutController();
-                    $user = $checkout->store($request, $transaction_id, $transaction_details, $amount, $bs, $password);
+                    
+                    // Use database transaction to ensure atomicity
+                    \DB::transaction(function () use ($request, $transaction_id, $transaction_details, $amount, $bs, $password, $package) {
+                        $user = $checkout->store($request, $transaction_id, $transaction_details, $amount, $bs, $password);
 
-
-                    $lastMemb = $user->memberships()->orderBy('id', 'DESC')->first();
-                    $activation = Carbon::parse($lastMemb->start_date);
-                    $expire = Carbon::parse($lastMemb->expire_date);
-                    $file_name = $this->makeInvoice($request, "membership", $user, $password, $amount, "Stripe", $request['phone'], $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb);
-
-                    $mailer = new MegaMailer();
-                    $data = [
-                        'toMail' => $user->email,
-                        'toName' => $user->fname,
-                        'username' => $user->username,
-                        'package_title' => $package->title,
-                        'package_price' => ($bs->base_currency_text_position == 'left' ? $bs->base_currency_text . ' ' : '') . $package->price . ($bs->base_currency_text_position == 'right' ? ' ' . $bs->base_currency_text : ''),
-                        'discount' => ($bs->base_currency_text_position == 'left' ? $bs->base_currency_text . ' ' : '') . $lastMemb->discount . ($bs->base_currency_text_position == 'right' ? ' ' . $bs->base_currency_text : ''),
-                        'total' => ($bs->base_currency_text_position == 'left' ? $bs->base_currency_text . ' ' : '') . $lastMemb->price . ($bs->base_currency_text_position == 'right' ? ' ' . $bs->base_currency_text : ''),
-                        'activation_date' => $activation->toFormattedDateString(),
-                        'expire_date' => Carbon::parse($expire->toFormattedDateString())->format('Y') == '9999' ? 'Lifetime' : $expire->toFormattedDateString(),
-                        'membership_invoice' => $file_name,
-                        'website_title' => $bs->website_title,
-                        'templateType' => 'registration_with_premium_package',
-                        'type' => 'registrationWithPremiumPackage'
-                    ];
-                    $mailer->mailFromAdmin($data);
-                    @unlink(public_path('assets/front/invoices/' . $file_name));
-
-                    // Notify all admins of new seller package purchase
-                    $admins = \App\Models\Admin::all();
-                    foreach ($admins as $admin) {
-                        $notificationService = new \App\Services\NotificationService();
-                        $notificationService->sendRealTime($admin, [
-                            'type' => 'seller_package_purchase',
-                            'title' => 'New Seller Package Purchase',
-                            'message' => 'Seller ' . $user->username . ' purchased the package: ' . $package->title,
-                            'url' => route('admin.payment-log.index'),
-                            'icon' => 'fas fa-box',
-                            'extra' => [
-                                'seller_id' => $user->id,
-                                'package_id' => $package->id,
-                                'package_title' => $package->title,
-                                'price' => $amount,
-                                'payment_method' => 'Stripe'
-                            ]
+                        $lastMemb = $user->memberships()->orderBy('id', 'DESC')->first();
+                        
+                        // Log the membership creation for debugging
+                        \Log::info('Stripe payment: Membership created', [
+                            'membership_id' => $lastMemb->id,
+                            'seller_id' => $lastMemb->seller_id,
+                            'transaction_id' => $transaction_id
                         ]);
-                    }
+                        
+                        $activation = Carbon::parse($lastMemb->start_date);
+                        $expire = Carbon::parse($lastMemb->expire_date);
+                        $file_name = $this->makeInvoice($request, "membership", $user, $password, $amount, "Stripe", $request['phone'], $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb, "seller-memberships");
 
-                    session()->flash('success', __('successful_payment'));
+                        $basicMail = new BasicMailer();
+                        $data = [
+                            'invoice' => public_path('assets/file/invoices/seller-memberships/' . $file_name),
+                            'recipient' => $user->email,
+                            'subject' => "You made your membership purchase successful",
+                            'body' => "You made a payment. This is a confirmation mail from us. Please see the invoice attachment below"
+                        ];
+                        $basicMail->sendMail($data);
+
+                        //store data to transaction and earnings table
+                        $transaction_data = [];
+                        $transaction_data['order_id'] = $lastMemb->id;
+                        $transaction_data['transcation_type'] = 5;
+                        $transaction_data['user_id'] = null;
+                        $transaction_data['seller_id'] = $lastMemb->seller_id;
+                        $transaction_data['payment_status'] = 'completed';
+                        $transaction_data['payment_method'] = $lastMemb->payment_method ?: 'Stripe';
+                        $transaction_data['grand_total'] = $lastMemb->price;
+                        $transaction_data['pre_balance'] = null;
+                        $transaction_data['tax'] = null;
+                        $transaction_data['after_balance'] = null;
+                        $transaction_data['gateway_type'] = 'online';
+                        $transaction_data['currency_symbol'] = $lastMemb->currency_symbol;
+                        $transaction_data['currency_symbol_position'] = $bs->base_currency_symbol_position;
+                        
+                        // Log the transaction data for debugging
+                        \Log::info('Stripe payment: Creating transaction', $transaction_data);
+                        
+                        storeTransaction($transaction_data);
+                        $data = [
+                            'life_time_earning' => $lastMemb->price,
+                            'total_profit' => $lastMemb->price,
+                        ];
+                        storeEarnings($data);
+                        
+                        \Log::info('Stripe payment: Transaction created successfully', [
+                            'membership_id' => $lastMemb->id,
+                            'transaction_data' => $transaction_data
+                        ]);
+                    });
+
+                    session()->flash('success', 'Your payment has been completed.');
                     Session::forget('request');
                     Session::forget('paymentFor');
                     return redirect()->route('success.page');
@@ -142,7 +154,7 @@ class StripeController extends Controller
                     $lastMemb = $user->memberships()->orderBy('id', 'DESC')->first();
                     $activation = Carbon::parse($lastMemb->start_date);
                     $expire = Carbon::parse($lastMemb->expire_date);
-                    $file_name = $this->makeInvoice($request, "extend", $user, $password, $amount, $request["payment_method"], $user->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb);
+                                            $file_name = $this->makeInvoice($request, "extend", $user, $password, $amount, $request["payment_method"], $user->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb, "seller-memberships");
 
                     $mailer = new MegaMailer();
                     $data = [
@@ -154,15 +166,14 @@ class StripeController extends Controller
                         'activation_date' => $activation->toFormattedDateString(),
                         'expire_date' => Carbon::parse($expire->toFormattedDateString())->format('Y') == '9999' ? 'Lifetime' : $expire->toFormattedDateString(),
                         'membership_invoice' => $file_name,
+                        'membership_invoice_path' => 'seller-memberships',
                         'website_title' => $bs->website_title,
-                                            'templateType' => 'seller_membership_extend',
+                        'templateType' => 'seller_membership_extend',
                         'type' => 'membershipExtend'
                     ];
                     \Log::info('Sending seller extension email', $data);
                     $mailer->mailFromAdmin($data);
-                    @unlink(public_path('assets/front/invoices/' . $file_name));
-
-                    // Notify all admins of seller package extension
+                                        // Notify all admins of seller package extension
                     $admins = \App\Models\Admin::all();
                     foreach ($admins as $admin) {
                         $notificationService = new \App\Services\NotificationService();
@@ -189,7 +200,7 @@ class StripeController extends Controller
                     $transaction_data['user_id'] = null;
                     $transaction_data['seller_id'] = $lastMemb->seller_id;
                     $transaction_data['payment_status'] = 'completed';
-                    $transaction_data['payment_method'] = $lastMemb->payment_method;
+                    $transaction_data['payment_method'] = $lastMemb->payment_method ?: 'Stripe';
                     $transaction_data['grand_total'] = $lastMemb->price;
                     $transaction_data['pre_balance'] = null;
                     $transaction_data['tax'] = null;
@@ -265,12 +276,16 @@ class StripeController extends Controller
                 'activation_date' => $activation->toFormattedDateString(),
                 'expire_date' => Carbon::parse($expire->toFormattedDateString())->format('Y') == '9999' ? 'Lifetime' : $expire->toFormattedDateString(),
                 'membership_invoice' => $file_name,
+
+                'membership_invoice_path' => 'seller-memberships',
+
                 'website_title' => $bs->website_title,
                 'templateType' => 'user_package_purchase',
                 'type' => 'userPackagePurchase'
             ];
             $mailer->mailFromAdmin($data);
-            @unlink(public_path('assets/front/invoices/' . $file_name));
+                        // Create transaction record for user package purchase
+            storeUserPackageTransaction($lastMemb, $requestData['payment_method'], $bs);
             
             session()->flash('success', 'Your payment has been completed.');
             Session::forget('request');

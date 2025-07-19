@@ -78,7 +78,7 @@ class CronJobController extends Controller
                     $bs = Basic::first();
                     $package = Package::where('id', $membership->package_id)->first();
 
-                    $file_name = $this->makeInvoice($requestData, "extend", $seller, $password, $amount, $requestData["payment_method"], $seller->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb);
+                    $file_name = $this->makeInvoice($requestData, "extend", $seller, $password, $amount, $requestData["payment_method"], $seller->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb, "seller-memberships");
 
                     $mailer = new MegaMailer();
                     $data = [

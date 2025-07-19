@@ -144,7 +144,17 @@ class SubuserController extends Controller
         $subuser->state = $request->state;
         $subuser->country = $request->country;
 
-        if ($request->hasFile('image')) {
+        // Handle image removal
+        if ($request->has('remove_image') && $request->remove_image == '1') {
+            // Remove old image if exists
+            if ($subuser->image) {
+                $imagePath = public_path('assets/img/subusers/' . $subuser->image);
+                if (file_exists($imagePath)) {
+                    @unlink($imagePath);
+                }
+            }
+            $subuser->image = null;
+        } elseif ($request->hasFile('image')) {
             $file = $request->file('image');
             $imageName = uniqid() . '.' . $file->getClientOriginalExtension();
             $destinationPath = public_path('assets/img/subusers/');
@@ -176,12 +186,6 @@ class SubuserController extends Controller
         $user = Auth::guard('web')->user();
         $subuser = $user->subusers()->findOrFail($id);
 
-        // Check if subuser has any orders
-        if ($subuser->serviceOrders()->count() > 0) {
-            Session::flash('error', 'Cannot delete subuser with existing orders');
-            return redirect()->route('user.subusers.index');
-        }
-
         // Delete subuser image if exists
         if ($subuser->image) {
             $imagePath = public_path('assets/img/subusers/' . $subuser->image);
@@ -190,9 +194,36 @@ class SubuserController extends Controller
             }
         }
 
+        // Count related records before deletion
+        $orderCount = $subuser->serviceOrders()->count();
+        $messageCount = $subuser->messages()->count();
+        
+        // Delete related records (database will handle foreign key constraints)
+        $subuser->serviceOrders()->delete();
+        $subuser->messages()->delete();
+        
+        // Delete related customer offers
+        \App\Models\CustomerOffer::where('subuser_id', $subuser->id)->delete();
+        
+        // Delete related customer briefs
+        \App\Models\CustomerBrief::where('subuser_id', $subuser->id)->delete();
+        
+        // Delete related direct chats and messages
+        \App\Models\DirectChat::where('subuser_id', $subuser->id)->delete();
+        \App\Models\DirectChatMessage::where('subuser_id', $subuser->id)->delete();
+
         $subuser->delete();
 
-        Session::flash('success', 'Subuser deleted successfully!');
+        // Create success message
+        $deletedItems = [];
+        if ($orderCount > 0) $deletedItems[] = "{$orderCount} orders";
+        if ($messageCount > 0) $deletedItems[] = "{$messageCount} messages";
+        
+        $message = !empty($deletedItems) 
+            ? "Subuser and " . implode(', ', $deletedItems) . " deleted successfully!" 
+            : 'Subuser deleted successfully!';
+        Session::flash('success', $message);
+        
         return redirect()->route('user.subusers.index');
     }
 

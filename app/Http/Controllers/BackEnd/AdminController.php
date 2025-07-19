@@ -133,6 +133,41 @@ class AdminController extends Controller
     $information['subscribers'] = Subscriber::query()->count();
     $information['support_tickets'] = SupportTicket::query()->count();
     $information['total_transaction'] = Transaction::query()->count();
+    
+    // Calculate actual total profit from all sources
+    // 1. Tax from seller transactions (type 1) - EXCLUDED from profit calculation
+    // Tax is only counted in the "Total Taxes" card, not in profit
+    $taxProfit = 0; // We don't count tax in profit calculation
+    
+    // 2. Profit amount from service orders
+    $profitAmount = DB::table('service_orders')
+      ->where('payment_status', 'completed')
+      ->sum(DB::raw('COALESCE(profit_amount, 0)'));
+    
+    // 3. Full amount from admin services (no seller, so platform keeps everything)
+    $adminServiceProfit = DB::table('transactions')
+      ->where('payment_status', 'completed')
+      ->where('transcation_type', 1)
+      ->whereNull('seller_id')
+      ->sum(DB::raw('COALESCE(grand_total, 0)'));
+    
+    // 4. Full amount from seller package purchases (type 5)
+    $packageProfit = DB::table('transactions')
+      ->where('payment_status', 'completed')
+      ->where('transcation_type', 5)
+      ->sum(DB::raw('COALESCE(grand_total, 0)'));
+    
+    $information['actual_total_profit'] = $taxProfit + $profitAmount + $adminServiceProfit + $packageProfit;
+    
+    // Calculate total taxes for the Total Taxes card
+    // Include tax from all seller transactions (including service orders)
+    $totalTaxes = DB::table('transactions')
+      ->where('payment_status', 'completed')
+      ->where('transcation_type', 1)
+      ->whereNotNull('seller_id')
+      ->sum(DB::raw('COALESCE(tax, 0)'));
+    
+    $information['actual_total_taxes'] = $totalTaxes;
 
     $monthWiseServiceOrders = DB::table('service_orders')
       ->select(DB::raw('month(created_at) as month'), DB::raw('count(id) as total_service_orders'))
@@ -281,11 +316,20 @@ class AdminController extends Controller
       ->groupBy('month')
       ->whereYear('created_at', '=', $date)
       ->get();
+      
+    // Get profit amounts from service orders
+    $monthWiseTotalProfits = DB::table('service_orders')
+      ->select(DB::raw('month(created_at) as month'), DB::raw('sum(profit_amount) as total'))
+      ->where('payment_status', 'completed')
+      ->groupBy('month')
+      ->whereYear('created_at', '=', $date)
+      ->get();
 
     $months = [];
     $packageIncomes = [];
     $subscriptionIncomes = [];
     $taxes = [];
+    $profits = [];
     for ($i = 1; $i <= 12; $i++) {
       // get all 12 months name
       $monthNum = $i;
@@ -331,11 +375,25 @@ class AdminController extends Controller
       if ($taxFound == false) {
         array_push($taxes, 0);
       }
+      
+      // get all 12 months's profits from service orders
+      $profitFound = false;
+      foreach ($monthWiseTotalProfits as $profitInfo) {
+        if ($profitInfo->month == $i) {
+          $profitFound = true;
+          array_push($profits, $profitInfo->total);
+          break;
+        }
+      }
+      if ($profitFound == false) {
+        array_push($profits, 0);
+      }
     }
     $information['months'] = $months;
     $information['packageIncomes'] = $packageIncomes;
     $information['subscriptionIncomes'] = $subscriptionIncomes;
     $information['taxes'] = $taxes;
+    $information['profits'] = $profits;
 
     return view('backend.admin.total-profit', $information);
   }

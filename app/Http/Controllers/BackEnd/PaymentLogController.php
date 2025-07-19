@@ -183,7 +183,7 @@ class PaymentLogController extends Controller
                     'status' => 1
                 ]);
             }
-            $filename = $this->makeInvoice($data, "membership", $member, null, $membership->price, "offline", $seller->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $membership->transaction_id, $package->title, $membership);
+            $filename = $this->makeInvoice($data, "membership", $member, null, $membership->price, "offline", $seller->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $membership->transaction_id, $package->title, $membership, "seller-memberships");
 
             $mailer = new MegaMailer();
             $data = [
@@ -195,6 +195,7 @@ class PaymentLogController extends Controller
                 'activation_date' => $data['start_date'],
                 'expire_date' => $package->term == "lifetime" ? 'Lifetime' : $data['expire_date'],
                 'membership_invoice' => $filename,
+                'membership_invoice_path' => 'seller-memberships',
                 'website_title' => $bs->website_title,
                 'templateType' => $mailTemplate,
                 'type' => $mailType

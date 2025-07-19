@@ -266,173 +266,225 @@ class OrderProcessController extends Controller
 
   public function storeData($data)
   {
-    \Log::info('StoreData - subuser_id being saved:', [
-      'subuser_id' => $data['subuser_id'] ?? null,
-      'data_keys' => array_keys($data)
-    ]);
-    if (!is_null($data['seller_id'])) {
-      $currentMembership = SellerPermissionHelper::userPackage($data['seller_id']);
-      $seller_membership_id = $currentMembership->id;
-    } else {
-      $seller_membership_id = null;
-    }
-    $orderInfo = ServiceOrder::query()->create([
-      'user_id' => $data['userId'],
-      'subuser_id' => $data['subuser_id'] ?? null,
-      'seller_id' => $data['seller_id'],
-      'order_number' => $data['orderNumber'],
-      'name' => $data['name'],
-      'email_address' => $data['emailAddress'],
-      'informations' => is_array($data['infos']) ? json_encode($data['infos']) : $data['infos'],
-      'service_id' => $data['serviceId'],
-      'package_id' => $data['packageId'],
-      'seller_membership_id' => $seller_membership_id,
-      'package_price' => $data['packagePrice'],
-      'addons' => is_array($data['addons']) ? json_encode($data['addons']) : $data['addons'],
-      'addon_price' => $data['addonPrice'],
-      'tax_percentage' => $data['tax_percentage'],
-      'tax' => $data['tax'],
-      'grand_total' => $data['grandTotal'],
-      'currency_text' => $data['currencyText'],
-      'currency_text_position' => $data['currencyTextPosition'],
-      'currency_symbol' => $data['currencySymbol'],
-      'currency_symbol_position' => $data['currencySymbolPosition'],
-      'payment_method' => $data['paymentMethod'],
-      'gateway_type' => $data['gatewayType'],
-      'payment_status' => $data['paymentStatus'],
-      'order_status' => $data['orderStatus'],
-      'receipt' => array_key_exists('receiptName', $data) ? $data['receiptName'] : null,
-      'conversation_id' => array_key_exists('conversation_id', $data) ? $data['conversation_id'] : null
-    ]);
+    // Use database transaction to ensure order creation and invoice generation happen atomically
+    return \DB::transaction(function () use ($data) {
+      $orderInfo = ServiceOrder::create([
+        'user_id' => $data['userId'],
+        'subuser_id' => array_key_exists('subuser_id', $data) ? $data['subuser_id'] : null,
+        'seller_id' => array_key_exists('seller_id', $data) ? $data['seller_id'] : null,
+        'order_number' => $data['orderNumber'],
+        'name' => $data['name'],
+        'email_address' => $data['emailAddress'],
+        'informations' => array_key_exists('infos', $data) ? (is_array($data['infos']) ? json_encode($data['infos']) : $data['infos']) : null,
+        'service_id' => $data['serviceId'],
+        'package_id' => $data['packageId'],
+        'seller_membership_id' => array_key_exists('seller_membership_id', $data) ? $data['seller_membership_id'] : null,
+        'package_price' => array_key_exists('packagePrice', $data) ? $data['packagePrice'] : null,
+        'addons' => array_key_exists('addons', $data) ? (is_array($data['addons']) ? json_encode($data['addons']) : $data['addons']) : null,
+        'addon_price' => array_key_exists('addonPrice', $data) ? $data['addonPrice'] : null,
+        'grand_total' => $data['grandTotal'],
+        'tax_percentage' => array_key_exists('tax_percentage', $data) ? $data['tax_percentage'] : 0,
+        'tax' => array_key_exists('tax', $data) ? $data['tax'] : 0,
+        'currency_text' => $data['currencyText'],
+        'currency_text_position' => $data['currencyTextPosition'],
+        'currency_symbol' => $data['currencySymbol'],
+        'currency_symbol_position' => $data['currencySymbolPosition'],
+        'payment_method' => $data['paymentMethod'],
+        'gateway_type' => $data['gatewayType'],
+        'payment_status' => $data['paymentStatus'],
+        'order_status' => $data['orderStatus'],
+        'receipt' => array_key_exists('receiptName', $data) ? $data['receiptName'] : null,
+        'conversation_id' => array_key_exists('conversation_id', $data) ? $data['conversation_id'] : null
+      ]);
 
-    // Get service and package details for notifications
-    $service = Service::find($data['serviceId']);
-    $package = \App\Models\ClientService\ServicePackage::find($data['packageId']);
-    
-    // Check if this is a customer offer order
-    $isCustomerOffer = isset($data['conversation_id']) && strpos($data['conversation_id'], 'customer_offer_') === 0;
-    
-    if ($isCustomerOffer) {
-      $offerId = str_replace('customer_offer_', '', $data['conversation_id']);
-      $customerOffer = \App\Models\CustomerOffer::find($offerId);
-      $serviceName = $customerOffer ? $customerOffer->title : 'Customer Offer';
-      $packageName = 'Custom Offer';
-    } else {
-    $serviceName = $service ? $service->content()->where('language_id', 1)->pluck('title')->first() : 'Unknown Service';
-    $packageName = $package ? $package->name : 'Basic Package';
-    }
-    
-    // Prepare detailed notification data
-    $notificationData = [
-      'order_id' => $orderInfo->id,
-      'order_number' => $orderInfo->order_number,
-      'service_name' => $serviceName,
-      'service_id' => $data['serviceId'],
-      'order_status' => $data['orderStatus'],
-      'payment_status' => $data['paymentStatus'],
-      'amount' => $data['grandTotal'],
-      'currency' => $data['currencySymbol'],
-      'customer_name' => $data['name'],
-      'package_name' => $packageName,
-      'payment_method' => $data['paymentMethod'],
-      'gateway_type' => $data['gatewayType'],
-      'is_customer_offer' => $isCustomerOffer,
-      'offer_id' => $isCustomerOffer ? $offerId : null,
-    ];
+      // Generate invoice immediately within the same transaction
+      try {
+        $invoice = $this->generateInvoice($orderInfo);
+        \Log::info('Invoice generated during order creation', [
+          'order_id' => $orderInfo->id,
+          'invoice' => $invoice
+        ]);
+      } catch (\Exception $e) {
+        \Log::error('Invoice generation failed during order creation', [
+          'order_id' => $orderInfo->id,
+          'error' => $e->getMessage()
+        ]);
+        // Don't fail the entire transaction if invoice generation fails
+        // The invoice can be generated later via the fix command
+      }
 
-    // Notify seller
-    if ($data['seller_id']) {
-      $seller = \App\Models\Seller::find($data['seller_id']);
-      if ($seller) {
-        $notificationData['seller_name'] = $seller->username;
+      // Get service and package details for notifications
+      $service = Service::find($data['serviceId']);
+      $package = \App\Models\ClientService\ServicePackage::find($data['packageId']);
+      
+      // Check if this is a customer offer order
+      $isCustomerOffer = isset($data['conversation_id']) && strpos($data['conversation_id'], 'customer_offer_') === 0;
+      
+      if ($isCustomerOffer) {
+        $offerId = str_replace('customer_offer_', '', $data['conversation_id']);
+        $customerOffer = \App\Models\CustomerOffer::find($offerId);
+        $serviceName = $customerOffer ? $customerOffer->title : 'Customer Offer';
+        $packageName = 'Custom Offer';
+      } else {
+        $serviceName = $service ? $service->content()->where('language_id', 1)->pluck('title')->first() : 'Unknown Service';
+        $packageName = $package ? $package->name : 'Basic Package';
+      }
+      
+      // Prepare detailed notification data
+      $notificationData = [
+        'order_id' => $orderInfo->id,
+        'order_number' => $orderInfo->order_number,
+        'service_name' => $serviceName,
+        'service_id' => $data['serviceId'],
+        'order_status' => $data['orderStatus'],
+        'payment_status' => $data['paymentStatus'],
+        'amount' => $data['grandTotal'],
+        'currency' => $data['currencySymbol'],
+        'customer_name' => $data['name'],
+        'package_name' => $packageName,
+        'payment_method' => $data['paymentMethod'],
+        'gateway_type' => $data['gatewayType'],
+        'is_customer_offer' => $isCustomerOffer,
+        'offer_id' => $isCustomerOffer ? $offerId : null,
+      ];
+
+      // Notify seller
+      if (isset($data['seller_id']) && $data['seller_id']) {
+        $seller = \App\Models\Seller::find($data['seller_id']);
+        if ($seller) {
+          $notificationData['seller_name'] = $seller->username;
+          $orderType = $isCustomerOffer ? 'Customer Offer' : 'Service';
+          $notifArr = [
+            'title' => 'New Order Received',
+            'message' => "New {$orderType} order #{$orderInfo->order_number} received: {$serviceName}\nAmount: {$data['currencySymbol']}{$data['grandTotal']}\nStatus: " . ucfirst($data['orderStatus']),
+            'url' => route('seller.service_order.details', ['id' => $orderInfo->id]),
+            'icon' => 'fas fa-shopping-cart',
+            'extra' => $notificationData,
+            'type' => 'order',
+          ];
+          $seller->notify(new OrderNotification($notifArr));
+          // Fire real-time event
+          event(new NotificationReceived($notifArr, 'Seller', $seller->id));
+        }
+      }
+      
+      // Notify all admins
+      $admins = Admin::all();
+      foreach ($admins as $admin) {
         $orderType = $isCustomerOffer ? 'Customer Offer' : 'Service';
         $notifArr = [
-          'title' => 'New Order Received',
-          'message' => "New {$orderType} order #{$orderInfo->order_number} received: {$serviceName}\nAmount: {$data['currencySymbol']}{$data['grandTotal']}\nStatus: " . ucfirst($data['orderStatus']),
-          'url' => route('seller.service_order.details', ['id' => $orderInfo->id]),
+          'title' => 'New Order Placed',
+          'message' => "New {$orderType} order #{$orderInfo->order_number} placed by {$data['name']}: {$serviceName} - Amount: {$data['currencySymbol']}{$data['grandTotal']} - Payment: " . ucfirst($data['paymentStatus']),
+          'url' => route('admin.service_order.details', ['id' => $orderInfo->id]),
           'icon' => 'fas fa-shopping-cart',
           'extra' => $notificationData,
           'type' => 'order',
         ];
-        $seller->notify(new OrderNotification($notifArr));
+        $admin->notify(new OrderNotification($notifArr));
         // Fire real-time event
-        event(new NotificationReceived($notifArr, 'Seller', $seller->id));
+        event(new NotificationReceived($notifArr, 'Admin', $admin->id));
       }
-    }
-    
-    // Notify all admins
-    $admins = Admin::all();
-    foreach ($admins as $admin) {
-      $orderType = $isCustomerOffer ? 'Customer Offer' : 'Service';
-      $notifArr = [
-        'title' => 'New Order Placed',
-        'message' => "New {$orderType} order #{$orderInfo->order_number} placed by {$data['name']}: {$serviceName} - Amount: {$data['currencySymbol']}{$data['grandTotal']} - Payment: " . ucfirst($data['paymentStatus']),
-        'url' => route('admin.service_order.details', ['id' => $orderInfo->id]),
-        'icon' => 'fas fa-shopping-cart',
-        'extra' => $notificationData,
-        'type' => 'order',
-      ];
-      $admin->notify(new OrderNotification($notifArr));
-      // Fire real-time event
-      event(new NotificationReceived($notifArr, 'Admin', $admin->id));
-    }
-    
-    // Notify user only if not a customer offer order
-    $user = \App\Models\User::find($data['userId']);
-    if ($user && !$isCustomerOffer) {
-      $orderType = 'Service';
-      $notifArr = [
-        'title' => 'Order Placed Successfully',
-        'message' => "Your {$orderType} order #{$orderInfo->order_number}: {$serviceName} has been placed successfully. Amount: {$data['currencySymbol']}{$data['grandTotal']} - Payment Status: " . ucfirst($data['paymentStatus']),
-        'url' => route('user.service_order.details', ['id' => $orderInfo->id]),
-        'icon' => 'fas fa-check-circle',
-        'extra' => $notificationData,
-        'type' => 'order',
-      ];
-      $user->notify(new OrderNotification($notifArr));
-      // Fire real-time event
-      event(new NotificationReceived($notifArr, 'User', $user->id));
-    }
+      
+      // Notify user only if not a customer offer order
+      $user = \App\Models\User::find($data['userId']);
+      if ($user && !$isCustomerOffer) {
+        $notifArr = [
+          'title' => 'Order Placed Successfully',
+          'message' => "Your order #{$orderInfo->order_number} for service: {$serviceName} has been placed successfully!",
+          'url' => route('user.service_order.details', ['id' => $orderInfo->id]),
+          'icon' => 'fas fa-shopping-cart',
+          'extra' => $notificationData,
+          'type' => 'order',
+        ];
+        $user->notify(new OrderNotification($notifArr));
+        // Fire real-time event
+        event(new NotificationReceived($notifArr, 'User', $user->id));
+      }
 
-    return $orderInfo;
+      return $orderInfo;
+    });
   }
 
   public function generateInvoice($orderInfo)
   {
-    $invoiceName = $orderInfo->order_number . '.pdf';
+    try {
+      $invoiceName = $orderInfo->order_number . '.pdf';
 
-    $directory = '/assets/file/invoices/service/';
-    @mkdir(public_path($directory), 0775, true);
+      $directory = '/assets/file/invoices/order-invoices/';
+      @mkdir(public_path($directory), 0775, true);
 
-    $fileLocation = $directory . $invoiceName;
+      $fileLocation = $directory . $invoiceName;
 
-    $arrData['orderInfo'] = $orderInfo;
+      $arrData['orderInfo'] = $orderInfo;
 
-    // Get website info for logo and title
-    $websiteInfo = \App\Models\BasicSettings\Basic::first();
-    $arrData['orderInfo']->logo = $websiteInfo->logo;
-    $arrData['orderInfo']->website_title = $websiteInfo->website_title;
+      // Get website info for logo and title
+      $websiteInfo = \App\Models\BasicSettings\Basic::first();
+      $arrData['orderInfo']->logo = $websiteInfo->logo;
+      $arrData['orderInfo']->website_title = $websiteInfo->website_title;
 
-    // get system language
-    $misc = new MiscellaneousController();
+      // get system language
+      $misc = new MiscellaneousController();
+      $language = $misc->getLanguage();
 
-    $language = $misc->getLanguage();
+      // get service title
+      $service = $orderInfo->service()->first();
+      $arrData['serviceTitle'] = $service ? $service->content()->where('language_id', $language->id)->pluck('title')->first() : 'Unknown Service';
 
-    // get service title
-    $service = $orderInfo->service()->first();
-    $arrData['serviceTitle'] = $service->content()->where('language_id', $language->id)->pluck('title')->first();
+      // get package title
+      $package = $orderInfo->package()->first();
+      $arrData['packageTitle'] = $package ? $package->name : 'Basic Package';
 
-    // get package title
-    $package = $orderInfo->package()->first();
-    $arrData['packageTitle'] = $package->name;
+      // Generate PDF
+      Pdf::loadView('frontend.service.invoice', $arrData)->save(public_path($fileLocation));
 
-    Pdf::loadView('frontend.service.invoice', $arrData)->save(public_path($fileLocation));
+      // Verify file was created
+      if (!file_exists(public_path($fileLocation))) {
+        throw new \Exception('PDF file was not created successfully');
+      }
 
-    return $invoiceName;
+      // Update database with invoice filename - use fresh query to avoid stale data
+      $updatedOrder = \App\Models\ClientService\ServiceOrder::find($orderInfo->id);
+      if ($updatedOrder) {
+        $updatedOrder->invoice = $invoiceName;
+        $updatedOrder->save();
+        
+        // Log successful invoice generation
+        \Log::info('Invoice generated successfully', [
+          'order_id' => $orderInfo->id,
+          'order_number' => $orderInfo->order_number,
+          'invoice' => $invoiceName,
+          'file_exists' => file_exists(public_path($fileLocation))
+        ]);
+      } else {
+        throw new \Exception('Order not found for database update');
+      }
+
+      return $invoiceName;
+    } catch (\Exception $e) {
+      \Log::error('Invoice generation failed', [
+        'order_id' => $orderInfo->id,
+        'order_number' => $orderInfo->order_number,
+        'error' => $e->getMessage()
+      ]);
+      
+      // Re-throw the exception so calling code can handle it
+      throw $e;
+    }
   }
 
   public function prepareMail($orderInfo)
   {
+    // Check if this is a customer offer order - if so, skip email sending
+    // because customer offer orders are handled by the admin/seller controllers
+    $isCustomerOffer = isset($orderInfo->conversation_id) && strpos($orderInfo->conversation_id, 'customer_offer_') === 0;
+    if ($isCustomerOffer) {
+      \Log::info('OrderProcessController: Skipping prepareMail for customer offer order - handled by controllers', [
+        'order_id' => $orderInfo->id,
+        'conversation_id' => $orderInfo->conversation_id
+      ]);
+      return;
+    }
+    
     // get the mail template info from db
     $mailTemplate = MailTemplate::query()->where('mail_type', '=', 'service_order')->first();
     $mailData['subject'] = $mailTemplate->mail_subject;
@@ -441,7 +493,10 @@ class OrderProcessController extends Controller
     // get the website title info from db
     $websiteTitle = Basic::query()->pluck('website_title')->first();
 
-    $customerName = $orderInfo->name;
+    // Always use the main user's real name and email address
+    $customerName = $orderInfo->user ? trim($orderInfo->user->first_name . ' ' . $orderInfo->user->last_name) : $orderInfo->name;
+    $recipientEmail = $orderInfo->user ? $orderInfo->user->email_address : $orderInfo->email_address;
+
     $orderNumber = $orderInfo->order_number;
 
     $orderLink = '<br/><a href="' . route('user.service_order.details', ['id' => $orderInfo->id]) . '" style="display: inline-block; font-weight: 400; text-align: center; vertical-align: middle; user-select: none; color: #fff; background-color: #007bff; border-color: #007bff; border-radius: 4px; padding: 6px 12px; font-size: 16px; line-height: 1.5; cursor: pointer; text-decoration: none;">Order Details</a><br/>';
@@ -453,10 +508,9 @@ class OrderProcessController extends Controller
     $mailBody = str_replace('{order_link}', $orderLink, $mailBody);
 
     $mailData['body'] = $mailBody;
+    $mailData['recipient'] = $recipientEmail;
 
-    $mailData['recipient'] = $orderInfo->email_address;
-
-    $mailData['invoice'] = public_path('assets/file/invoices/service/' . $orderInfo->invoice);
+    $mailData['invoice'] = public_path('assets/file/invoices/order-invoices/' . $orderInfo->invoice);
     BasicMailer::sendMail($mailData);
     return;
   }

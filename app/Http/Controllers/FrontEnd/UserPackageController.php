@@ -148,6 +148,10 @@ class UserPackageController extends Controller
                     'body' => $body
                 ];
                 $basicMail->sendMail($data);
+                
+                // Create transaction record for free user package purchase
+                storeUserPackageTransaction($lastMemb, 'Free', $bs);
+                
                 Session::forget('paymentFor');
                 return redirect()->route('user.packages.success', ['type' => 'free']);
             } elseif ($request->payment_method == 'PayPal') {

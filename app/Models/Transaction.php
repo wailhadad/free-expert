@@ -35,6 +35,16 @@ class Transaction extends Model
     {
         return $this->belongsTo(ServiceOrder::class, 'order_id', 'id');
     }
+    
+    public function userMembership()
+    {
+        return $this->belongsTo(UserMembership::class, 'order_id', 'id');
+    }
+    
+    public function sellerMembership()
+    {
+        return $this->belongsTo(Membership::class, 'order_id', 'id');
+    }
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'id');

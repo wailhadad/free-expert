@@ -61,6 +61,7 @@
                         <th scope="col">{{ __('Payment Status') }}</th>
                         <th scope="col">{{ __('Payment Method') }}</th>
                         <th scope="col">{{ __('Receipt') }}</th>
+                        <th scope="col">{{ __('Invoice') }}</th>
                         <th scope="col">{{ __('Actions') }}</th>
                       </tr>
                     </thead>
@@ -128,6 +129,17 @@
                             @if (!empty($membership->receipt))
                               <a class="btn btn-sm btn-info" href="#" data-toggle="modal"
                                 data-target="#receiptModal{{ $membership->id }}">{{ __('Show') }}</a>
+                            @else
+                              -
+                            @endif
+                          </td>
+                          <td>
+                            @if (!empty($membership->invoice))
+                              <a href="{{ asset('assets/file/invoices/seller-memberships/' . $membership->invoice) }}" 
+                                 target="_blank" 
+                                 class="btn btn-sm btn-success">
+                                <i class="fas fa-file-pdf"></i> {{ __('View') }}
+                              </a>
                             @else
                               -
                             @endif
@@ -236,6 +248,16 @@
                                     {{ $membership->price == 0 ? 'Free' : 'Regular' }}
                                   @endif
                                 </p>
+                                
+                                @if($membership->status == 1 && !empty($membership->invoice))
+                                  <div class="mt-3">
+                                    <a href="{{ asset('assets/file/invoices/seller-memberships/' . $membership->invoice) }}" 
+                                       target="_blank" 
+                                       class="btn btn-outline-success">
+                                      <i class="fas fa-file-pdf"></i> {{ __('Download Invoice') }}
+                                    </a>
+                                  </div>
+                                @endif
                               </div>
                               <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-dismiss="modal">

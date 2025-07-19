@@ -185,9 +185,6 @@ class PayPalController extends Controller
         // generate an invoice in pdf format
         $invoice = $orderProcess->generateInvoice($orderInfo);
 
-        // then, update the invoice field info in database
-        $orderInfo->update(['invoice' => $invoice]);
-
         // send a mail to the customer with the invoice
         $orderProcess->prepareMail($orderInfo);
 

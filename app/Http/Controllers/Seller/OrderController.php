@@ -140,33 +140,45 @@ class OrderController extends Controller
 
         // Send email immediately to ensure it works
         try {
+                    // Send email to customer
+        // Get the real user's name, not the order name (which can be subuser name)
+        $realUserName = $order->real_user_name;
+            
             $mailData = [
-                'subject' => 'Notification of payment status',
-                'body' => 'Hi ' . $order->name . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg,
-                'recipient' => $order->email_address,
-                'sessionMessage' => 'Payment status updated & mail has been sent successfully!',
+              'subject' => 'Notification of payment status',
+              'body' => 'Hi ' . $realUserName . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg,
+              'recipient' => $order->email_address,
+              'sessionMessage' => 'Payment status updated & mail has been sent successfully!',
             ];
 
             // Add invoice attachment if available
             if (isset($invoice) && $invoice) {
-                $mailData['invoice'] = public_path('assets/file/invoices/order-invoices/' . $invoice);
+              $mailData['invoice'] = public_path('assets/file/invoices/order-invoices/' . $invoice);
             }
 
             // Check SMTP configuration before sending
             $smtpInfo = \App\Models\BasicSettings\Basic::select('smtp_status', 'smtp_host', 'from_mail')->first();
             if ($smtpInfo && $smtpInfo->smtp_status == 1) {
+              // Only send email if recipient email is valid
+              if (!empty($mailData['recipient']) && filter_var($mailData['recipient'], FILTER_VALIDATE_EMAIL)) {
                 \App\Http\Helpers\BasicMailer::sendMail($mailData);
                 \Log::info('OrderPayment: Email sent via SMTP', [
                     'order_id' => $order->id,
                     'recipient' => $order->email_address,
                     'smtp_host' => $smtpInfo->smtp_host
                 ]);
-            } else {
-                \Log::warning('OrderPayment: SMTP not configured, email not sent', [
+              } else {
+                \Log::warning('OrderPayment: Skipping email - invalid recipient email', [
                     'order_id' => $order->id,
-                    'recipient' => $order->email_address,
-                    'smtp_status' => $smtpInfo ? $smtpInfo->smtp_status : 'null'
+                    'recipient' => $order->email_address ?? 'null'
                 ]);
+              }
+            } else {
+              \Log::warning('OrderPayment: SMTP not configured, email not sent', [
+                  'order_id' => $order->id,
+                  'recipient' => $order->email_address,
+                  'smtp_status' => $smtpInfo ? $smtpInfo->smtp_status : 'null'
+              ]);
             }
             
             \Log::info('OrderPayment: Email sent successfully', [
@@ -293,7 +305,17 @@ class OrderController extends Controller
 
         //check live chat status active or not for this user
         if (!is_null($order->seller_id)) {
-            $checkPermission =  SellerPermissionHelper::getPackageInfo($order->seller_id, $order->seller_membership_id);
+            // First try the stored membership ID, if that fails, check current active membership
+            $checkPermission = SellerPermissionHelper::getPackageInfo($order->seller_id, $order->seller_membership_id);
+            
+            // If stored membership check fails, check current active membership
+            if ($checkPermission != true) {
+                $currentMembership = SellerPermissionHelper::userPackage($order->seller_id);
+                if ($currentMembership) {
+                    $checkPermission = SellerPermissionHelper::getPackageInfoByMembership($currentMembership->id);
+                }
+            }
+            
             if ($checkPermission != true) {
                 Session::flash('success', 'Live chat is not active for this order.');
                 return redirect()->route('seller.dashboard');
@@ -675,11 +697,33 @@ class OrderController extends Controller
 
         $mailData['body'] = $msg;
 
-        $mailData['recipient'] = $serviceOrder->email_address;
+        // Always send to main user's email_address, even if order has subuser_id
+        $mainUser = $serviceOrder->user;
+        $recipientEmail = ($mainUser && !empty($mainUser->email_address)) ? $mainUser->email_address : null;
 
-        $mailData['sessionMessage'] = 'Mail has been sent successfully!';
+        if ($recipientEmail) {
+            $mailData['recipient'] = $recipientEmail;
+            $mailData['sessionMessage'] = 'Mail has been sent successfully!';
 
-        BasicMailer::sendMail($mailData);
+            // Only send email if recipient email is valid
+            if (!empty($mailData['recipient']) && filter_var($mailData['recipient'], FILTER_VALIDATE_EMAIL)) {
+                BasicMailer::sendMail($mailData);
+            } else {
+                \Log::warning('SellerOrderMail: Skipping email - invalid recipient email', [
+                    'order_id' => $serviceOrder->id,
+                    'recipient' => $mailData['recipient'] ?? 'null'
+                ]);
+                Session::flash('warning', 'Mail could not be sent. Invalid recipient email address.');
+            }
+        } else {
+            \Log::warning('SellerOrderMail: No valid recipient email for order', [
+                'order_id' => $serviceOrder->id,
+                'user_id' => $serviceOrder->user_id,
+                'subuser_id' => $serviceOrder->subuser_id,
+            ]);
+            Session::flash('warning', 'Mail could not be sent. No valid recipient email address.');
+        }
+        
         return redirect()->back();
     }
 }

@@ -151,15 +151,41 @@ class SendOrderStatusNotifications implements ShouldQueue
      */
     private function sendCompletedEmails($orderId, $orderNumber, $serviceName, $customerName)
     {
+        // Get the order to check if it's a customer offer order
+        $order = \App\Models\ClientService\ServiceOrder::find($orderId);
+        if (!$order) {
+            \Log::warning('OrderStatusNotifications: Order not found', ['order_id' => $orderId]);
+            return;
+        }
+        
+        // Check if this is a customer offer order - if so, skip email sending
+        // because customer offer orders are handled by the admin/seller controllers
+        $isCustomerOffer = isset($order->conversation_id) && strpos($order->conversation_id, 'customer_offer_') === 0;
+        if ($isCustomerOffer) {
+            \Log::info('OrderStatusNotifications: Skipping email for customer offer order - handled by controllers', [
+                'order_id' => $orderId,
+                'conversation_id' => $order->conversation_id
+            ]);
+            return;
+        }
+        
+        // Get the real user's name, not the order name (which can be subuser name)
+        $realUserName = $order->real_user_name;
+        
         // Send email to customer
         $mailData = [
-            'body' => 'Hi ' . $customerName . ',<br/><br/>We are pleased to inform you that your recent order with order number: #' . $orderNumber . ' has been successfully completed.',
+            'body' => 'Hi ' . $realUserName . ',<br/><br/>We are pleased to inform you that your recent order with order number: #' . $orderNumber . ' has been successfully completed.',
             'subject' => 'Notification of order status',
             'recipient' => $this->notificationData['customer_email'] ?? '',
         ];
 
-        if (!empty($mailData['recipient'])) {
+        if (!empty($mailData['recipient']) && filter_var($mailData['recipient'], FILTER_VALIDATE_EMAIL)) {
             BasicMailer::sendMail($mailData);
+        } else {
+            \Log::warning('OrderStatusNotifications: Skipping customer email - invalid recipient email', [
+                'order_id' => $orderId,
+                'recipient' => $mailData['recipient'] ?? 'null'
+            ]);
         }
         
         // Send email to seller if exists
@@ -169,7 +195,16 @@ class SendOrderStatusNotifications implements ShouldQueue
                 $mailData['recipient'] = $seller->email;
                 $mailData['body'] = 'Hi ' . $seller->username . ',<br/><br/>We are pleased to inform you that your recent project with order number: #' . $orderNumber . ' has been successfully completed.';
                 $mailData['sessionMessage'] = 'Order status updated & mail has been sent successfully!';
-                BasicMailer::sendMail($mailData);
+                
+                if (!empty($mailData['recipient']) && filter_var($mailData['recipient'], FILTER_VALIDATE_EMAIL)) {
+                    BasicMailer::sendMail($mailData);
+                } else {
+                    \Log::warning('OrderStatusNotifications: Skipping seller email - invalid recipient email', [
+                        'order_id' => $orderId,
+                        'seller_id' => $this->notificationData['seller_id'],
+                        'recipient' => $mailData['recipient'] ?? 'null'
+                    ]);
+                }
             }
         }
     }
@@ -179,16 +214,42 @@ class SendOrderStatusNotifications implements ShouldQueue
      */
     private function sendRejectedEmails($orderId, $orderNumber, $serviceName, $customerName)
     {
+        // Get the order to check if it's a customer offer order
+        $order = \App\Models\ClientService\ServiceOrder::find($orderId);
+        if (!$order) {
+            \Log::warning('OrderStatusNotifications: Order not found', ['order_id' => $orderId]);
+            return;
+        }
+        
+        // Check if this is a customer offer order - if so, skip email sending
+        // because customer offer orders are handled by the admin/seller controllers
+        $isCustomerOffer = isset($order->conversation_id) && strpos($order->conversation_id, 'customer_offer_') === 0;
+        if ($isCustomerOffer) {
+            \Log::info('OrderStatusNotifications: Skipping email for customer offer order - handled by controllers', [
+                'order_id' => $orderId,
+                'conversation_id' => $order->conversation_id
+            ]);
+            return;
+        }
+        
+        // Get the real user's name, not the order name (which can be subuser name)
+        $realUserName = $order->real_user_name;
+        
         // Send email to customer
         $mailData = [
-            'body' => 'Hi ' . $customerName . ',<br/><br/>We are sorry to inform you that your recent project with order number: #' . $orderNumber . ' has been rejected.',
+            'body' => 'Hi ' . $realUserName . ',<br/><br/>We are sorry to inform you that your recent project with order number: #' . $orderNumber . ' has been rejected.',
             'subject' => 'Notification of order status',
             'recipient' => $this->notificationData['customer_email'] ?? '',
             'sessionMessage' => 'Order status updated & mail has been sent successfully!',
         ];
 
-        if (!empty($mailData['recipient'])) {
+        if (!empty($mailData['recipient']) && filter_var($mailData['recipient'], FILTER_VALIDATE_EMAIL)) {
             BasicMailer::sendMail($mailData);
+        } else {
+            \Log::warning('OrderStatusNotifications: Skipping rejected order email - invalid recipient email', [
+                'order_id' => $orderId,
+                'recipient' => $mailData['recipient'] ?? 'null'
+            ]);
         }
     }
 

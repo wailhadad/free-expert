@@ -280,7 +280,7 @@
                                 @endif
 
                                 @if (!is_null($order->invoice))
-                                  <a href="{{ asset('assets/file/invoices/service/' . $order->invoice) }}"
+                                  <a href="{{ asset('assets/file/invoices/order-invoices/' . $order->invoice) }}"
                                     class="dropdown-item" target="_blank">
                                     {{ __('Invoice') }}
                                   </a>

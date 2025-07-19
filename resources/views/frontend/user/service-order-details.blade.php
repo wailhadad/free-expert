@@ -61,7 +61,7 @@
 
                           <div class="col-lg-4">
                             <div class="download">
-                              <a href="{{ asset('assets/file/invoices/service/' . $orderInfo->invoice) }}"
+                              <a href="{{ asset('assets/file/invoices/order-invoices/' . $orderInfo->invoice) }}"
                                 download="{{ $slug . '-' . $date . '.pdf' }}" class="btn btn-lg btn-primary radius-sm">
                                 <i class="fas fa-download"></i> {{ __('Invoice') }}
                               </a>

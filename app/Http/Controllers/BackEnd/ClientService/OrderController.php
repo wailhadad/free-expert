@@ -260,9 +260,12 @@ class OrderController extends Controller
         $recipientEmail = ($mainUser && !empty($mainUser->email_address)) ? $mainUser->email_address : null;
 
         if ($recipientEmail) {
+        // Get the real user's name, not the order name (which can be subuser name)
+        $realUserName = $order->real_user_name;
+        
         $mailData = [
           'subject' => 'Notification of payment status',
-          'body' => 'Hi ' . $order->name . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg,
+          'body' => 'Hi ' . $realUserName . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg,
             'recipient' => $recipientEmail,
           'sessionMessage' => 'Payment status updated & mail has been sent successfully!',
         ];
@@ -336,14 +339,23 @@ class OrderController extends Controller
         }
 
         // Send email to customer
-        $mailData = [
-          'subject' => 'Notification of payment status',
-          'body' => 'Hi ' . $order->name . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg,
-          'recipient' => $order->email_address,
-          'sessionMessage' => 'Payment status updated & mail has been sent successfully!',
-        ];
+        // Always send to main user's email_address, even if order has subuser_id
+        $mainUser = $order->user;
+        $recipientEmail = ($mainUser && !empty($mainUser->email_address)) ? $mainUser->email_address : null;
 
-        BasicMailer::sendMail($mailData);
+        if ($recipientEmail) {
+          // Get the real user's name, not the order name (which can be subuser name)
+          $realUserName = $order->real_user_name;
+          
+          $mailData = [
+            'subject' => 'Notification of payment status',
+            'body' => 'Hi ' . $realUserName . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg,
+            'recipient' => $recipientEmail,
+            'sessionMessage' => 'Payment status updated & mail has been sent successfully!',
+          ];
+
+          BasicMailer::sendMail($mailData);
+        }
         
         Log::info('AdminOrderPayment: Notifications and email sent successfully', [
           'order_id' => $order->id,
@@ -400,14 +412,23 @@ class OrderController extends Controller
         }
 
         // Send email to customer
-        $mailData = [
-          'subject' => 'Notification of payment status',
-          'body' => 'Hi ' . $order->name . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg,
-          'recipient' => $order->email_address,
-          'sessionMessage' => 'Payment status updated & mail has been sent successfully!',
-        ];
+        // Always send to main user's email_address, even if order has subuser_id
+        $mainUser = $order->user;
+        $recipientEmail = ($mainUser && !empty($mainUser->email_address)) ? $mainUser->email_address : null;
 
-        BasicMailer::sendMail($mailData);
+        if ($recipientEmail) {
+          // Get the real user's name, not the order name (which can be subuser name)
+          $realUserName = $order->real_user_name;
+          
+          $mailData = [
+            'subject' => 'Notification of payment status',
+            'body' => 'Hi ' . $realUserName . ',<br/><br/>This email is to notify the payment status of your order: #' . $order->order_number . '.<br/>' . $statusMsg,
+            'recipient' => $recipientEmail,
+            'sessionMessage' => 'Payment status updated & mail has been sent successfully!',
+          ];
+
+          BasicMailer::sendMail($mailData);
+        }
         
         Log::info('AdminOrderPayment: Notifications and email sent successfully', [
           'order_id' => $order->id,
@@ -547,24 +568,55 @@ class OrderController extends Controller
       'seller_id' => $order->seller_id,
     ];
 
-    if ($newStatus == 'completed') {
-      $order->update([
-        'order_status' => 'completed'
-      ]);
+          if ($newStatus == 'completed') {
+        // Check if this is a customer offer order
+        $isCustomerOffer = isset($order->conversation_id) && strpos($order->conversation_id, 'customer_offer_') === 0;
+        
+        // Get profit percentage from settings
+        $basicSettings = \App\Models\BasicSettings\Basic::select('profit_percentage')->first();
+        $profitPercentage = $basicSettings ? $basicSettings->profit_percentage : 0;
+        $profitAmount = 0;
+        
+        // Calculate profit amount if there's a seller
+        if ($order->seller_id != null) {
+          if ($isCustomerOffer) {
+            // For customer offer orders, use the existing profit amount if available
+            $profitAmount = $order->profit_amount ?? 0;
+            if ($profitAmount == 0) {
+              // If no profit amount stored, calculate it
+              $originalPrice = $order->grand_total - $order->tax;
+              $profitAmount = ($originalPrice * $profitPercentage) / 100;
+            }
+          } else {
+            // For regular service orders, calculate profit on the original price (before tax)
+            $originalPrice = $order->grand_total - $order->tax;
+            $profitAmount = ($originalPrice * $profitPercentage) / 100;
+          }
+        }
+        
+        $order->update([
+          'order_status' => 'completed',
+          'profit_amount' => $profitAmount
+        ]);
 
       $statusMsg = 'Your order is completed.';
-
+      
       if ($order->seller_id != null) {
         $seller = Seller::where('id', $order->seller_id)->first();
         if ($seller) {
+          // Calculate seller earnings: grand_total - tax - profit_percentage
+          $sellerEarnings = $order->grand_total - $order->tax;
+          $finalSellerEarnings = $sellerEarnings - $profitAmount;
+          
           $pre_balance = $seller->amount;
-          $after_balance = $seller->amount + ($order->grand_total - $order->tax);
+          $after_balance = $seller->amount + $finalSellerEarnings;
           $seller->amount = $after_balance;
           $seller->save();
           
           // Add seller info to notification data
           $notificationData['seller_name'] = $seller->username;
-          $notificationData['seller_earnings'] = $order->grand_total - $order->tax;
+          $notificationData['seller_earnings'] = $finalSellerEarnings;
+          $notificationData['profit_deduction'] = $profitAmount;
         } else {
           $pre_balance = null;
           $after_balance = null;
@@ -597,7 +649,7 @@ class OrderController extends Controller
         
         $data = [
           'life_time_earning' => $order->grand_total,
-          'total_profit' => is_null($order->seller_id) ? $order->grand_total : $order->tax,
+          'total_profit' => is_null($order->seller_id) ? $order->grand_total : ($order->tax + $profitAmount),
         ];
         storeEarnings($data);
         
@@ -630,7 +682,7 @@ class OrderController extends Controller
 
         // Notify seller about order completion
         if ($order->seller_id && isset($seller)) {
-          $earnings = $order->grand_total - $order->tax;
+          $earnings = $finalSellerEarnings;
           $currency = $order->currency_symbol;
           $seller->notify(new \App\Notifications\OrderNotification([
             'title' => 'Order Completed',
@@ -642,19 +694,41 @@ class OrderController extends Controller
         }
 
         // Send emails
+        // Always use the main user's real name and email address
+        $realUserName = $order->user ? trim($order->user->first_name . ' ' . $order->user->last_name) : $order->name;
+        $recipientEmail = $order->user ? $order->user->email_address : $order->email_address;
+        
         $mailData = [
-          'body' => 'Hi ' . $order->name . ',<br/><br/>We are pleased to inform you that your recent order with order number: #' . $order->order_number . ' has been successfully completed.',
+          'body' => 'Hi ' . $realUserName . ',<br/><br/>We are pleased to inform you that your recent order with order number: #' . $order->order_number . ' has been successfully completed.',
           'subject' => 'Notification of order status',
-          'recipient' => $order->email_address,
+          'recipient' => $recipientEmail,
         ];
 
-        BasicMailer::sendMail($mailData);
+        // Only send email if recipient email is valid
+        if (!empty($mailData['recipient']) && filter_var($mailData['recipient'], FILTER_VALIDATE_EMAIL)) {
+          BasicMailer::sendMail($mailData);
+        } else {
+          Log::warning('AdminOrderStatus: Skipping email - invalid recipient email', [
+            'order_id' => $order->id,
+            'recipient' => $mailData['recipient'] ?? 'null'
+          ]);
+        }
         
         if ($order->seller_id && isset($seller)) {
           $mailData['recipient'] = $seller->email;
           $mailData['body'] = 'Hi ' . $seller->username . ',<br/><br/>We are pleased to inform you that your recent project with order number: #' . $order->order_number . ' has been successfully completed.';
           $mailData['sessionMessage'] = 'Order status updated & mail has been sent successfully!';
-          BasicMailer::sendMail($mailData);
+          
+          // Only send email if seller email is valid
+          if (!empty($mailData['recipient']) && filter_var($mailData['recipient'], FILTER_VALIDATE_EMAIL)) {
+            BasicMailer::sendMail($mailData);
+          } else {
+            Log::warning('AdminOrderStatus: Skipping seller email - invalid recipient email', [
+              'order_id' => $order->id,
+              'seller_id' => $order->seller_id,
+              'recipient' => $mailData['recipient'] ?? 'null'
+            ]);
+          }
         }
         
         Log::info('AdminOrderStatus: Notifications and emails sent successfully', [
@@ -704,14 +778,31 @@ class OrderController extends Controller
         }
 
         // Send email to customer
-        $mailData = [
-          'body' => 'Hi ' . $order->name . ',<br/><br/>We are sorry to inform you that your recent project with order number: #' . $order->order_number . ' has been rejected.',
-          'subject' => 'Notification of order status',
-          'recipient' => $order->email_address,
-          'sessionMessage' => 'Order status updated & mail has been sent successfully!',
-        ];
+        // Always send to main user's email_address, even if order has subuser_id
+        $mainUser = $order->user;
+        $recipientEmail = ($mainUser && !empty($mainUser->email_address)) ? $mainUser->email_address : null;
 
-        BasicMailer::sendMail($mailData);
+        if ($recipientEmail) {
+          // Get the real user's name, not the order name (which can be subuser name)
+          $realUserName = $order->real_user_name;
+          
+          $mailData = [
+            'body' => 'Hi ' . $realUserName . ',<br/><br/>We are sorry to inform you that your recent project with order number: #' . $order->order_number . ' has been rejected.',
+            'subject' => 'Notification of order status',
+            'recipient' => $order->email_address,
+            'sessionMessage' => 'Order status updated & mail has been sent successfully!',
+          ];
+        
+          // Only send email if recipient email is valid
+          if (!empty($mailData['recipient']) && filter_var($mailData['recipient'], FILTER_VALIDATE_EMAIL)) {
+            BasicMailer::sendMail($mailData);
+          } else {
+            Log::warning('AdminOrderStatus: Skipping rejected order email - invalid recipient email', [
+              'order_id' => $order->id,
+              'recipient' => $mailData['recipient'] ?? 'null'
+            ]);
+          }
+        }
         
         Log::info('AdminOrderStatus: Notifications and emails sent successfully', [
           'order_id' => $order->id,
@@ -1233,11 +1324,33 @@ class OrderController extends Controller
 
     $mailData['body'] = $msg;
 
-    $mailData['recipient'] = $serviceOrder->email_address;
+    // Always send to main user's email_address, even if order has subuser_id
+    $mainUser = $serviceOrder->user;
+    $recipientEmail = ($mainUser && !empty($mainUser->email_address)) ? $mainUser->email_address : null;
 
-    $mailData['sessionMessage'] = 'Mail has been sent successfully!';
+    if ($recipientEmail) {
+      $mailData['recipient'] = $recipientEmail;
+      $mailData['sessionMessage'] = 'Mail has been sent successfully!';
 
-    BasicMailer::sendMail($mailData);
+      // Only send email if recipient email is valid
+      if (!empty($mailData['recipient']) && filter_var($mailData['recipient'], FILTER_VALIDATE_EMAIL)) {
+        BasicMailer::sendMail($mailData);
+      } else {
+        Log::warning('AdminOrderMail: Skipping email - invalid recipient email', [
+          'order_id' => $serviceOrder->id,
+          'recipient' => $mailData['recipient'] ?? 'null'
+        ]);
+        Session::flash('warning', 'Mail could not be sent. Invalid recipient email address.');
+      }
+    } else {
+      Log::warning('AdminOrderMail: No valid recipient email for order', [
+        'order_id' => $serviceOrder->id,
+        'user_id' => $serviceOrder->user_id,
+        'subuser_id' => $serviceOrder->subuser_id,
+      ]);
+      Session::flash('warning', 'Mail could not be sent. No valid recipient email address.');
+    }
+
     return redirect()->back();
   }
 }

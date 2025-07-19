@@ -28,33 +28,64 @@ class AddUserPackagePaymentMethods extends Command
      */
     public function handle()
     {
-        $paymentControllers = [
-            'StripeController',
-            'PaystackController',
-            'PaytmController',
-            'RazorpayController',
-            'InstamojoController',
-            'MercadopagoController',
-            'FlutterWaveController',
+        $this->info('Adding user package payment methods to all payment controllers...');
+        
+        $controllers = [
             'AuthorizeController',
-            'MollieController',
-            'PhonePeController',
-            'YocoController',
-            'PerfectMoneyController',
-            'ToyyibpayController',
-            'PaytabsController',
+            'FlutterWaveController', 
+            'InstamojoController',
             'IyzicoController',
-            'MyFatoorahController',
+            'MercadopagoController',
             'MidtransController',
-            'XenditController'
+            'MollieController',
+            'MyFatoorahController',
+            'PaystackController',
+            'PaytabsController',
+            'PaytmController',
+            'PerfectMoneyController',
+            'PhonePeController',
+            'RazorpayController',
+            'ToyyibpayController',
+            'XenditController',
+            'YocoController'
         ];
-
-        foreach ($paymentControllers as $controller) {
-            $this->addUserPackageMethods($controller);
+        
+        foreach ($controllers as $controller) {
+            $this->addTransactionCreation($controller);
         }
-
-        $this->info('User package payment methods added to all controllers!');
-        return 0;
+        
+        $this->info('All payment controllers updated successfully!');
+    }
+    
+    private function addTransactionCreation($controllerName)
+    {
+        $filePath = app_path("Http/Controllers/Payment/{$controllerName}.php");
+        
+        if (!file_exists($filePath)) {
+            $this->warn("Controller {$controllerName} not found, skipping...");
+            return;
+        }
+        
+        $content = file_get_contents($filePath);
+        
+        // Check if transaction creation already exists
+        if (strpos($content, 'storeUserPackageTransaction') !== false) {
+            $this->info("Controller {$controllerName} already has transaction creation, skipping...");
+            return;
+        }
+        
+        // Find the pattern to add transaction creation after
+        $pattern = '/@unlink\(public_path\(\'assets\/front\/invoices\/\' \. \$file_name\)\);\s*\n\s*session\(\)->flash\(\'success\', \'Your payment has been completed\.\'\);/';
+        $replacement = "@unlink(public_path('assets/front/invoices/' . \$file_name));\\n\\n            // Create transaction record for user package purchase\\n            storeUserPackageTransaction(\$lastMemb, \$requestData['payment_method'], \$bs);\\n\\n            session()->flash('success', 'Your payment has been completed.');";
+        
+        $newContent = preg_replace($pattern, $replacement, $content);
+        
+        if ($newContent !== $content) {
+            file_put_contents($filePath, $newContent);
+            $this->info("Added transaction creation to {$controllerName}");
+        } else {
+            $this->warn("Could not find pattern in {$controllerName}, manual update may be needed");
+        }
     }
 
     private function addUserPackageMethods($controllerName)

@@ -82,6 +82,18 @@
                               @else
                                 {{ '-' }}
                               @endif
+                            @elseif ($transcation->transcation_type == 5)
+                              @php
+                                $userMembership = $transcation->userMembership()->first();
+                                $sellerMembership = $transcation->sellerMembership()->first();
+                              @endphp
+                              @if ($userMembership)
+                                {{ $userMembership->payment_method ?? '-' }}
+                              @elseif ($sellerMembership)
+                                {{ $sellerMembership->payment_method ?? '-' }}
+                              @else
+                                {{ $transcation->payment_method ?? '-' }}
+                              @endif
                             @else
                               {{ $transcation->payment_method != null ? $transcation->payment_method : '-' }}
                             @endif
@@ -100,7 +112,6 @@
                           <td>
                             @if ($transcation->transcation_type == 2 || $transcation->transcation_type == 4)
                               <span class="text-danger">{{ '(-)' }}</span>
-                            @elseif ($transcation->transcation_type == 5)
                             @else
                               <span class="text-success">{{ '(+)' }}</span>
                             @endif
@@ -145,11 +156,24 @@
                                 $booking = $transcation->order()->first();
                               @endphp
                               @if ($booking)
-                                <a target="_blank" class="btn btn-secondary btn-sm mr-1"
-                                  href="{{ asset('assets/file/invoices/service/' . $booking->invoice) }}">
-                                  <i class="fas fa-eye"></i>
-                                </a>
+                                @if (!empty($booking->invoice))
+                                  <a
+                                    href="{{ asset('assets/file/invoices/order-invoices/' . $booking->invoice) }}"
+                                    target="_blank"
+                                    class="btn btn-primary btn-sm"
+                                  >
+                                    <i class="fas fa-eye"></i>
+                                  </a>
+                                @else
+                                  <span class="text-muted">No invoice</span>
+                                @endif
+                              @else
+                                <span class="text-muted">No order</span>
                               @endif
+                            @elseif ($transcation->transcation_type == 5)
+                              {{ '-' }}
+                            @else
+                              <span class="text-muted">-</span>
                             @endif
                           </td>
                         </tr>
