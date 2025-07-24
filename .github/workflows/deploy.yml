@@ -17,13 +17,10 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_KEY }}
           script: |
-            
             cd /var/www/html
-            
             # If .git folder doesn't exist, clone the repository
             if [ ! -d ".git" ]; then
               sudo rm -rf /var/www/html/{*,.*}
-    
               sudo git clone https://github.com/wailhadad/free-expert.git .
             else
               sudo git reset --hard
@@ -35,6 +32,12 @@ jobs:
 
             # Run database migrations
             sudo php artisan migrate --force
+
+            sudo chown -R www-data:www-data public/assets/file/invoices
             
             sudo chown -R www-data:www-data storage bootstrap/cache
             sudo chmod -R 775 storage bootstrap/cache
+
+            sudo chmod +x artisan
+            sudo chmod +x run_scheduler.sh
+            sudo ./run_scheduler.sh

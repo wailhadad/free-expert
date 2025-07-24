@@ -331,6 +331,22 @@
             <p>Buy Plan</p>
           </a>
         </li>
+        @php
+          $current_membership = 
+            \App\Models\Membership::where('seller_id', $seller->id)
+              ->where('status', 1)
+              ->where('start_date', '<=', now())
+              ->where('expire_date', '>=', now())
+              ->first();
+        @endphp
+        @if($current_membership)
+        <li class="nav-item @if (request()->routeIs('seller.modify_membership')) active @endif">
+          <a href="{{ route('seller.modify_membership') }}">
+            <i class="fas fa-exchange-alt"></i>
+            <p>{{ __('Modify Membership') }}</p>
+          </a>
+        </li>
+        @endif
         <li class="nav-item @if (request()->routeIs('seller.subscription_log')) active @endif">
           <a href="{{ route('seller.subscription_log') }}">
             <i class="fas fa-list-ol"></i>

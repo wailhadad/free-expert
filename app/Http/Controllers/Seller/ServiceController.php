@@ -28,14 +28,32 @@ class ServiceController extends Controller
     public function index(Request $request)
     {
         $language = Language::query()->where('code', '=', $request->language)->firstOrFail();
-
-        $information['services'] = Service::query()->join('service_contents', 'services.id', '=', 'service_contents.service_id')
+        
+        // Check for flash message from URL parameter
+        if ($request->has('error')) {
+            session()->flash('error', urldecode($request->error));
+        }
+        
+        // Get current package limits
+        $currentPackage = \App\Http\Helpers\SellerPermissionHelper::currentPackagePermission(Auth::guard('seller')->user()->id);
+        $serviceLimit = $currentPackage ? $currentPackage->number_of_service_add : 0;
+        
+        $query = Service::query()->join('service_contents', 'services.id', '=', 'service_contents.service_id')
             ->join('service_categories', 'service_categories.id', '=', 'service_contents.service_category_id')
             ->where([['service_contents.language_id', '=', $language->id], ['seller_id', Auth::guard('seller')->user()->id]])
             ->select('services.id', 'service_contents.title', 'service_contents.slug', 'service_categories.name as categoryName', 'services.is_featured', 'services.quote_btn_status')
-            ->orderByDesc('services.id')
-            ->get();
+            ->orderByDesc('services.id');
+        
+        // Get all services (no limit applied)
+        $information['services'] = $query->get();
         $information['langs'] = Language::all();
+        $information['serviceLimit'] = $serviceLimit;
+        $information['totalServices'] = Service::where('seller_id', Auth::guard('seller')->user()->id)->count();
+        
+        // Get services within limit for prioritization logic (for dashboard display)
+        $servicesWithinLimit = \App\Http\Helpers\UserPermissionHelper::getSellerServicesWithinLimitForDashboard(Auth::guard('seller')->user()->id, $serviceLimit, $language->id);
+        $information['servicesWithinLimit'] = $servicesWithinLimit;
+        $information['isPrioritized'] = $serviceLimit > 0 && $information['totalServices'] > $serviceLimit;
 
         return view('seller.service.index', $information);
     }
@@ -133,6 +151,22 @@ class ServiceController extends Controller
      */
     public function store(ServiceStoreRequest $request)
     {
+        // Check service limit before creating
+        $currentPackage = \App\Http\Helpers\SellerPermissionHelper::currentPackagePermission(Auth::guard('seller')->user()->id);
+        $serviceLimit = $currentPackage ? $currentPackage->number_of_service_add : 0;
+        $currentServiceCount = Service::where('seller_id', Auth::guard('seller')->user()->id)->count();
+        
+        if ($serviceLimit == 0) {
+            return Response::json([
+                'error' => 'Your current package does not allow service creation.'
+            ], 400);
+        }
+        
+        if ($currentServiceCount >= $serviceLimit) {
+            return Response::json([
+                'error' => 'You have reached the maximum number of services allowed by your package.'
+            ], 400);
+        }
 
         // store thumbnail image in storage
         $thumbnailImage = UploadFile::store('./assets/img/services/thumbnail-images/', $request->file('thumbnail_image'));
@@ -327,23 +361,31 @@ class ServiceController extends Controller
         $languages = Language::all();
 
         foreach ($languages as $language) {
-            $serviceContent = ServiceContent::query()->where('service_id', '=', $id)
-                ->where('language_id', '=', $language->id)
-                ->first();
-            if (empty($serviceContent)) {
-                $serviceContent = new ServiceContent();
+            // Only update/create service content if the language has required data
+            if ($language->is_default || 
+                ($request->filled($language->code . '_title') && 
+                 $request->filled($language->code . '_category_id') && 
+                 $request->filled($language->code . '_description'))) {
+                $serviceContent = ServiceContent::query()->where('service_id', '=', $id)
+                    ->where('language_id', '=', $language->id)
+                    ->first();
+                if (empty($serviceContent)) {
+                    $serviceContent = new ServiceContent();
+                    $serviceContent->language_id = $language->id;
+                    $serviceContent->service_id = $service->id;
+                }
+                $serviceContent->service_category_id = $request[$language->code . '_category_id'];
+                $serviceContent->service_subcategory_id = !empty($request[$language->code . '_subcategory_id']) ? $request[$language->code . '_subcategory_id'] : NULL;
+                $serviceContent->form_id = $request->filled($language->code . '_form_id') ? $request[$language->code . '_form_id'] : NULL;
+                $serviceContent->title = $request[$language->code . '_title'];
+                $serviceContent->slug = createSlug($request[$language->code . '_title']);
+                $serviceContent->description = Purifier::clean($request[$language->code . '_description'], 'youtube');
+                $serviceContent->tags = $request->filled($language->code . '_tags') ? $request[$language->code . '_tags'] : NULL;
+                $serviceContent->skills = $request->filled($language->code . '_skills') ? json_encode($request[$language->code . '_skills']) : NULL;
+                $serviceContent->meta_keywords = $request->filled($language->code . '_meta_keywords') ? $request[$language->code . '_meta_keywords'] : NULL;
+                $serviceContent->meta_description = $request->filled($language->code . '_meta_description') ? $request[$language->code . '_meta_description'] : NULL;
+                $serviceContent->save();
             }
-            $serviceContent->service_category_id = $request[$language->code . '_category_id'];
-            $serviceContent->service_subcategory_id = !empty($request[$language->code . '_subcategory_id']) ? $request[$language->code . '_subcategory_id'] : NULL;
-            $serviceContent->form_id = $request[$language->code . '_form_id'];
-            $serviceContent->title = $request[$language->code . '_title'];
-            $serviceContent->slug = createSlug($request[$language->code . '_title']);
-            $serviceContent->description = Purifier::clean($request[$language->code . '_description'], 'youtube');
-            $serviceContent->tags = $request[$language->code . '_tags'];
-            $serviceContent->skills = json_encode($request[$language->code . '_skills']);
-            $serviceContent->meta_keywords = $request[$language->code . '_meta_keywords'];
-            $serviceContent->meta_description = $request[$language->code . '_meta_description'];
-            $serviceContent->save();
         }
 
         $request->session()->flash('success', 'Service updated successfully!');

@@ -395,6 +395,9 @@ Route::middleware(['auth:web'])->group(function () {
     Route::post('direct-chat/{chat}/read', [\App\Http\Controllers\DirectChatMessageController::class, 'markAsRead']);
     Route::get('direct-chat/unread-count', [\App\Http\Controllers\DirectChatController::class, 'unreadCount']);
     
+    // Subuser API routes
+    Route::get('subusers/prioritized', [\App\Http\Controllers\FrontEnd\SubuserController::class, 'getPrioritizedSubusers']);
+    
     // Customer Offer routes for users
     Route::get('customer-offer/{chat}/offers', [\App\Http\Controllers\CustomerOfferController::class, 'getOffers']);
     Route::post('customer-offer/{offer}/accept', [\App\Http\Controllers\CustomerOfferController::class, 'accept']);

@@ -53,137 +53,163 @@
           <div class=" @if ($quoteBtnStatus == 0) col-lg-8 @else col-12 @endif">
             <input type="hidden" name="quote_btn_status" value="{{ $quoteBtnStatus }}">
             <div class="row mb-40">
-              <!-- Removed Name and Email Address fields from checkout form -->
-              @foreach ($inputFields as $inputField)
-                @if ($inputField->type == 1)
-                  <div class="col-md-6">
-                    <div class="form-group mb-30">
-                      <label>
-                        {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
-                      </label>
-                      <input type="text" class="form-control" name="{{ $inputField->name }}"
-                        placeholder="{{ __($inputField->placeholder) }}" value="{{ old($inputField->name) }}">
-                      @error($inputField->name)
-                        <p class="mt-2 text-danger">{{ $message }}</p>
-                      @enderror
-                    </div>
+              <!-- Service Information Section -->
+              <div class="col-12 mb-4">
+                <div class="card">
+                  <div class="card-body">
+                    <h4 class="card-title">{{ __('Service Information') }}</h4>
+                    <p class="card-text">{{ $serviceTitle ?? __('Service Details') }}</p>
+                    @if(isset($package))
+                      <div class="mt-3">
+                        <h6>{{ __('Selected Package') }}: {{ $package->name }}</h6>
+                        <p class="text-muted">{{ __('Package details and features are shown in the payment section.') }}</p>
+                      </div>
+                    @endif
                   </div>
-                @elseif ($inputField->type == 2)
-                  <div class="col-md-6">
-                    <div class="form-group mb-30">
-                      <label>
-                        {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
-                      </label>
-                      <input type="number" class="form-control" name="{{ $inputField->name }}"
-                        placeholder="{{ __($inputField->placeholder) }}" value="{{ old($inputField->name) }}">
-                      @error($inputField->name)
-                        <p class="mt-2 text-danger">{{ $message }}</p>
-                      @enderror
+                </div>
+              </div>
+
+              <!-- Form Fields Section -->
+              @if(count($inputFields) > 0)
+                @foreach ($inputFields as $inputField)
+                  @if ($inputField->type == 1)
+                    <div class="col-md-6">
+                      <div class="form-group mb-30">
+                        <label>
+                          {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
+                        </label>
+                        <input type="text" class="form-control" name="{{ $inputField->name }}"
+                          placeholder="{{ __($inputField->placeholder) }}" value="{{ old($inputField->name) }}">
+                        @error($inputField->name)
+                          <p class="mt-2 text-danger">{{ $message }}</p>
+                        @enderror
+                      </div>
                     </div>
-                  </div>
-                @elseif ($inputField->type == 3)
-                  @php $options = json_decode($inputField->options); @endphp
+                  @elseif ($inputField->type == 2)
+                    <div class="col-md-6">
+                      <div class="form-group mb-30">
+                        <label>
+                          {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
+                        </label>
+                        <input type="number" class="form-control" name="{{ $inputField->name }}"
+                          placeholder="{{ __($inputField->placeholder) }}" value="{{ old($inputField->name) }}">
+                        @error($inputField->name)
+                          <p class="mt-2 text-danger">{{ $message }}</p>
+                        @enderror
+                      </div>
+                    </div>
+                  @elseif ($inputField->type == 3)
+                    @php $options = json_decode($inputField->options); @endphp
 
-                  <div class="col-md-6">
-                    <div class="form-group mb-30">
-                      <label>
-                        {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
-                      </label>
-                      <select class="form-control" name="{{ $inputField->name }}">
-                        <option selected disabled>{{ __($inputField->placeholder) }}</option>
+                    <div class="col-md-6">
+                      <div class="form-group mb-30">
+                        <label>
+                          {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
+                        </label>
+                        <select class="form-control" name="{{ $inputField->name }}">
+                          <option selected disabled>{{ __($inputField->placeholder) }}</option>
 
+                          @foreach ($options as $option)
+                            <option value="{{ $option }}" {{ old($inputField->name) == $option ? 'selected' : '' }}>
+                              {{ __($option) }}
+                            </option>
+                          @endforeach
+                        </select>
+                        @error($inputField->name)
+                          <p class="mt-2 text-danger">{{ $message }}</p>
+                        @enderror
+                      </div>
+                    </div>
+                  @elseif ($inputField->type == 4)
+                    @php $options = json_decode($inputField->options); @endphp
+
+                    <div class="col-12">
+                      <div class="form-group mb-30">
+                        <label class="mb-1">
+                          {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
+                        </label>
+                        <br>
                         @foreach ($options as $option)
-                          <option value="{{ $option }}" {{ old($inputField->name) == $option ? 'selected' : '' }}>
-                            {{ __($option) }}
-                          </option>
+                          <div class="custom-control custom-checkbox custom-control-inline">
+                            <input type="checkbox" id="{{ 'option-' . $loop->iteration }}"
+                              name="{{ $inputField->name . '[]' }}" class="custom-control-input"
+                              value="{{ $option }}"
+                              {{ is_array(old($inputField->name)) && in_array($option, old($inputField->name)) ? 'checked' : '' }}>
+                            <label for="{{ 'option-' . $loop->iteration }}"
+                              class="custom-control-label">{{ $option }}</label>
+                          </div>
                         @endforeach
-                      </select>
-                      @error($inputField->name)
-                        <p class="mt-2 text-danger">{{ $message }}</p>
-                      @enderror
+                        @error($inputField->name)
+                          <p class="mt-2 text-danger">{{ $message }}</p>
+                        @enderror
+                      </div>
                     </div>
-                  </div>
-                @elseif ($inputField->type == 4)
-                  @php $options = json_decode($inputField->options); @endphp
-
-                  <div class="col-12">
-                    <div class="form-group mb-30">
-                      <label class="mb-1">
-                        {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
-                      </label>
-                      <br>
-                      @foreach ($options as $option)
-                        <div class="custom-control custom-checkbox custom-control-inline">
-                          <input type="checkbox" id="{{ 'option-' . $loop->iteration }}"
-                            name="{{ $inputField->name . '[]' }}" class="custom-control-input"
-                            value="{{ $option }}"
-                            {{ is_array(old($inputField->name)) && in_array($option, old($inputField->name)) ? 'checked' : '' }}>
-                          <label for="{{ 'option-' . $loop->iteration }}"
-                            class="custom-control-label">{{ $option }}</label>
-                        </div>
-                      @endforeach
-                      @error($inputField->name)
-                        <p class="mt-2 text-danger">{{ $message }}</p>
-                      @enderror
+                  @elseif ($inputField->type == 5)
+                    <div class="col-12">
+                      <div class="form-group mb-30">
+                        <label>
+                          {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
+                        </label>
+                        <textarea class="form-control" name="{{ $inputField->name }}" placeholder="{{ __($inputField->placeholder) }}"
+                          rows="2">{{ old($inputField->name) }}</textarea>
+                        @error($inputField->name)
+                          <p class="mt-2 text-danger">{{ $message }}</p>
+                        @enderror
+                      </div>
                     </div>
-                  </div>
-                @elseif ($inputField->type == 5)
-                  <div class="col-12">
-                    <div class="form-group mb-30">
-                      <label>
-                        {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
-                      </label>
-                      <textarea class="form-control" name="{{ $inputField->name }}" placeholder="{{ __($inputField->placeholder) }}"
-                        rows="2">{{ old($inputField->name) }}</textarea>
-                      @error($inputField->name)
-                        <p class="mt-2 text-danger">{{ $message }}</p>
-                      @enderror
+                  @elseif ($inputField->type == 6)
+                    <div class="col-md-6">
+                      <div class="form-group mb-30">
+                        <label>
+                          {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
+                        </label>
+                        <input type="text" class="form-control datepicker ltr" name="{{ $inputField->name }}"
+                          placeholder="{{ __($inputField->placeholder) }}" readonly autocomplete="off"
+                          value="{{ old($inputField->name) }}">
+                        @error($inputField->name)
+                          <p class="mt-2 text-danger">{{ $message }}</p>
+                        @enderror
+                      </div>
                     </div>
-                  </div>
-                @elseif ($inputField->type == 6)
-                  <div class="col-md-6">
-                    <div class="form-group mb-30">
-                      <label>
-                        {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
-                      </label>
-                      <input type="text" class="form-control datepicker ltr" name="{{ $inputField->name }}"
-                        placeholder="{{ __($inputField->placeholder) }}" readonly autocomplete="off"
-                        value="{{ old($inputField->name) }}">
-                      @error($inputField->name)
-                        <p class="mt-2 text-danger">{{ $message }}</p>
-                      @enderror
+                  @elseif ($inputField->type == 7)
+                    <div class="col-md-6">
+                      <div class="form-group mb-30">
+                        <label>
+                          {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
+                        </label>
+                        <input type="text" class="form-control timepicker ltr" name="{{ $inputField->name }}"
+                          placeholder="{{ __($inputField->placeholder) }}" readonly autocomplete="off"
+                          value="{{ old($inputField->name) }}">
+                        @error($inputField->name)
+                          <p class="mt-2 text-danger">{{ $message }}</p>
+                        @enderror
+                      </div>
                     </div>
-                  </div>
-                @elseif ($inputField->type == 7)
-                  <div class="col-md-6">
-                    <div class="form-group mb-30">
-                      <label>
-                        {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
-                      </label>
-                      <input type="text" class="form-control timepicker ltr" name="{{ $inputField->name }}"
-                        placeholder="{{ __($inputField->placeholder) }}" readonly autocomplete="off"
-                        value="{{ old($inputField->name) }}">
-                      @error($inputField->name)
-                        <p class="mt-2 text-danger">{{ $message }}</p>
-                      @enderror
+                  @else
+                    <div class="col-md-6">
+                      <div class="form-group mb-30">
+                        <label>
+                          {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
+                          <span
+                            class="text-info {{ $currentLanguageInfo->direction == 0 ? 'ms-2' : 'me-2' }}">({{ __('Only .zip file is allowed') . '.' }})</span>
+                        </label>
+                        <input type="file" name="{{ 'form_builder_' . $inputField->name }}">
+                        @error("form_builder_$inputField->name")
+                          <p class="mt-2 text-danger">{{ $message }}</p>
+                        @enderror
+                      </div>
                     </div>
+                  @endif
+                @endforeach
+              @else
+                <!-- No Form Fields Message -->
+                <div class="col-12">
+                  <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    {{ __('No additional information required for this service. You can proceed with the payment.') }}
                   </div>
-                @else
-                  <div class="col-md-6">
-                    <div class="form-group mb-30">
-                      <label>
-                        {{ __($inputField->label) }}{{ $inputField->is_required == 1 ? '*' : '' }}
-                        <span
-                          class="text-info {{ $currentLanguageInfo->direction == 0 ? 'ms-2' : 'me-2' }}">({{ __('Only .zip file is allowed') . '.' }})</span>
-                      </label>
-                      <input type="file" name="{{ 'form_builder_' . $inputField->name }}">
-                      @error("form_builder_$inputField->name")
-                        <p class="mt-2 text-danger">{{ $message }}</p>
-                      @enderror
-                    </div>
-                  </div>
-                @endif
-              @endforeach
+                </div>
+              @endif
             </div>
 
             @if ($quoteBtnStatus != 0)
@@ -536,28 +562,60 @@ document.addEventListener('DOMContentLoaded', function() {
   const myselfLi = document.createElement('li');
   myselfLi.innerHTML = `<a class="dropdown-item d-flex align-items-center" href="#" data-id="" data-avatar="${mainUser.image}" data-name="${mainUser.username}">
     <img src="${mainUser.image}" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
-    <span>${mainUser.username} <span class="text-muted">(Main Account)</span></span>
+    <span class="flex-grow-1">${mainUser.username} <span class="text-muted">(Main Account)</span></span>
+    <span class="badge badge-success badge-sm">Active</span>
   </a>`;
   dropdownMenu.appendChild(myselfLi);
   document.getElementById('subuser_id').value = '';
-  fetch('/user/subusers/json')
+  fetch('/subusers/prioritized')
     .then(res => res.json())
     .then(data => {
       if (data.subusers && data.subusers.length) {
         data.subusers.forEach(subuser => {
-          const avatar = subuser.image ? '/assets/img/subusers/' + subuser.image : mainUser.image;
           const li = document.createElement('li');
-          li.innerHTML = `<a class="dropdown-item d-flex align-items-center" href="#" data-id="${subuser.id}" data-avatar="${avatar}" data-name="${subuser.username}">
-            <img src="${avatar}" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
-            <span>${subuser.username} <span class="text-muted">(${subuser.first_name} ${subuser.last_name})</span></span>
+          const statusBadge = subuser.status ? 
+            '<span class="badge badge-success badge-sm ms-auto">Active</span>' : 
+            '<span class="badge badge-danger badge-sm ms-auto">Inactive</span>';
+          
+          // Add disabled class and data attribute for inactive subusers
+          const isActive = subuser.status;
+          const disabledClass = isActive ? '' : 'disabled-subuser';
+          const disabledAttr = isActive ? '' : 'data-disabled="true"';
+          const lockIcon = isActive ? '' : '<i class="fas fa-lock text-muted me-1" style="font-size: 0.75rem;"></i>';
+          
+          li.innerHTML = `<a class="dropdown-item d-flex align-items-center ${disabledClass}" href="#" data-id="${subuser.id}" data-avatar="${subuser.image}" data-name="${subuser.username}" ${disabledAttr}>
+            <img src="${subuser.image}" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
+            <span class="flex-grow-1">${lockIcon}${subuser.username} <span class="text-muted">(${subuser.full_name})</span></span>
+            ${statusBadge}
           </a>`;
           dropdownMenu.appendChild(li);
         });
       }
+      
+      // Show prioritization info if applicable
+      if (data.is_prioritized) {
+        const infoLi = document.createElement('li');
+        infoLi.innerHTML = `
+          <div class="dropdown-item-text small text-muted">
+            <i class="fas fa-info-circle"></i>
+            Showing all ${data.actual_count} subusers (${data.total_max_subusers} can be used for orders)
+            <br><small><i class="fas fa-lock"></i> Inactive subusers cannot be selected for orders</small>
+          </div>
+        `;
+        dropdownMenu.appendChild(infoLi);
+      }
+      
       // Click handler
       dropdownMenu.querySelectorAll('a.dropdown-item').forEach(a => {
         a.addEventListener('click', function(e) {
           e.preventDefault();
+          
+          // Check if this subuser is disabled/inactive
+          if (this.hasAttribute('data-disabled') || this.classList.contains('disabled-subuser')) {
+            console.log('Inactive subuser clicked - selection prevented');
+            return; // Prevent selection of inactive subusers
+          }
+          
           dropdownAvatar.src = this.getAttribute('data-avatar');
           dropdownName.textContent = this.getAttribute('data-name');
           const id = this.getAttribute('data-id');
@@ -579,13 +637,69 @@ document.addEventListener('DOMContentLoaded', function() {
   border: 2px solid transparent;
   transition: border 0.2s, box-shadow 0.2s;
 }
-.profile-option.profile-selected {
-  border: 2px solid #ff9800;
-  box-shadow: 0 2px 8px rgba(255,152,0,0.12);
-  background: #fff8e1;
+
+/* Status badge styles for dropdowns */
+.badge-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
 }
-.profile-option:hover {
-  border: 2px solid #ff9800;
+
+.dropdown-item .badge {
+    font-weight: 500;
+}
+
+.dropdown-item:hover .badge {
+    opacity: 0.8;
+}
+
+/* Ensure proper spacing in dropdown items */
+.dropdown-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    padding: 0.5rem 1rem !important;
+}
+
+.dropdown-item .flex-grow-1 {
+    flex: 1;
+    min-width: 0;
+}
+
+.dropdown-item img {
+    flex-shrink: 0;
+}
+
+.dropdown-item .badge {
+    flex-shrink: 0;
+}
+
+/* Disabled subuser styles for service checkout */
+.dropdown-item.disabled-subuser {
+    cursor: not-allowed !important;
+    opacity: 0.6;
+    pointer-events: auto; /* Keep pointer events for hover effects */
+}
+
+.dropdown-item.disabled-subuser:hover {
+    background-color: #f8f9fa !important;
+    cursor: not-allowed !important;
+}
+
+.dropdown-item.disabled-subuser img {
+    opacity: 0.6;
+}
+
+.dropdown-item.disabled-subuser span {
+    color: #6c757d !important;
+}
+
+.dropdown-item.disabled-subuser .text-muted {
+    color: #adb5bd !important;
+}
+
+/* Ensure inactive badge text remains white */
+.dropdown-item.disabled-subuser .badge-danger {
+    color: white !important;
 }
 </style>
 @endpush

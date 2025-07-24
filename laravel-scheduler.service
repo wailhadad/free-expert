@@ -1,0 +1,15 @@
+[Unit]
+Description=Laravel Scheduler
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/path/to/your/project
+ExecStart=/usr/bin/php artisan schedule:work
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target 

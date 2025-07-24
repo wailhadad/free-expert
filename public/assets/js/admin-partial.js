@@ -315,6 +315,17 @@ $(document).ready(function () {
         console.log('Service form error:', error);
         console.log('Error response:', error.responseJSON);
         
+        // Check for package limit errors and redirect with flash message
+        if (error.responseJSON.error && 
+            (error.responseJSON.error.includes('package') || 
+             error.responseJSON.error.includes('maximum number') ||
+             error.responseJSON.error.includes('does not allow'))) {
+          
+          // Redirect to services index with flash message
+          window.location.href = '/seller/service-management/services?language=en&error=' + encodeURIComponent(error.responseJSON.error);
+          return;
+        }
+
         let errors = ``;
 
         // Check if there are specific field errors
@@ -325,6 +336,12 @@ $(document).ready(function () {
                 </li>`;
           }
         } 
+        // Check for specific error message from backend
+        else if (error.responseJSON.error) {
+          errors += `<li>
+                <p class="text-danger mb-0">${error.responseJSON.error}</p>
+              </li>`;
+        }
         // If no field errors but there's a general message, display it
         else if (error.responseJSON.message) {
           errors += `<li>

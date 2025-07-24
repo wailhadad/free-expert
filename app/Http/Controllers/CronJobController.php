@@ -13,6 +13,9 @@ use App\Models\Membership;
 use App\Models\Package;
 use App\Models\PaymentGateway\OnlineGateway;
 use App\Models\Seller;
+use App\Notifications\MembershipExpiredNotification;
+use App\Notifications\GracePeriodStartedNotification;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 
 class CronJobController extends Controller
@@ -21,30 +24,313 @@ class CronJobController extends Controller
     {
         try {
             $bs = Basic::first();
+            $gracePeriodMinutes = $bs->grace_period_minutes ?? 2;
+            $notificationService = new NotificationService();
 
-            $expired_members = Membership::whereDate('expire_date', Carbon::now()->subDays(1))->get();
+            // Find memberships that just expired and need to enter grace period
+            // (exclude those already in grace period)
+            $expired_members = Membership::where('status', 1)
+                ->where('expire_date', '<', Carbon::now())
+                ->where(function($query) {
+                    $query->whereNull('processed_for_renewal')
+                          ->orWhere('processed_for_renewal', 0);
+                })
+                ->where(function($query) {
+                    $query->whereNull('in_grace_period')
+                          ->orWhere('in_grace_period', 0);
+                })
+                ->get();
             foreach ($expired_members as $key => $expired_member) {
                 if (!empty($expired_member->seller)) {
                     $seller = $expired_member->seller;
-                    $current_package = SellerPermissionHelper::userPackage($seller->id);
-                    if (is_null($current_package)) {
-                        SubscriptionExpiredMail::dispatch($seller, $bs);
+                    
+                    // Check if seller has sufficient balance for auto-renewal
+                    $package = $expired_member->package;
+                    $price = $package->price;
+                    
+                    if ($seller->amount >= $price) {
+                        // Sufficient balance - attempt auto-renewal immediately
+                        \Log::info("Seller has sufficient balance for auto-renewal", [
+                            'seller_id' => $seller->id,
+                            'membership_id' => $expired_member->id,
+                            'current_balance' => $seller->amount,
+                            'package_price' => $price
+                        ]);
+                        
+                        // Deduct price and create new membership
+                        $seller->amount -= $price;
+                        $seller->save();
+                        
+                        $now = Carbon::now();
+                        $startDate = $now;
+                        $expireDate = null;
+                        if ($package->term == 'monthly') {
+                            $expireDate = $startDate->copy()->addMonth();
+                        } elseif ($package->term == 'yearly') {
+                            $expireDate = $startDate->copy()->addYear();
+                        } elseif ($package->term == 'lifetime') {
+                            $expireDate = Carbon::maxValue();
+                        }
+                        
+                        $newMembership = Membership::create([
+                            'price' => $package->price,
+                            'currency' => $bs->base_currency_text,
+                            'currency_symbol' => $bs->base_currency_symbol,
+                            'payment_method' => 'balance_auto',
+                            'transaction_id' => uniqid(),
+                            'status' => 1,
+                            'receipt' => NULL,
+                            'transaction_details' => NULL,
+                            'settings' => null,
+                            'package_id' => $package->id,
+                            'seller_id' => $seller->id,
+                            'start_date' => $startDate,
+                            'expire_date' => $expireDate,
+                            'is_trial' => 0,
+                            'trial_days' => 0,
+                        ]);
+                        
+                        // Generate invoice
+                        $file_name = $this->makeInvoice([
+                            'payment_method' => 'balance_auto',
+                            'start_date' => $startDate,
+                            'expire_date' => $expireDate,
+                        ], "membership", $seller, null, $price, "balance_auto", $seller->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $newMembership->transaction_id, $package->title, $newMembership, 'seller-memberships');
+                        
+                        // Send email
+                        $mailer = new MegaMailer();
+                        $data = [
+                            'toMail' => $seller->email,
+                            'toName' => $seller->username,
+                            'username' => $seller->username,
+                            'package_title' => $package->title,
+                            'package_price' => $bs->base_currency_symbol . number_format($price, 2),
+                            'activation_date' => $startDate,
+                            'expire_date' => $expireDate,
+                            'membership_invoice' => $file_name,
+                            'membership_invoice_path' => 'seller-memberships',
+                            'website_title' => $bs->website_title,
+                            'templateType' => 'seller_membership_invoice',
+                            'mail_subject' => __('Your Package Purchase Invoice from ') . $bs->website_title,
+                        ];
+                        $mailer->mailFromAdmin($data);
+                        
+                        // Real-time notification
+                        $notificationService = new \App\Services\NotificationService();
+                        $notificationService->sendRealTime($seller, [
+                            'type' => 'seller_package_approved',
+                            'title' => 'Your Package Payment Approved',
+                            'message' => 'Your package "' . $package->title . '" has been renewed automatically from your balance.',
+                            'url' => route('seller.subscription_log'),
+                            'icon' => 'fas fa-check-circle',
+                            'extra' => [
+                                'membership_id' => $newMembership->id,
+                                'package_id' => $package->id,
+                                'package_title' => $package->title,
+                                'price' => $price,
+                                'start_date' => $startDate,
+                                'expire_date' => $expireDate
+                            ]
+                        ]);
+                        
+                        // Transaction log
+                        \App\Models\Transaction::create([
+                            'transcation_id' => uniqid(),
+                            'order_id' => $newMembership->id,
+                            'transcation_type' => 5, // 5 = package purchase
+                            'seller_id' => $seller->id,
+                            'payment_status' => 'completed',
+                            'payment_method' => 'balance_auto',
+                            'grand_total' => $price,
+                            'gateway_type' => 'online',
+                            'currency_symbol' => $bs->base_currency_symbol,
+                            'currency_symbol_position' => $bs->base_currency_symbol_position,
+                        ]);
+                        
+                        // Mark old membership as processed
+                        $expired_member->update(['processed_for_renewal' => 1]);
+                        
+                        \Log::info("Auto-renewal successful for seller with sufficient balance", [
+                            'seller_id' => $seller->id,
+                            'membership_id' => $expired_member->id,
+                            'new_membership_id' => $newMembership->id,
+                            'original_balance' => $seller->amount + $price,
+                            'new_balance' => $seller->amount
+                        ]);
+                        
+                    } else {
+                        // Insufficient balance - start grace period
+                        \Log::info("Starting grace period for seller with insufficient balance", [
+                            'seller_id' => $seller->id,
+                            'membership_id' => $expired_member->id,
+                            'current_balance' => $seller->amount,
+                            'package_price' => $price,
+                            'shortfall' => $price - $seller->amount,
+                            'before_grace_period_until' => $expired_member->grace_period_until,
+                            'before_in_grace_period' => $expired_member->in_grace_period
+                        ]);
+                        
+                        try {
+                            $expired_member->startGracePeriod($gracePeriodMinutes);
+                            
+                            // Refresh the model to get updated values
+                            $expired_member->refresh();
+                            
+                            // Send grace period notification
+                            $notificationData = [
+                                'type' => 'seller_membership_grace_period',
+                                'title' => 'Membership in Grace Period',
+                                'message' => "Your membership for package '{$expired_member->package->title}' is now in grace period. Please add funds within {$gracePeriodMinutes} minutes to avoid losing access.",
+                                'url' => route('seller.plan.extend.index'),
+                                'icon' => 'fas fa-clock',
+                                'extra' => [
+                                    'membership_id' => $expired_member->id,
+                                    'package_id' => $expired_member->package_id,
+                                    'package_title' => $expired_member->package->title,
+                                    'expire_date' => $expired_member->expire_date,
+                                    'grace_period_until' => $expired_member->grace_period_until,
+                                    'grace_period_minutes' => $gracePeriodMinutes,
+                                ]
+                            ];
+
+                            $notificationService->sendRealTime($seller, $notificationData);
+                            
+                            \Log::info("Seller membership grace period started - insufficient balance", [
+                                'seller_id' => $seller->id,
+                                'membership_id' => $expired_member->id,
+                                'package_title' => $expired_member->package->title,
+                                'current_balance' => $seller->amount,
+                                'package_price' => $price,
+                                'shortfall' => $price - $seller->amount,
+                                'after_grace_period_until' => $expired_member->grace_period_until,
+                                'after_in_grace_period' => $expired_member->in_grace_period
+                            ]);
+                        } catch (\Exception $e) {
+                            \Log::error("Failed to start grace period", [
+                                'seller_id' => $seller->id,
+                                'membership_id' => $expired_member->id,
+                                'error' => $e->getMessage(),
+                                'trace' => $e->getTraceAsString()
+                            ]);
+                        }
                     }
                 }
             }
 
-            $remind_members = Membership::whereDate('expire_date', Carbon::now()->addDays($bs->expiration_reminder))->get();
+            // Find memberships that have truly expired (after grace period)
+            $truly_expired_members = Membership::where('status', 1)
+                ->where('in_grace_period', 1)
+                ->where('grace_period_until', '<', Carbon::now())
+                ->where(function($query) {
+                    $query->whereNull('processed_for_renewal')
+                          ->orWhere('processed_for_renewal', 0);
+                })
+                ->get();
+
+            foreach ($truly_expired_members as $key => $expired_member) {
+                if (!empty($expired_member->seller)) {
+                    $seller = $expired_member->seller;
+                    $package = $expired_member->package;
+                    $price = $package->price;
+                    
+                    // Grace period has expired - deduct balance (can go negative) and send expired email
+                    $originalBalance = $seller->amount;
+                    $seller->amount -= $price;
+                    $seller->save();
+                    
+                    \Log::info("Grace period expired - balance deducted (can be negative)", [
+                        'seller_id' => $seller->id,
+                        'membership_id' => $expired_member->id,
+                        'package_title' => $package->title,
+                        'original_balance' => $originalBalance,
+                        'package_price' => $price,
+                        'new_balance' => $seller->amount,
+                        'balance_went_negative' => $seller->amount < 0
+                    ]);
+                    
+                    // Mark membership as processed and set pending payment if balance is negative
+                    // Also store the original balance for potential restoration
+                    $expired_member->update([
+                        'processed_for_renewal' => 1,
+                        'pending_payment' => $seller->amount < 0,
+                        'original_balance' => $originalBalance
+                    ]);
+                    
+                    // Send expiration notification
+                    $notificationData = [
+                        'type' => 'seller_membership_expired',
+                        'title' => 'Membership Expired',
+                        'message' => "Your membership for package '{$expired_member->package->title}' has expired. Please renew to continue accessing premium features.",
+                        'url' => route('seller.plan.extend.index'),
+                        'icon' => 'fas fa-calendar-times',
+                        'extra' => [
+                            'membership_id' => $expired_member->id,
+                            'package_id' => $expired_member->package_id,
+                            'package_title' => $expired_member->package->title,
+                            'expire_date' => $expired_member->expire_date,
+                        ]
+                    ];
+
+                    $notificationService->sendRealTime($seller, $notificationData);
+                    
+                    // Send expiration email
+                    SubscriptionExpiredMail::dispatch($seller, $bs);
+                    
+                    \Log::info("Expiration notification and email sent for seller after grace period", [
+                        'seller_id' => $seller->id,
+                        'membership_id' => $expired_member->id
+                    ]);
+                }
+            }
+
+            // Process reminder notifications
+            $remind_members = Membership::whereDate('expire_date', Carbon::now()->addDays($bs->expiration_reminder))
+                ->where(function($query) {
+                    $query->whereNull('reminder_sent')
+                          ->orWhere('reminder_sent', 0);
+                })
+                ->get();
+
             foreach ($remind_members as $key => $remind_member) {
                 if (!empty($remind_member->seller)) {
                     $seller = $remind_member->seller;
 
                     $nextPacakgeCount = Membership::where([
                         ['seller_id', $seller->id],
-                        ['start_date', '>', Carbon::now()->toDateString()]
+                        ['start_date', '>', Carbon::now()]
                     ])->where('status', '<>', '2')->count();
 
                     if ($nextPacakgeCount == 0) {
+                        // Send email reminder
                         SubscriptionReminderMail::dispatch($seller, $bs, $remind_member->expire_date);
+
+                        // Send real-time notification
+                        $notificationData = [
+                            'type' => 'seller_membership_reminder',
+                            'title' => 'Membership Expiring Soon',
+                            'message' => "Your membership for package '{$remind_member->package->title}' will expire on {$remind_member->expire_date}. Please renew to avoid service interruption.",
+                            'url' => route('seller.plan.extend.index'),
+                            'icon' => 'fas fa-clock',
+                            'extra' => [
+                                'membership_id' => $remind_member->id,
+                                'package_id' => $remind_member->package_id,
+                                'package_title' => $remind_member->package->title,
+                                'expire_date' => $remind_member->expire_date,
+                                'days_remaining' => $bs->expiration_reminder,
+                            ]
+                        ];
+
+                        $notificationService->sendRealTime($seller, $notificationData);
+
+                        // Mark reminder as sent
+                        $remind_member->update(['reminder_sent' => 1]);
+
+                        \Log::info("Seller membership reminder sent", [
+                            'seller_id' => $seller->id,
+                            'membership_id' => $remind_member->id,
+                            'package_title' => $remind_member->package->title,
+                            'expire_date' => $remind_member->expire_date
+                        ]);
                     }
                 }
                 \Artisan::call("queue:work --stop-when-empty");

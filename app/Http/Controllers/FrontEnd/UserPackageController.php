@@ -480,6 +480,12 @@ class UserPackageController extends Controller
                 'trial_days' => 0,
                 'conversation_id' => $request['conversation_id'] ?? null,
             ]);
+
+            // Update subuser statuses based on new package limits
+            if ($transaction_details != '"offline"') {
+                // Only update immediately for online payments (membership is active)
+                \App\Http\Helpers\UserPermissionHelper::updateSubuserStatuses($user->id);
+            }
         }
         return $user;
     }

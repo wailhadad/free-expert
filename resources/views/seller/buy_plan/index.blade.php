@@ -64,6 +64,60 @@
   $package = \App\Http\Helpers\SellerPermissionHelper::currentPackagePermission($seller->id);
 @endphp
 @section('content')
+  <!-- Grace Period Countdown Alert -->
+  @php
+    $gracePeriodData = \App\Http\Helpers\GracePeriodHelper::getSellerGracePeriodCountdown(Auth::guard('seller')->id());
+  @endphp
+  @if($gracePeriodData)
+    <div class="alert alert-warning alert-dismissible fade show" role="alert" id="grace-period-alert">
+      <div class="d-flex align-items-center">
+        <i class="fas fa-clock me-2"></i>
+        <div class="flex-grow-1">
+          <strong>Insufficient Balance for Auto-Renewal!</strong>
+          <p class="mb-0">Your membership for package "{{ $gracePeriodData['package_title'] }}" is in grace period. 
+          Current balance: <span class="fw-bold text-warning">${{ number_format($gracePeriodData['current_balance'], 2) }}</span> | 
+          Required: <span class="fw-bold text-danger">${{ number_format($gracePeriodData['package_price'], 2) }}</span> | 
+          Shortfall: <span class="fw-bold text-danger">${{ number_format($gracePeriodData['balance_shortfall'], 2) }}</span><br>
+          Time remaining: <span id="grace-countdown" class="fw-bold text-danger">{{ $gracePeriodData['formatted_time'] }}</span></p>
+        </div>
+      </div>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <script>
+      // Grace period countdown
+      let totalSeconds = {{ $gracePeriodData['total_seconds'] }};
+      
+      function updateCountdown() {
+        if (totalSeconds <= 0) {
+          document.getElementById('grace-countdown').innerHTML = 'EXPIRED';
+          document.getElementById('grace-period-alert').classList.remove('alert-warning');
+          document.getElementById('grace-period-alert').classList.add('alert-danger');
+          return;
+        }
+        
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        
+        // Always show all units with leading zeros
+        const daysStr = days.toString().padStart(2, '0');
+        const hoursStr = hours.toString().padStart(2, '0');
+        const minutesStr = minutes.toString().padStart(2, '0');
+        const secondsStr = seconds.toString().padStart(2, '0');
+        
+        const timeString = `${daysStr}d ${hoursStr}h ${minutesStr}m ${secondsStr}s`;
+        
+        document.getElementById('grace-countdown').innerHTML = timeString;
+        totalSeconds--;
+      }
+      
+      updateCountdown();
+      setInterval(updateCountdown, 1000);
+    </script>
+  @endif
+
   @if (is_null($package))
     @php
       $pendingMemb = \App\Models\Membership::query()
@@ -83,7 +137,7 @@
         <span class="badge badge-secondary">{{ $pendingPackage->term }}</span>
         <span class="badge badge-warning">{{ __('Decision Pending') }}</span>
       </div>
-    @else
+    @elseif (!$gracePeriodData)
       <div class="alert alert-warning text-dark">
         {{ __('Your membership is expired. Please purchase a new package / extend the current package.') }}
       </div>
@@ -102,22 +156,29 @@
             @endif
           @endif
 
-          <strong>{{ __('Current Package') . ':' }} </strong> {{ $current_package->title }}
-          <span class="badge badge-secondary">{{ $current_package->term }}</span>
-          @if ($current_membership->is_trial == 1)
+          <strong>{{ __('Current Package') . ':' }} </strong>
+          @if($current_package)
+              {{ $current_package->title }}
+          @else
+              <span class="text-danger">{{ __('No active package') }}</span>
+          @endif
+          @if($current_package)
+              <span class="badge badge-secondary">{{ $current_package->term }}</span>
+          @endif
+          @if ($current_membership && $current_membership->is_trial == 1)
             ({{ __('Expire Date') . ':' }}
-            {{ Carbon\Carbon::parse($current_membership->expire_date)->format('M-d-Y') }})
+            {{ $current_membership->expire_date }})
             <span class="badge badge-primary">{{ __('Trial') }}</span>
           @else
             ({{ __('Expire Date') . ':' }}
-            {{ $current_package->term === 'lifetime' ? 'Lifetime' : Carbon\Carbon::parse($current_membership->expire_date)->format('M-d-Y') }})
+            {{ $current_package ? \Carbon\Carbon::parse($current_membership->expire_date)->format('M-d-Y') : 'N/A' }})
           @endif
 
           @if ($package_count >= 2 && $next_package)
             <div>
               <strong>{{ __('Next Package To Activate') . ':' }} </strong> {{ $next_package->title }} <span
                 class="badge badge-secondary">{{ $next_package->term }}</span>
-              @if ($current_package->term != 'lifetime' && $current_membership->is_trial != 1)
+              @if ($current_package && $current_package->term != 'lifetime' && $current_membership && $current_membership->is_trial != 1)
                 (
                 {{ __('Activation Date') . ':' }}
                 {{ Carbon\Carbon::parse($next_membership->start_date)->format('M-d-Y') }},

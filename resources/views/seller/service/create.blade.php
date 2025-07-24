@@ -26,12 +26,6 @@
   @php
     $data = sellerPermission(Auth::guard('seller')->user()->id, 'service');
   @endphp
-  @if ($data['status'] == 'false')
-    <div class="alert alert-warning alert-block">
-      <strong
-        class="text-dark">{{ __('Currently, you have added ' . $data['total_service_added'] . ' services. ' . 'Your current package supports ' . $data['package_support'] . ' services. Please delete ' . $data['total_service_added'] - $data['package_support'] + 1 . ' or more services to enable service management.') }}</strong>
-    </div>
-  @endif
 
   <div class="row">
     <div class="col-md-12">

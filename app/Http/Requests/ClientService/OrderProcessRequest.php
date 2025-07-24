@@ -28,8 +28,6 @@ class OrderProcessRequest extends FormRequest
 
     $form = Form::query()->find($formId);
 
-    $inputFields = $form->input()->orderBy('order_no', 'asc')->get();
-
     $ruleArray = [
       //'name' => 'required',
       //'email_address' => 'required|email:rfc,dns',
@@ -42,31 +40,36 @@ class OrderProcessRequest extends FormRequest
       'zip_code' => $this->gateway == 'iyzico' ? 'required' : '',
     ];
 
-    foreach ($inputFields as $inputField) {
-      if ($inputField->is_required == 1) {
-        if ($inputField->type == 8) {
-          $ruleArray['form_builder_' . $inputField->name] = 'required';
-        } else {
-          $ruleArray[$inputField->name] = 'required';
+    // Only process form fields if form exists
+    if ($form) {
+      $inputFields = $form->input()->orderBy('order_no', 'asc')->get();
+
+      foreach ($inputFields as $inputField) {
+        if ($inputField->is_required == 1) {
+          if ($inputField->type == 8) {
+            $ruleArray['form_builder_' . $inputField->name] = 'required';
+          } else {
+            $ruleArray[$inputField->name] = 'required';
+          }
         }
-      }
 
-      if (($inputField->type == 8) && $this->hasFile('form_builder_' . $inputField->name)) {
-        $file = $this->file('form_builder_' . $inputField->name);
-        $fileExtension = $file->getClientOriginalExtension();
+        if (($inputField->type == 8) && $this->hasFile('form_builder_' . $inputField->name)) {
+          $file = $this->file('form_builder_' . $inputField->name);
+          $fileExtension = $file->getClientOriginalExtension();
 
-        $maxSize = intval($inputField->file_size);
-        // convert mb to kb
-        $convertedSize = $maxSize * 1024;
+          $maxSize = intval($inputField->file_size);
+          // convert mb to kb
+          $convertedSize = $maxSize * 1024;
 
-        $ruleArray['form_builder_' . $inputField->name] = [
-          function ($attribute, $value, $fail) use ($fileExtension) {
-            if (strcmp('zip', $fileExtension) != 0) {
-              $fail('Only .zip file is allowed.');
-            }
-          },
-          'max:' . $convertedSize
-        ];
+          $ruleArray['form_builder_' . $inputField->name] = [
+            function ($attribute, $value, $fail) use ($fileExtension) {
+              if (strcmp('zip', $fileExtension) != 0) {
+                $fail('Only .zip file is allowed.');
+              }
+            },
+            'max:' . $convertedSize
+          ];
+        }
       }
     }
 
@@ -92,27 +95,31 @@ class OrderProcessRequest extends FormRequest
 
     $form = Form::query()->find($formId);
 
-    $inputFields = $form->input()->orderBy('order_no', 'asc')->get();
-
     $messageArray = [];
 
-    foreach ($inputFields as $inputField) {
-      if ($inputField->is_required == 1) {
-        if ($inputField->type == 8) {
-          $messageArray['form_builder_' . $inputField->name . '.required'] = 'The ' . strtolower($inputField->label) . ' field is required.';
-        } else {
-          $ruleArray[$inputField->name] = 'required';
+    // Only process form fields if form exists
+    if ($form) {
+      $inputFields = $form->input()->orderBy('order_no', 'asc')->get();
+
+      foreach ($inputFields as $inputField) {
+        if ($inputField->is_required == 1) {
+          if ($inputField->type == 8) {
+            $messageArray['form_builder_' . $inputField->name . '.required'] = 'The ' . strtolower($inputField->label) . ' field is required.';
+          } else {
+            $ruleArray[$inputField->name] = 'required';
+          }
+        }
+
+        if (($inputField->type == 8) && $this->hasFile('form_builder_' . $inputField->name)) {
+          $maxSize = intval($inputField->file_size);
+
+          $messageArray['form_builder_' . $inputField->name . '.max'] = 'The file must not be greater than ' . $maxSize . ' megabytes.';
+
+          $messageArray['form_builder_' . $inputField->name . '.required'] = 'The ' . strtolower($inputField->label) . ' is required.';
         }
       }
-
-      if (($inputField->type == 8) && $this->hasFile('form_builder_' . $inputField->name)) {
-        $maxSize = intval($inputField->file_size);
-
-        $messageArray['form_builder_' . $inputField->name . '.max'] = 'The file must not be greater than ' . $maxSize . ' megabytes.';
-
-        $messageArray['form_builder_' . $inputField->name . '.required'] = 'The ' . strtolower($inputField->label) . ' is required.';
-      }
     }
+    
     return $messageArray;
   }
 }

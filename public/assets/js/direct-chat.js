@@ -1,6 +1,15 @@
 // direct-chat.js
 // Requires Bootstrap 5 modal, Pusher/Echo, and fetch API
 
+// Ensure the openDirectChatModal function is available globally
+if (typeof window.openDirectChatModal === 'undefined') {
+    console.log('Initializing openDirectChatModal function...');
+    window.openDirectChatModal = function(chatId, partnerName, partnerAvatar, sellerId, subuserId) {
+        console.error('openDirectChatModal function not properly initialized');
+        alert('Chat functionality not available. Please refresh the page and try again.');
+    };
+}
+
 // Global function to update discussion badge and list
 window.updateDiscussionBadge = function() {
     console.log('updateDiscussionBadge called');
@@ -362,9 +371,13 @@ if (window.currentUserType === 'user') {
           // "Myself" option: always use window.currentUserAvatar
           dropdownAvatar.src = window.currentUserAvatar || a.getAttribute('data-avatar');
           dropdownName.textContent = 'Myself';
+          window.currentSubuserStatus = true; // Myself is always active
         } else {
         dropdownAvatar.src = a.getAttribute('data-avatar');
         dropdownName.textContent = a.getAttribute('data-name');
+        // Set subuser status based on data-status attribute
+        const isActive = a.getAttribute('data-status') === 'true';
+        window.currentSubuserStatus = isActive;
         }
         window.selectedSubuserId = a.getAttribute('data-id') || null;
         found = true;
@@ -376,6 +389,12 @@ if (window.currentUserType === 'user') {
       dropdownAvatar.src = realUserAvatar;
       dropdownName.textContent = 'Myself';
       window.selectedSubuserId = null;
+      window.currentSubuserStatus = true; // Fallback to Myself (always active)
+    }
+    
+    // Update chat input state based on subuser status
+    if (typeof updateChatInputState === 'function') {
+      updateChatInputState();
     }
   };
 
@@ -386,6 +405,13 @@ if (window.currentUserType === 'user') {
     const dropdownAvatar = document.getElementById('subuserDropdownAvatar');
     const dropdownName = document.getElementById('subuserDropdownName');
     if (!dropdownMenu || !dropdownBtn || !dropdownAvatar || !dropdownName) return;
+    
+    // Check if the modal component is handling the dropdown
+    if (window.subuserDropdownInitialized) {
+      console.log('Modal component is handling dropdown, skipping populateSubuserDropdown');
+      if (typeof afterPopulateCallback === 'function') afterPopulateCallback();
+      return;
+    }
     
     // Check if dropdown is already populated (has items)
     const existingItems = dropdownMenu.querySelectorAll('.dropdown-item');
@@ -435,13 +461,26 @@ if (window.currentUserType === 'user') {
   
   function initializeDropdown() {
     if (dropdownInitialized) return;
-    dropdownInitialized = true;
     
     const modalElem = document.getElementById('directChatModal');
     if (!modalElem) return;
     
+    // Check if the modal component is handling the dropdown
+    if (window.subuserDropdownInitialized || window.modalInitializationComplete) {
+      console.log('Modal component is handling dropdown, skipping initializeDropdown');
+      return;
+    }
+    
+    dropdownInitialized = true;
+    
     // Populate custom dropdown when modal is shown
     modalElem.addEventListener('show.bs.modal', function() {
+      // Check if the modal component is handling the dropdown
+      if (window.subuserDropdownInitialized) {
+        console.log('Modal component is handling dropdown, skipping show.bs.modal handler');
+        return;
+      }
+      
       const dropdownMenu = document.getElementById('subuserDropdownMenu');
       const dropdownBtn = document.getElementById('subuserDropdownBtn');
       const dropdownAvatar = document.getElementById('subuserDropdownAvatar');
@@ -535,7 +574,7 @@ if (window.currentUserType === 'user') {
         }
         console.log('Dropdown clicked: subuserId=', selectedSubuserId, 'name=', selectedName, 'sellerId=', sellerId, 'window.currentDirectSellerId=', window.currentDirectSellerId);
         // Always use the global seller name/avatar for the chat header
-        startOrGetChatWithSubuser(sellerId, selectedSubuserId, window.currentDirectSellerName, window.currentDirectSellerAvatar);
+        window.startOrGetChatWithSubuser(sellerId, selectedSubuserId, window.currentDirectSellerName, window.currentDirectSellerAvatar);
       });
     }
   }
@@ -833,7 +872,7 @@ function updateOfferStatusLocally(offerId, status) {
 }
 
 // Helper to start or get chat for selected subuser and seller
-function startOrGetChatWithSubuser(sellerId, subuserId, partnerName, partnerAvatar) {
+window.startOrGetChatWithSubuser = function(sellerId, subuserId, partnerName, partnerAvatar) {
   console.log('startOrGetChatWithSubuser called with sellerId=', sellerId);
   window.currentDirectSubuserId = subuserId || null; // Ensure subuser context is set
   fetch('/direct-chat/start', {
@@ -867,6 +906,76 @@ function startOrGetChatWithSubuser(sellerId, subuserId, partnerName, partnerAvat
     }
   });
 }
+
+// Function to check if current subuser is active and disable chat input accordingly
+function updateChatInputState() {
+  if (window.currentUserType !== 'user') {
+    return; // Only for users
+  }
+
+  const messageInput = document.getElementById('direct-chat-input');
+  const sendButton = document.querySelector('#direct-chat-form button[type="submit"]');
+  const attachmentButton = document.querySelector('#direct-chat-attachment');
+  
+  console.log('updateChatInputState - Elements found:', {
+    messageInput: !!messageInput,
+    sendButton: !!sendButton,
+    attachmentButton: !!attachmentButton
+  });
+  
+  if (!messageInput || !sendButton || !attachmentButton) {
+    console.warn('Chat input elements not found');
+    return;
+  }
+
+  // Check if current subuser is active
+  // Fallback: if currentSubuserStatus is undefined, treat as active
+  if (window.currentSubuserStatus === undefined) {
+    console.log('currentSubuserStatus is undefined, treating as active');
+    window.currentSubuserStatus = true;
+  }
+  
+  const isSubuserActive = window.currentSubuserStatus === true;
+  
+  console.log('updateChatInputState called - isSubuserActive:', isSubuserActive, 'currentSubuserStatus:', window.currentSubuserStatus);
+  
+  if (!isSubuserActive) {
+    // Disable chat input elements
+    messageInput.disabled = true;
+    messageInput.placeholder = 'Cannot send messages with inactive profile';
+    messageInput.style.cursor = 'not-allowed';
+    messageInput.style.opacity = '0.6';
+    
+    sendButton.disabled = true;
+    sendButton.style.cursor = 'not-allowed';
+    sendButton.style.opacity = '0.6';
+    
+    attachmentButton.disabled = true;
+    attachmentButton.style.cursor = 'not-allowed';
+    attachmentButton.style.opacity = '0.6';
+    
+    console.log('Chat input disabled - inactive subuser selected');
+  } else {
+    // Enable chat input elements
+    messageInput.disabled = false;
+    messageInput.placeholder = 'Type a message...';
+    messageInput.style.cursor = 'text';
+    messageInput.style.opacity = '1';
+    
+    sendButton.disabled = false;
+    sendButton.style.cursor = 'pointer';
+    sendButton.style.opacity = '1';
+    
+    attachmentButton.disabled = false;
+    attachmentButton.style.cursor = 'pointer';
+    attachmentButton.style.opacity = '1';
+    
+    console.log('Chat input enabled - active subuser selected');
+  }
+}
+
+// Make the function globally available
+window.updateChatInputState = updateChatInputState;
 
 window.openDirectChatModal = function(chatId, partnerName, partnerAvatar, sellerId, subuserId) {
     window.currentDirectSellerName = partnerName;
@@ -1551,6 +1660,14 @@ function renderDirectChatFile(msg, forceBlack) {
 function sendDirectChatMessage(chatId) {
     const input = document.getElementById('direct-chat-input');
     const message = input.value.trim();
+    
+    // Check if current subuser is inactive and prevent sending
+    if (window.currentUserType === 'user' && window.currentSubuserStatus === false) {
+        console.log('Cannot send message - inactive subuser selected');
+        showToastAlert('Cannot send messages with inactive profile. Please select an active profile.', 'warning');
+        return;
+    }
+    
     const formData = new FormData();
     
     // Check if this is a seller sending a message and there's pending brief context
@@ -1677,18 +1794,25 @@ function sendDirectChatMessage(chatId) {
             console.log('Clearing pending brief context after message sent');
             window.pendingBriefContext = null;
         }
-        
-        // Debug: Log the current state
-        console.log('Message sent successfully. Current state:', {
-            chatId: chatId || data.message?.chat_id,
-            hasPendingBriefContext: !!window.pendingBriefContext,
-            currentUserType: window.currentUserType,
-            briefContextSent: shouldAddBriefContext
-        });
     })
     .catch(error => {
         console.error('Error sending message:', error);
-        progressBar.classList.add('d-none'); // Hide progress bar on error
+        
+        // Hide progress bar on error
+        progressBar.classList.add('d-none');
+        
+        // Handle errors
+        if (error.response && error.response.json) {
+            error.response.json().then(data => {
+                if (data.error) {
+                    // Show error message
+                    showToastAlert(data.error, 'error');
+                }
+            });
+        } else {
+            // Generic error
+            showToastAlert('An error occurred while sending the message. Please try again.', 'error');
+        }
     });
 }
 
@@ -2561,3 +2685,61 @@ document.addEventListener('DOMContentLoaded', function() {
   `;
   document.head.appendChild(style);
 })();
+
+// Direct Chat JavaScript
+// Global variables
+let currentChatId = null;
+
+// Toast alert function
+function showToastAlert(message, type = 'info') {
+    // Create toast container if it doesn't exist
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 350px;
+        `;
+        document.body.appendChild(toastContainer);
+    }
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
+    toast.style.cssText = `
+        margin-bottom: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        border: none;
+    `;
+    
+    toast.innerHTML = `
+        <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : type === 'success' ? 'check-circle' : 'info-circle'} mr-2"></i>
+        ${message}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    `;
+
+    // Add to container
+    toastContainer.appendChild(toast);
+
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 5000);
+
+    // Handle close button
+    const closeBtn = toast.querySelector('.close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            toast.remove();
+        });
+    }
+}

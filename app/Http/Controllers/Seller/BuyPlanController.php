@@ -35,25 +35,25 @@ class BuyPlanController extends Controller
 
         $nextPackageCount = Membership::query()->where([
             ['seller_id', Auth::guard('seller')->user()->id],
-            ['expire_date', '>=', Carbon::now()->toDateString()]
+            ['expire_date', '>=', Carbon::now()]
         ])->whereYear('start_date', '<>', '9999')->where('status', '<>', '2')->count();
         //current package
         $data['current_membership'] = Membership::query()->where([
             ['seller_id', Auth::guard('seller')->user()->id],
-            ['start_date', '<=', Carbon::now()->toDateString()],
-            ['expire_date', '>=', Carbon::now()->toDateString()]
+            ['start_date', '<=', Carbon::now()],
+            ['expire_date', '>=', Carbon::now()]
         ])->where('status', '1')->whereYear('start_date', '<>', '9999')->first();
         if ($data['current_membership'] != null) {
             $countCurrMem = Membership::query()->where([
                 ['seller_id', Auth::guard('seller')->user()->id],
-                ['start_date', '<=', Carbon::now()->toDateString()],
-                ['expire_date', '>=', Carbon::now()->toDateString()]
+                ['start_date', '<=', Carbon::now()],
+                ['expire_date', '>=', Carbon::now()]
             ])->where('status', '1')->whereYear('start_date', '<>', '9999')->count();
             if ($countCurrMem > 1) {
                 $data['next_membership'] = Membership::query()->where([
                     ['seller_id', Auth::guard('seller')->user()->id],
-                    ['start_date', '<=', Carbon::now()->toDateString()],
-                    ['expire_date', '>=', Carbon::now()->toDateString()]
+                    ['start_date', '<=', Carbon::now()],
+                    ['expire_date', '>=', Carbon::now()]
                 ])->where('status', '<>', '2')->whereYear('start_date', '<>', '9999')->orderBy('id', 'DESC')->first();
             } else {
                 $data['next_membership'] = Membership::query()->where([
@@ -75,7 +75,7 @@ class BuyPlanController extends Controller
     {
         $packageCount = Membership::query()->where([
             ['seller_id', Auth::guard('seller')->user()->id],
-            ['expire_date', '>=', Carbon::now()->toDateString()]
+            ['expire_date', '>=', Carbon::now()]
         ])->whereYear('start_date', '<>', '9999')->where('status', '<>', '2')->count();
 
         $hasPendingMemb = SellerPermissionHelper::hasPendingMembership(Auth::guard('seller')->user()->id);
@@ -107,7 +107,7 @@ class BuyPlanController extends Controller
         $data['package'] = Package::query()->findOrFail($package_id);
         $data['membership'] = Membership::query()->where([
             ['seller_id', Auth::guard('seller')->user()->id],
-            ['expire_date', '>=', \Carbon\Carbon::now()->format('Y-m-d')]
+            ['expire_date', '>=', Carbon::now()]
         ])->where('status', '<>', '2')->whereYear('start_date', '<>', '9999')
             ->latest()
             ->first();

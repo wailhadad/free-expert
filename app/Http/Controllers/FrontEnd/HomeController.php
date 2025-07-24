@@ -70,10 +70,16 @@ class HomeController extends Controller
             ->join('sellers', 'services.seller_id', '=', 'sellers.id')
             ->where([
               ['memberships.status', '=', 1],
-              ['memberships.start_date', '<=', Carbon::now()->format('Y-m-d')],
-              ['memberships.expire_date', '>=', Carbon::now()->format('Y-m-d')],
+                      ['memberships.start_date', '<=', Carbon::now()],
               ['sellers.status', '=', 1],
-            ]);
+            ])
+            ->where(function($query) {
+                $query->where('memberships.expire_date', '>=', Carbon::now())
+                      ->orWhere(function($subQuery) {
+                          $subQuery->where('memberships.in_grace_period', '=', 1)
+                                   ->where('memberships.grace_period_until', '>', Carbon::now());
+                      });
+            });
         })
           ->where('service_category_id', '=', $category->id)
           ->get();

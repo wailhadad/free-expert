@@ -196,10 +196,10 @@ if (typeof RealTimeNotifications === 'undefined') {
                     document.querySelectorAll('.notif-unread-badge').forEach(badge => {
                         badge.textContent = data.count;
                         badge.style.display = data.count > 0 ? 'flex' : 'none';
-                        console.log('Updated unread badge:', badge, data.count);
+                        // console.log('Updated unread badge:', badge, data.count);
                     });
                     window.notifUnreadCount = data.count;
-                    console.log('window.notifUnreadCount set to', data.count);
+                    // console.log('window.notifUnreadCount set to', data.count);
                 });
         }
 
@@ -390,24 +390,86 @@ if (typeof RealTimeNotifications === 'undefined') {
         }
 
         setupEventListeners() {
+            console.log('Setting up notification event listeners...');
+            
             // Add event listeners for notification interactions
             document.addEventListener('click', (e) => {
-                if (e.target.classList.contains('mark-read-btn')) {
-                    const notificationId = e.target.closest('.dropdown-item').dataset.id;
-                    this.markAsRead(notificationId);
+                // Only log if it's a mark as read button to reduce noise
+                if (e.target.classList.contains('mark-read-btn') || e.target.closest('.mark-read-btn')) {
+                    console.log('Click event detected on mark as read button:', e.target);
                 }
+                
+                // Handle individual mark as read buttons
+                if (e.target.classList.contains('mark-read-btn') || e.target.closest('.mark-read-btn')) {
+                    console.log('Mark as read button clicked');
+                    
+                    // Get the button element
+                    const button = e.target.classList.contains('mark-read-btn') ? e.target : e.target.closest('.mark-read-btn');
+                    const notificationId = button.dataset.id;
+                    
+                    if (notificationId) {
+                        console.log('Marking notification as read:', notificationId);
+                        this.markAsRead(notificationId);
+                    } else {
+                        console.warn('Could not find notification ID on button');
+                    }
+                }
+                
+                // Handle "Mark All as Read" button
+                if (e.target.id === 'dropdown-mark-all-read' || e.target.closest('#dropdown-mark-all-read')) {
+                    console.log('Mark all as read button clicked');
+                    e.preventDefault();
+                    this.markAllAsRead();
+                }
+            });
+            
+            // Also add specific event listeners for better compatibility
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('DOM loaded, adding specific event listeners...');
+                
+                // Add event listener for mark all as read button
+                const markAllButton = document.getElementById('dropdown-mark-all-read');
+                if (markAllButton) {
+                    console.log('Found mark all as read button, adding event listener');
+                    markAllButton.addEventListener('click', (e) => {
+                        console.log('Mark all as read button clicked via specific listener');
+                        e.preventDefault();
+                        this.markAllAsRead();
+                    });
+                } else {
+                    console.warn('Mark all as read button not found');
+                }
+                
+                // Add event listeners for individual mark as read buttons
+                document.querySelectorAll('.mark-read-btn').forEach(button => {
+                    console.log('Adding event listener to mark read button:', button);
+                    button.addEventListener('click', (e) => {
+                        console.log('Mark as read button clicked via specific listener');
+                        e.preventDefault();
+                        
+                        const notificationId = button.dataset.id;
+                        if (notificationId) {
+                            console.log('Marking notification as read:', notificationId);
+                            this.markAsRead(notificationId);
+                        } else {
+                            console.warn('Could not find notification ID on button');
+                        }
+                    });
+                });
             });
         }
 
         markAsRead(notificationId) {
+            console.log('markAsRead called with notificationId:', notificationId);
+            
             // Determine the correct route based on user type
             let route = '';
             if (this.notifiableType === 'Admin') {
-                route = '/admin/notifications/mark-as-read';
+                route = `/admin/notifications/${notificationId}/mark-as-read`;
             } else if (this.notifiableType === 'Seller') {
-                route = '/seller/notifications/mark-as-read';
+                route = `/seller/notifications/${notificationId}/mark-as-read`;
             } else {
-                route = '/user/notifications/mark-as-read';
+                route = `/user/notifications/${notificationId}/mark-as-read`;
             }
 
             fetch(route, {
@@ -416,16 +478,30 @@ if (typeof RealTimeNotifications === 'undefined') {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ notification_id: notificationId })
+                }
             })
-            .then(response => response.json())
+            .then(response => {
+                return response.json();
+            })
             .then(data => {
+                console.log('Mark as read response:', data);
                 if (data.success) {
+                    console.log('Mark as read successful, updating UI...');
                     // Update the notification in the UI
                     const notificationElement = document.querySelector(`[data-id="${notificationId}"]`);
                     if (notificationElement) {
-                        notificationElement.classList.remove('fw-bold', 'bg-light');
+                        // Handle different notification element types
+                        if (notificationElement.classList.contains('dropdown-item')) {
+                            // Dropdown notification
+                            notificationElement.classList.remove('fw-bold', 'bg-light');
+                        } else if (notificationElement.classList.contains('notif-card')) {
+                            // Notification list page
+                            notificationElement.classList.add('read');
+                        } else if (notificationElement.classList.contains('list-group-item')) {
+                            // Other notification types
+                            notificationElement.classList.remove('fw-bold', 'bg-light');
+                        }
+                        
                         const readButton = notificationElement.querySelector('.mark-read-btn');
                         if (readButton) {
                             readButton.remove();
@@ -449,6 +525,8 @@ if (typeof RealTimeNotifications === 'undefined') {
                             setTimeout(updateDiscussionBadge, 300);
                         }
                     }
+                } else {
+                    console.warn('Mark as read failed:', data);
                 }
             })
             .catch(error => {
@@ -457,6 +535,8 @@ if (typeof RealTimeNotifications === 'undefined') {
         }
 
         markAllAsRead() {
+            console.log('markAllAsRead called');
+            
             // Determine the correct route based on user type
             let route = '';
             if (this.notifiableType === 'Admin') {
@@ -466,6 +546,8 @@ if (typeof RealTimeNotifications === 'undefined') {
             } else {
                 route = '/user/notifications/mark-all-as-read';
             }
+            
+            console.log('Using route:', route);
 
             fetch(route, {
                 method: 'POST',
@@ -475,12 +557,41 @@ if (typeof RealTimeNotifications === 'undefined') {
                     'Content-Type': 'application/json',
                 },
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Mark all as read response status:', response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log('Mark all as read response data:', data);
                 if (data.success) {
+                    console.log('Mark all as read successful, updating UI...');
                     // Update all notifications in the UI
-                    const notifications = document.querySelectorAll('.dropdown-item[data-id]');
-                    notifications.forEach(notification => {
+                    const dropdownNotifications = document.querySelectorAll('.dropdown-item[data-id]');
+                    const cardNotifications = document.querySelectorAll('.notif-card[data-id]');
+                    const listNotifications = document.querySelectorAll('.list-group-item[data-id]');
+                    
+                    console.log('Found notifications to update:', dropdownNotifications.length + cardNotifications.length + listNotifications.length);
+                    
+                    // Update dropdown notifications
+                    dropdownNotifications.forEach(notification => {
+                        notification.classList.remove('fw-bold', 'bg-light');
+                        const readButton = notification.querySelector('.mark-read-btn');
+                        if (readButton) {
+                            readButton.remove();
+                        }
+                    });
+                    
+                    // Update card notifications (notification list page)
+                    cardNotifications.forEach(notification => {
+                        notification.classList.add('read');
+                        const readButton = notification.querySelector('.mark-read-btn');
+                        if (readButton) {
+                            readButton.remove();
+                        }
+                    });
+                    
+                    // Update list notifications
+                    listNotifications.forEach(notification => {
                         notification.classList.remove('fw-bold', 'bg-light');
                         const readButton = notification.querySelector('.mark-read-btn');
                         if (readButton) {
@@ -497,6 +608,8 @@ if (typeof RealTimeNotifications === 'undefined') {
                         this.updateNotificationBadge();
                     }
                     this.reloadNotificationListPage();
+                } else {
+                    console.warn('Mark all as read failed:', data);
                 }
             })
             .catch(error => {
@@ -506,18 +619,19 @@ if (typeof RealTimeNotifications === 'undefined') {
 
         reloadNotificationDropdown() {
             const prefix = this.getRolePrefix();
-            console.log('Reloading notification dropdown from:', `${prefix}/notifications/dropdown`);
+            // Reduced logging to prevent spam
+            // console.log('Reloading notification dropdown from:', `${prefix}/notifications/dropdown`);
             fetch(`${prefix}/notifications/dropdown`)
                 .then(response => response.text())
                 .then(html => {
-                    console.log('Dropdown HTML received:', html.substring(0, 200) + '...');
+                    // console.log('Dropdown HTML received:', html.substring(0, 200) + '...');
                     const dropdowns = document.querySelectorAll('.nav-notification-list');
                     if (dropdowns.length === 0) {
                         console.warn('No .nav-notification-list found in DOM when updating dropdown.');
                     }
                     dropdowns.forEach(dropdown => {
                         dropdown.innerHTML = html;
-                        console.log('Dropdown updated successfully');
+                        // console.log('Dropdown updated successfully');
                     });
                 })
                 .catch(error => {
@@ -544,7 +658,7 @@ if (typeof RealTimeNotifications === 'undefined') {
                 .then(response => response.text())
                 .then(html => {
                     notifList.innerHTML = html;
-                    console.log('Full notification list reloaded in real time');
+                    // console.log('Full notification list reloaded in real time');
                 })
                 .catch(err => {
                     console.error('Failed to reload notification list:', err);

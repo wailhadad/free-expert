@@ -48,7 +48,7 @@ Route::prefix('seller')->middleware('auth:seller', 'EmailStatus:seller', 'Deacti
   // form route
   Route::get('/forms', 'Seller\FormController@index')->name('seller.service_management.forms');
 
-  Route::post('/store-form', 'Seller\FormController@store')->name('seller.service_management.store_form')->middleware('limit_check:form');
+  Route::post('/store-form', 'Seller\FormController@store')->name('seller.service_management.store_form');
 
   Route::prefix('/form')->group(function () {
     Route::get('/{id}/input', 'Seller\FormInputController@manageInput')->name('seller.service_management.form.input');
@@ -64,7 +64,7 @@ Route::prefix('seller')->middleware('auth:seller', 'EmailStatus:seller', 'Deacti
     Route::post('/sort-input', 'Seller\FormInputController@sortInput')->name('seller.service_management.form.sort_input');
   });
 
-  Route::post('/update-form', 'Seller\FormController@update')->name('seller.service_management.update_form')->middleware('limit_check:form');
+  Route::post('/update-form', 'Seller\FormController@update')->name('seller.service_management.update_form');
 
   Route::post('/delete-form/{id}', 'Seller\FormController@destroy')->name('seller.service_management.delete_form');
 
@@ -79,7 +79,7 @@ Route::prefix('seller')->middleware('auth:seller', 'EmailStatus:seller', 'Deacti
 
     Route::post('/remove-slider-image', 'Seller\ServiceController@removeImage')->name('seller.service_management.remove_slider_image');
 
-    Route::post('/store-service', 'Seller\ServiceController@store')->name('seller.service_management.store_service')->middleware('limit_check:service');
+    Route::post('/store-service', 'Seller\ServiceController@store')->name('seller.service_management.store_service');
 
     Route::post('/service/{id}/update-featured-status', 'Seller\ServiceController@updateFeaturedStatus')->name('seller.service_management.service.update_featured_status')->middleware('limit_check:service-featured,except-json');
 
@@ -309,3 +309,7 @@ Route::get('seller/discussions', function() {
     $breadcrumb = $misc->getBreadcrumb();
     return view('seller.discussions', compact('breadcrumb'));
 })->middleware(['auth:seller'])->name('seller.discussions');
+
+Route::get('/modify-membership', 'Seller\ModifyMembershipController@index')->name('seller.modify_membership');
+Route::post('/modify-membership/request', 'Seller\ModifyMembershipController@request')->name('seller.modify_membership.request');
+Route::post('/modify-membership/delete', 'Seller\ModifyMembershipController@delete')->name('seller.modify_membership.delete');

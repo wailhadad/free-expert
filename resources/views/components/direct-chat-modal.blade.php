@@ -158,6 +158,41 @@ window.currentUserAvatar = @json($userAvatar);
     height: 350px !important;
   }
 }
+
+/* Status badge styles for dropdowns */
+.badge-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.dropdown-item .badge {
+    font-weight: 500;
+}
+
+.dropdown-item:hover .badge {
+    opacity: 0.8;
+}
+
+/* Ensure proper spacing in dropdown items */
+.dropdown-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    padding: 0.5rem 1rem !important;
+}
+
+.dropdown-item .flex-grow-1 {
+    flex: 1;
+    min-width: 0;
+}
+
+.dropdown-item img {
+    flex-shrink: 0;
+}
+
+.dropdown-item .badge {
+    flex-shrink: 0;
+}
 </style>
 @endpush
 <div class="modal fade" id="directChatModal" tabindex="-1" aria-labelledby="directChatModalLabel" aria-hidden="true">
@@ -209,7 +244,7 @@ window.currentUserAvatar = @json($userAvatar);
           @if ($userType === 'user')
           <div class="dropdown ms-2" id="direct-chat-subuser-dropdown" style="min-width:180px;">
             <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center" type="button" id="subuserDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
-              <img src="/assets/img/users/profile.jpeg" id="subuserDropdownAvatar" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
+              <img src="{{ $userAvatar }}" id="subuserDropdownAvatar" class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;">
               <span id="subuserDropdownName">Myself</span>
             </button>
             <ul class="dropdown-menu w-100" aria-labelledby="subuserDropdownBtn" id="subuserDropdownMenu">
@@ -234,3 +269,251 @@ window.currentUserAvatar = @json($userAvatar);
 </div>
 
 @include('components.customer-offer-modal') 
+
+@push('scripts')
+<script>
+// Global flag to prevent multiple initializations
+window.subuserDropdownInitialized = false;
+
+// Load prioritized subusers for dropdown
+function loadPrioritizedSubusers() {
+    if (window.currentUserType !== 'user') {
+        return; // Only for users
+    }
+
+    // Prevent multiple initializations
+    if (window.subuserDropdownInitialized) {
+        console.log('Subuser dropdown already initialized, skipping...');
+        return;
+    }
+
+    const dropdownMenu = document.getElementById('subuserDropdownMenu');
+    if (!dropdownMenu) {
+        console.error('Dropdown menu element not found');
+        return;
+    }
+
+    // Check if dropdown is already populated
+    const existingItems = dropdownMenu.querySelectorAll('.dropdown-item');
+    if (existingItems.length > 0) {
+        console.log('Dropdown already populated, skipping...');
+        window.subuserDropdownInitialized = true;
+        return;
+    }
+
+    console.log('Loading prioritized subusers...');
+
+    fetch('/subusers/prioritized', {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('API Response:', data);
+        
+        // Double-check if dropdown is still empty (prevent race conditions)
+        const currentItems = dropdownMenu.querySelectorAll('.dropdown-item');
+        if (currentItems.length > 0) {
+            console.log('Dropdown was populated by another process, skipping...');
+            return;
+        }
+
+        // Clear existing items (safety check)
+        dropdownMenu.innerHTML = '';
+        
+        // Add a loading indicator
+        const loadingItem = document.createElement('li');
+        loadingItem.innerHTML = '<div class="dropdown-item-text small text-muted">Loading...</div>';
+        dropdownMenu.appendChild(loadingItem);
+
+        // Remove loading indicator
+        dropdownMenu.innerHTML = '';
+        
+        // Add "Myself" option first
+        const myselfOption = document.createElement('li');
+        myselfOption.innerHTML = `
+            <a class="dropdown-item d-flex align-items-center gap-2" href="#" data-id="" data-avatar="${window.currentUserAvatar}" data-name="Myself" data-status="true">
+                <img src="${window.currentUserAvatar}" class="rounded-circle" style="width:24px;height:24px;object-fit:cover;">
+                <span class="flex-grow-1">Myself</span>
+                <span class="badge bg-success badge-sm ms-auto">Active</span>
+            </a>
+        `;
+        dropdownMenu.appendChild(myselfOption);
+
+        // Add subuser options (only if they exist and are unique)
+        if (data.subusers && data.subusers.length > 0) {
+            const seenIds = new Set();
+            data.subusers.forEach(subuser => {
+                // Prevent duplicate entries
+                if (seenIds.has(subuser.id)) {
+                    console.log('Skipping duplicate subuser:', subuser.id);
+                    return;
+                }
+                seenIds.add(subuser.id);
+                
+                const subuserOption = document.createElement('li');
+                const statusBadge = subuser.status ? 
+                    '<span class="badge bg-success badge-sm ms-auto">Active</span>' : 
+                    '<span class="badge bg-secondary badge-sm ms-auto">Inactive</span>';
+                
+                // Add disabled class and data attribute for inactive subusers
+                const isActive = Boolean(subuser.status);
+                const disabledClass = isActive ? '' : 'disabled-subuser';
+                const disabledAttr = isActive ? '' : 'data-disabled="true"';
+                
+                subuserOption.innerHTML = `
+                    <a class="dropdown-item d-flex align-items-center gap-2 ${disabledClass}" href="#" data-id="${subuser.id}" data-avatar="${subuser.image}" data-name="${subuser.username}" data-status="${isActive ? 'true' : 'false'}" ${disabledAttr}>
+                        <img src="${subuser.image}" class="rounded-circle" style="width:24px;height:24px;object-fit:cover;">
+                        <span class="flex-grow-1">${subuser.username}</span>
+                        ${statusBadge}
+                    </a>
+                `;
+                dropdownMenu.appendChild(subuserOption);
+            });
+        }
+
+        // Show prioritization info if applicable (only once)
+        if (data.is_prioritized && !dropdownMenu.querySelector('.dropdown-item-text')) {
+            const infoDiv = document.createElement('li');
+            infoDiv.innerHTML = `
+                <div class="dropdown-item-text small text-muted">
+                    <i class="fas fa-info-circle"></i>
+                    Showing all ${data.actual_count} subusers (${data.total_max_subusers} can be used for orders/chats)
+                </div>
+            `;
+            dropdownMenu.appendChild(infoDiv);
+        }
+
+        // Add click handlers only once
+        dropdownMenu.querySelectorAll('.dropdown-item').forEach((item, index) => {
+            // Remove any existing click handlers to prevent duplicates
+            const newItem = item.cloneNode(true);
+            item.parentNode.replaceChild(newItem, item);
+            
+            newItem.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const subuserId = this.getAttribute('data-id');
+                const subuserName = this.getAttribute('data-name');
+                const subuserImage = this.getAttribute('data-avatar');
+
+                // Update dropdown button
+                const dropdownName = document.getElementById('subuserDropdownName');
+                const dropdownAvatar = document.getElementById('subuserDropdownAvatar');
+                
+                if (dropdownName) {
+                    dropdownName.textContent = subuserName;
+                }
+                
+                if (dropdownAvatar) {
+                    dropdownAvatar.src = subuserImage;
+                }
+
+                // Store selected subuser
+                window.selectedSubuserId = subuserId || null;
+
+                // Check if this subuser is active/inactive and update chat input state
+                const statusAttr = this.getAttribute('data-status');
+                const isActive = statusAttr === 'true' || statusAttr === true;
+                window.currentSubuserStatus = isActive;
+                
+                // Update chat input state based on subuser status
+                if (typeof window.updateChatInputState === 'function') {
+                    window.updateChatInputState();
+                }
+                
+                // Switch to the appropriate chat for this subuser
+                if (window.currentDirectSellerId && typeof window.startOrGetChatWithSubuser === 'function') {
+                    window.startOrGetChatWithSubuser(
+                        window.currentDirectSellerId, 
+                        subuserId, 
+                        window.currentDirectSellerName, 
+                        window.currentDirectSellerAvatar
+                    );
+                }
+
+                // Add visual feedback
+                this.style.backgroundColor = '#e3f2fd';
+                setTimeout(() => {
+                    this.style.backgroundColor = '';
+                }, 500);
+
+                // Close dropdown using Bootstrap 5 method
+                const dropdownToggle = document.getElementById('subuserDropdownBtn');
+                if (dropdownToggle && window.bootstrap) {
+                    const dropdown = bootstrap.Dropdown.getInstance(dropdownToggle);
+                    if (dropdown) {
+                        dropdown.hide();
+                    } else {
+                        // Fallback: manually hide dropdown
+                        const dropdownMenu = document.getElementById('subuserDropdownMenu');
+                        if (dropdownMenu) {
+                            dropdownMenu.classList.remove('show');
+                            dropdownToggle.setAttribute('aria-expanded', 'false');
+                        }
+                    }
+                }
+            });
+        });
+
+        // Initialize dropdown with current chat's subuser if available
+        if (typeof window.syncSubuserDropdownSelection === 'function') {
+            window.syncSubuserDropdownSelection();
+        }
+        
+        // Set initial subuser status to active (Myself is default)
+        window.currentSubuserStatus = true;
+        
+        // Update chat input state based on current subuser
+        if (typeof window.updateChatInputState === 'function') {
+            window.updateChatInputState();
+        }
+
+        // Mark as initialized to prevent re-initialization
+        window.subuserDropdownInitialized = true;
+        console.log('Subuser dropdown initialized successfully');
+    })
+    .catch(error => {
+        console.error('Error loading subusers:', error);
+    });
+}
+
+// Load subusers when modal is shown - only once per page load
+if (!window.modalInitializationComplete) {
+    window.modalInitializationComplete = true;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('directChatModal');
+        if (modal) {
+            // Use a flag to prevent multiple event listeners
+            if (!modal.hasAttribute('data-subuser-listener-added')) {
+                modal.setAttribute('data-subuser-listener-added', 'true');
+                
+                modal.addEventListener('shown.bs.modal', function() {
+                    console.log('Direct chat modal shown, loading subusers...');
+                    loadPrioritizedSubusers();
+                    
+                    // Ensure dropdown is properly initialized
+                    const dropdownToggle = document.getElementById('subuserDropdownBtn');
+                    if (dropdownToggle && window.bootstrap) {
+                        // Initialize Bootstrap dropdown if not already done
+                        if (!bootstrap.Dropdown.getInstance(dropdownToggle)) {
+                            new bootstrap.Dropdown(dropdownToggle);
+                        }
+                    }
+                });
+                
+                // Reset the flag when modal is hidden
+                modal.addEventListener('hidden.bs.modal', function() {
+                    console.log('Direct chat modal hidden, resetting subusers flag...');
+                    window.subuserDropdownInitialized = false;
+                });
+            }
+        }
+    });
+}
+</script>
+@endpush 

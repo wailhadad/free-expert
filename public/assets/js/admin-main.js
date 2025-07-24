@@ -246,8 +246,27 @@ $(function ($) {
           $(this).html('');
         });
 
-        for (let x in error.responseJSON.errors) {
-          document.getElementById('err_' + x).innerHTML = error.responseJSON.errors[x][0];
+        // Check for package limit errors and redirect with flash message
+        if (error.responseJSON.error && 
+            (error.responseJSON.error.includes('package') || 
+             error.responseJSON.error.includes('maximum number') ||
+             error.responseJSON.error.includes('does not allow'))) {
+          
+          // Redirect to forms index with flash message
+          window.location.href = '/seller/service-management/forms?language=en&error=' + encodeURIComponent(error.responseJSON.error);
+          return;
+        }
+
+        // Check for specific error message from backend
+        if (error.responseJSON.error) {
+          // Show general error message
+          alert(error.responseJSON.error);
+        }
+        // Check for field-specific errors
+        else if (error.responseJSON.errors) {
+          for (let x in error.responseJSON.errors) {
+            document.getElementById('err_' + x).innerHTML = error.responseJSON.errors[x][0];
+          }
         }
 
         $('.request-loader').removeClass('show');

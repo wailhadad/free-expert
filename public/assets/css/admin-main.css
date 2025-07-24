@@ -1171,3 +1171,8 @@ body[data-background-color="dark"] .select2-container--default .select2-selectio
 .order-actions-dropdown {
   position: absolute !important;
 }
+
+.badge-purple {
+  background-color: #6f42c1 !important;
+  color: #fff !important;
+}

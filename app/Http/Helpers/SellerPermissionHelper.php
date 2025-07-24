@@ -20,8 +20,8 @@ class SellerPermissionHelper
     $currentPackage = Membership::query()->where([
       ['seller_id', '=', $seller_id],
       ['status', '=', '1'],
-      ['start_date', '<=', Carbon::now()->format('Y-m-d')],
-      ['expire_date', '>=', Carbon::now()->format('Y-m-d')]
+      ['start_date', '<=', Carbon::now()],
+      ['expire_date', '>=', Carbon::now()]
     ])->first();
     $package = isset($currentPackage) ? Package::query()->find($currentPackage->package_id) : null;
     return $package ? $package : collect([]);
@@ -45,12 +45,26 @@ class SellerPermissionHelper
   {
     $bs = Basic::first();
     Config::set('app.timezone', $bs->timezone);
+    
+    // First try to find an active membership (not expired)
     $currentPackage = Membership::query()->where([
       ['seller_id', '=', $userId],
       ['status', '=', '1'],
-      ['start_date', '<=', Carbon::now()->format('Y-m-d')],
-      ['expire_date', '>=', Carbon::now()->format('Y-m-d')]
+      ['start_date', '<=', Carbon::now()],
+      ['expire_date', '>=', Carbon::now()]
     ])->first();
+    
+    // If no active membership, check for grace period membership
+    if (!$currentPackage) {
+      $currentPackage = Membership::query()->where([
+        ['seller_id', '=', $userId],
+        ['status', '=', '1'],
+        ['start_date', '<=', Carbon::now()],
+        ['in_grace_period', '=', '1'],
+        ['grace_period_until', '>', Carbon::now()]
+      ])->first();
+    }
+    
     return isset($currentPackage) ? Package::query()->findOrFail($currentPackage->package_id) : null;
   }
   public static function userPackage(int $userId)
@@ -58,12 +72,26 @@ class SellerPermissionHelper
     $bs = Basic::first();
     Config::set('app.timezone', $bs->timezone);
 
-    return Membership::query()->where([
+    // First try to find an active membership (not expired)
+    $currentPackage = Membership::query()->where([
       ['seller_id', '=', $userId],
       ['status', '=', '1'],
-      ['start_date', '<=', Carbon::now()->format('Y-m-d')],
-      ['expire_date', '>=', Carbon::now()->format('Y-m-d')]
+      ['start_date', '<=', Carbon::now()],
+      ['expire_date', '>=', Carbon::now()]
     ])->first();
+    
+    // If no active membership, check for grace period membership
+    if (!$currentPackage) {
+      $currentPackage = Membership::query()->where([
+        ['seller_id', '=', $userId],
+        ['status', '=', '1'],
+        ['start_date', '<=', Carbon::now()],
+        ['in_grace_period', '=', '1'],
+        ['grace_period_until', '>', Carbon::now()]
+      ])->first();
+    }
+    
+    return $currentPackage;
   }
 
   public static function currPackageOrPending($userId)
@@ -108,8 +136,8 @@ class SellerPermissionHelper
     Config::set('app.timezone', $bs->timezone);
     $currMemb = Membership::query()->where([
       ['seller_id', $userId],
-      ['start_date', '<=', Carbon::now()->toDateString()],
-      ['expire_date', '>=', Carbon::now()->toDateString()]
+      ['start_date', '<=', Carbon::now()],
+      ['expire_date', '>=', Carbon::now()]
     ])->where('status', '<>', '2')->whereYear('start_date', '<>', '9999');
     $nextPackage = null;
     if ($currMemb->first()) {
@@ -133,8 +161,8 @@ class SellerPermissionHelper
     Config::set('app.timezone', $bs->timezone);
     $currMemb = Membership::query()->where([
       ['seller_id', $userId],
-      ['start_date', '<=', Carbon::now()->toDateString()],
-      ['expire_date', '>=', Carbon::now()->toDateString()]
+      ['start_date', '<=', Carbon::now()],
+      ['expire_date', '>=', Carbon::now()]
     ])->where('status', '<>', '2')->whereYear('start_date', '<>', '9999');
     $nextMemb = null;
     if ($currMemb->first()) {

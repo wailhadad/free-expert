@@ -468,12 +468,13 @@ class SellerManagementController extends Controller
         $selectedPackage = Package::find($request->package_id);
 
         // calculate expire date for selected package
+        $now = Carbon::now();
         if ($selectedPackage->term == 'monthly') {
-            $exDate = Carbon::now()->addMonth()->format('d-m-Y');
+            $exDate = $now->copy()->addMonth();
         } elseif ($selectedPackage->term == 'yearly') {
-            $exDate = Carbon::now()->addYear()->format('d-m-Y');
+            $exDate = $now->copy()->addYear();
         } elseif ($selectedPackage->term == 'lifetime') {
-            $exDate = Carbon::maxValue()->format('d-m-Y');
+            $exDate = Carbon::maxValue();
         }
         // store a new membership for selected package
         $selectedMemb = Membership::create([
@@ -488,8 +489,8 @@ class SellerManagementController extends Controller
             'settings' => null,
             'package_id' => $selectedPackage->id,
             'seller_id' => $seller_id,
-            'start_date' => Carbon::parse(Carbon::now()->format('d-m-Y')),
-            'expire_date' => Carbon::parse($exDate),
+            'start_date' => $now,
+            'expire_date' => $exDate,
             'is_trial' => 0,
             'trial_days' => 0,
         ]);
@@ -541,7 +542,7 @@ class SellerManagementController extends Controller
         }
 
         // expire the current package
-        $currMembership->expire_date = Carbon::parse(Carbon::now()->subDay()->format('d-m-Y'));
+        $currMembership->expire_date = Carbon::now()->subDay();
         $currMembership->modified = 1;
         if ($currMembership->status == 0) {
             $currMembership->status = 2;
@@ -549,12 +550,13 @@ class SellerManagementController extends Controller
         $currMembership->save();
 
         // calculate expire date for selected package
+        $now = Carbon::now();
         if ($selectedPackage->term == 'monthly') {
-            $exDate = Carbon::now()->addMonth()->format('d-m-Y');
+            $exDate = $now->copy()->addMonth();
         } elseif ($selectedPackage->term == 'yearly') {
-            $exDate = Carbon::now()->addYear()->format('d-m-Y');
+            $exDate = $now->copy()->addYear();
         } elseif ($selectedPackage->term == 'lifetime') {
-            $exDate = Carbon::maxValue()->format('d-m-Y');
+            $exDate = Carbon::maxValue();
         }
         // store a new membership for selected package
         $selectedMemb = Membership::create([
@@ -569,8 +571,8 @@ class SellerManagementController extends Controller
             'settings' => null,
             'package_id' => $selectedPackage->id,
             'seller_id' => $seller_id,
-            'start_date' => Carbon::parse(Carbon::now()->format('d-m-Y')),
-            'expire_date' => Carbon::parse($exDate),
+            'start_date' => $now,
+            'expire_date' => $exDate,
             'is_trial' => 0,
             'trial_days' => 0,
         ]);
@@ -602,15 +604,15 @@ class SellerManagementController extends Controller
             $nextPackage = Package::find($nextMembership->package_id);
 
             // calculate & store next membership's start_date
-            $nextMembership->start_date = Carbon::parse(Carbon::parse($exDate)->addDay()->format('d-m-Y'));
+            $nextMembership->start_date = $exDate->copy()->addDay();
 
             // calculate & store expire date for next membership
             if ($nextPackage->term == 'monthly') {
-                $exDate = Carbon::parse(Carbon::parse(Carbon::parse($exDate)->addDay()->format('d-m-Y'))->addMonth()->format('d-m-Y'));
+                $exDate = Carbon::parse(Carbon::parse($exDate)->addDay()->format('d-m-Y'))->addMonth();
             } elseif ($nextPackage->term == 'yearly') {
-                $exDate = Carbon::parse(Carbon::parse(Carbon::parse($exDate)->addDay()->format('d-m-Y'))->addYear()->format('d-m-Y'));
+                $exDate = Carbon::parse(Carbon::parse($exDate)->addDay()->format('d-m-Y'))->addYear();
             } else {
-                $exDate = Carbon::parse(Carbon::maxValue()->format('d-m-Y'));
+                $exDate = Carbon::maxValue();
             }
             $nextMembership->expire_date = $exDate;
             $nextMembership->save();
@@ -647,13 +649,13 @@ class SellerManagementController extends Controller
         if (!empty($nextMembership)) {
             $nextPackage = Package::find($nextMembership->package_id);
 
-            $nextMembership->start_date = Carbon::parse(Carbon::today()->format('d-m-Y'));
+            $nextMembership->start_date = Carbon::today();
             if ($nextPackage->term == 'monthly') {
-                $nextMembership->expire_date = Carbon::parse(Carbon::today()->addMonth()->format('d-m-Y'));
+                $nextMembership->expire_date = Carbon::today()->addMonth();
             } elseif ($nextPackage->term == 'yearly') {
-                $nextMembership->expire_date = Carbon::parse(Carbon::today()->addYear()->format('d-m-Y'));
+                $nextMembership->expire_date = Carbon::today()->addYear();
             } elseif ($nextPackage->term == 'lifetime') {
-                $nextMembership->expire_date = Carbon::parse(Carbon::maxValue()->format('d-m-Y'));
+                $nextMembership->expire_date = Carbon::maxValue();
             }
             $nextMembership->save();
         }
@@ -691,11 +693,11 @@ class SellerManagementController extends Controller
         if ($currPackage->term != 'lifetime') {
             // calculate expire date for selected package
             if ($selectedPackage->term == 'monthly') {
-                $exDate = Carbon::parse($currMembership->expire_date)->addDay()->addMonth()->format('d-m-Y');
+                $exDate = Carbon::parse($currMembership->expire_date)->addDay()->addMonth();
             } elseif ($selectedPackage->term == 'yearly') {
-                $exDate = Carbon::parse($currMembership->expire_date)->addDay()->addYear()->format('d-m-Y');
+                $exDate = Carbon::parse($currMembership->expire_date)->addDay()->addYear();
             } elseif ($selectedPackage->term == 'lifetime') {
-                $exDate = Carbon::parse(Carbon::maxValue()->format('d-m-Y'));
+                $exDate = Carbon::maxValue();
             }
             // store a new membership for selected package
             $selectedMemb = Membership::create([
@@ -710,8 +712,8 @@ class SellerManagementController extends Controller
                 'settings' => null,
                 'package_id' => $selectedPackage->id,
                 'seller_id' => $seller_id,
-                'start_date' => Carbon::parse(Carbon::parse($currMembership->expire_date)->addDay()->format('d-m-Y')),
-                'expire_date' => Carbon::parse($exDate),
+                'start_date' => Carbon::parse($currMembership->expire_date)->addDay(),
+                'expire_date' => $exDate,
                 'is_trial' => 0,
                 'trial_days' => 0,
             ]);
@@ -765,12 +767,13 @@ class SellerManagementController extends Controller
         $nextMembership->save();
 
         // calculate expire date for selected package
+        $now = Carbon::now();
         if ($selectedPackage->term == 'monthly') {
-            $exDate = Carbon::parse($prevStartDate)->addMonth()->format('d-m-Y');
+            $exDate = $now->copy()->addMonth();
         } elseif ($selectedPackage->term == 'yearly') {
-            $exDate = Carbon::parse($prevStartDate)->addYear()->format('d-m-Y');
+            $exDate = $now->copy()->addYear();
         } elseif ($selectedPackage->term == 'lifetime') {
-            $exDate = Carbon::parse(Carbon::maxValue()->format('d-m-Y'));
+            $exDate = Carbon::maxValue();
         }
 
         // store a new membership for selected package
@@ -786,8 +789,8 @@ class SellerManagementController extends Controller
             'settings' => json_encode($bs),
             'package_id' => $selectedPackage->id,
             'seller_id' => $seller_id,
-            'start_date' => Carbon::parse($prevStartDate),
-            'expire_date' => Carbon::parse($exDate),
+            'start_date' => $prevStartDate,
+            'expire_date' => $exDate,
             'is_trial' => 0,
             'trial_days' => 0,
         ]);

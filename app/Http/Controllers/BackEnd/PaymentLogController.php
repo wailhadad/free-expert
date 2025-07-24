@@ -113,8 +113,8 @@ class PaymentLogController extends Controller
             ->where('seller_id', $membership->seller_id)
             ->where('id', '!=', $membership->id) // Exclude current membership being approved
             ->where('status', 1) // Only active memberships
-            ->where('start_date', '<=', Carbon::now()->toDateString())
-            ->where('expire_date', '>=', Carbon::now()->toDateString())
+            ->where('start_date', '<=', Carbon::now())
+            ->where('expire_date', '>=', Carbon::now())
             ->exists();
             
         if ($request->status === "1") {
@@ -152,8 +152,8 @@ class PaymentLogController extends Controller
             $previousMembership = Membership::query()
                 ->where([
                     ['seller_id', $seller->id],
-                    ['start_date', '<=', Carbon::now()->toDateString()],
-                    ['expire_date', '>=', Carbon::now()->toDateString()]
+                                    ['start_date', '<=', Carbon::now()],
+                ['expire_date', '>=', Carbon::now()]
                 ])
                 ->where('status', 1)
                 ->orderBy('created_at', 'DESC')

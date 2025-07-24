@@ -17,16 +17,60 @@ class FormController extends Controller
     {
         $language = Language::query()->where('code', '=', $request->language)->firstOrFail();
         $information['language'] = $language;
-
-        $information['forms'] = $language->form()->where('seller_id', Auth::guard('seller')->user()->id)->orderByDesc('id')->get();
-
+        
+        // Check for flash message from URL parameter
+        if ($request->has('error')) {
+            session()->flash('error', urldecode($request->error));
+        }
+        
+        // Get current package limits
+        $currentPackage = \App\Http\Helpers\SellerPermissionHelper::currentPackagePermission(Auth::guard('seller')->user()->id);
+        $formLimit = $currentPackage ? $currentPackage->number_of_form_add : 0;
+        
+        // Fetch all forms for the seller with service contents relationship
+        $allForms = Form::where('seller_id', Auth::guard('seller')->user()->id)
+            ->with(['serviceContents' => function($query) {
+                $query->with(['service' => function($serviceQuery) {
+                    $serviceQuery->select('id', 'service_status');
+                }]);
+            }])
+            ->orderByDesc('id')
+            ->get();
+        $totalForms = $allForms->count();
+        
+        // Determine which forms are within the limit using the helper
+        $formsWithinLimit = \App\Http\Helpers\UserPermissionHelper::getSellerFormsWithinLimit(Auth::guard('seller')->user()->id, $formLimit);
+        $isPrioritized = $totalForms > $formLimit;
+        
+        $information['forms'] = $allForms;
         $information['langs'] = Language::all();
+        $information['formLimit'] = $formLimit;
+        $information['totalForms'] = $totalForms;
+        $information['formsWithinLimit'] = $formsWithinLimit;
+        $information['isPrioritized'] = $isPrioritized;
 
         return view('seller.form.index', $information);
     }
 
     public function store(Request $request)
     {
+        // Check form limit before creating
+        $currentPackage = \App\Http\Helpers\SellerPermissionHelper::currentPackagePermission(Auth::guard('seller')->user()->id);
+        $formLimit = $currentPackage ? $currentPackage->number_of_form_add : 0;
+        $currentFormCount = Form::where('seller_id', Auth::guard('seller')->user()->id)->count();
+        
+        if ($formLimit == 0) {
+            return Response::json([
+                'error' => 'Your current package does not allow form creation.'
+            ], 400);
+        }
+        
+        if ($currentFormCount >= $formLimit) {
+            return Response::json([
+                'error' => 'You have reached the maximum number of forms allowed by your package.'
+            ], 400);
+        }
+
         $rules = [
             'language_id' => 'required',
             'name' => 'required'

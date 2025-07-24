@@ -394,8 +394,8 @@ class SellerCheckoutController extends Controller
             ->select('id', 'package_id', 'is_trial')
             ->where([
                 ['seller_id', $seller->id],
-                ['start_date', '<=', Carbon::now()->toDateString()],
-                ['expire_date', '>=', Carbon::now()->toDateString()]
+                            ['start_date', '<=', Carbon::now()],
+            ['expire_date', '>=', Carbon::now()]
             ])
             ->where('status', 1)
             ->orderBy('created_at', 'DESC')
@@ -413,6 +413,45 @@ class SellerCheckoutController extends Controller
             }
         }
         if ($seller) {
+            // Check for pending payment membership
+            $pendingMembership = Membership::where('seller_id', $seller->id)
+                ->where('pending_payment', true)
+                ->where('status', 1)
+                ->orderBy('id', 'DESC')
+                ->first();
+            
+            // If there's a pending payment membership, restore the balance to its original state
+            // before the auto-renewal deduction
+            if ($pendingMembership && $pendingMembership->original_balance !== null) {
+                // Restore the balance to what it was before the deduction
+                $seller->amount = $pendingMembership->original_balance;
+                $seller->save();
+                
+                \Log::info("Balance restored after package purchase", [
+                    'seller_id' => $seller->id,
+                    'membership_id' => $pendingMembership->id,
+                    'original_balance_stored' => $pendingMembership->original_balance,
+                    'restored_balance' => $seller->amount,
+                    'package_purchased_price' => $request['price']
+                ]);
+            }
+            
+            // For new package purchases, DO NOT modify the balance further
+            // Balance should only change during auto-renewal (decrease) 
+            // and when auto-renewal makes balance < 0 (restore to original balance)
+            // Package purchase should not affect the seller's balance beyond restoration
+            
+            // Ensure start_date and expire_date have time, not just date
+            $startDate = isset($request['start_date']) ? Carbon::parse($request['start_date']) : Carbon::now();
+            if ($startDate->hour === 0 && $startDate->minute === 0 && $startDate->second === 0) {
+                $now = Carbon::now();
+                $startDate->setTime($now->hour, $now->minute, $now->second);
+            }
+            $expireDate = isset($request['expire_date']) ? Carbon::parse($request['expire_date']) : null;
+            if ($expireDate && $expireDate->hour === 0 && $expireDate->minute === 0 && $expireDate->second === 0) {
+                $now = Carbon::now();
+                $expireDate->setTime($now->hour, $now->minute, $now->second);
+            }
             $membership = Membership::create([
                 'price' => $request['price'],
                 'currency' => $abs->base_currency_text,
@@ -425,12 +464,18 @@ class SellerCheckoutController extends Controller
                 'settings' => json_encode($abs),
                 'package_id' => $request['package_id'],
                 'seller_id' => $seller->id,
-                'start_date' => Carbon::parse($request['start_date']),
-                'expire_date' => Carbon::parse($request['expire_date']),
+                'start_date' => $startDate,
+                'expire_date' => $expireDate,
                 'is_trial' => 0,
                 'trial_days' => 0,
                 'conversation_id' => $request['conversation_id'] ?? null,
             ]);
+            // If there was a pending payment membership, clear it and activate
+            if ($pendingMembership) {
+                $pendingMembership->pending_payment = false;
+                $pendingMembership->status = 1;
+                $pendingMembership->save();
+            }
         }
         return $seller;
     }

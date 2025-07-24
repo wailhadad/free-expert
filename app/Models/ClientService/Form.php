@@ -32,4 +32,9 @@ class Form extends Model
   {
     return $this->hasMany(FormInput::class, 'form_id', 'id');
   }
+
+  public function serviceContents()
+  {
+    return $this->hasMany(ServiceContent::class, 'form_id', 'id');
+  }
 }

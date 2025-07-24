@@ -56,6 +56,7 @@
                         <th scope="col">{{ __('Amount') }}</th>
                         <th scope="col">{{ __('Payment Status') }}</th>
                         <th scope="col">{{ __('Payment Method') }}</th>
+                        <th scope="col">{{ __('Status') }}</th>
                         <th scope="col">{{ __('Receipt') }}</th>
                         <th scope="col">{{ __('Invoice') }}</th>
                         <th scope="col">{{ __('Actions') }}</th>
@@ -83,10 +84,33 @@
                             @elseif ($membership->status == 0)
                               <h3 class="d-inline-block badge badge-warning">{{ __('Pending') }}</h3>
                             @elseif ($membership->status == 2)
-                              <h3 class="d-inline-block badge badge-danger">{{ __('Rejected') }}</h3>
+                              <h3 class="d-inline-block badge badge-success">{{ __('Success') }}</h3>
                             @endif
                           </td>
                           <td>{{ $membership->payment_method }}</td>
+                          <td>
+                            @php
+                              $now = \Carbon\Carbon::now();
+                              $expireDate = \Carbon\Carbon::parse($membership->expire_date);
+                              
+                              // Check if membership is in grace period
+                              $isInGracePeriod = $membership->in_grace_period && $membership->grace_period_until && \Carbon\Carbon::parse($membership->grace_period_until) > $now;
+                              
+                              // Check if membership is truly expired (after grace period or no grace period)
+                              $isExpired = $expireDate->lt($now) && !$isInGracePeriod;
+                            @endphp
+                            @if ($membership->status == 1 && !$isExpired && !$isInGracePeriod)
+                              <span class="badge badge-success">{{ __('Activated') }}</span>
+                            @elseif ($membership->status == 1 && $isInGracePeriod)
+                              <span class="badge badge-warning">{{ __('Grace Period') }}</span>
+                            @elseif ($membership->status == 1 && $isExpired)
+                              <span class="badge badge-purple">{{ __('Expired') }}</span>
+                            @elseif ($membership->status == 0)
+                              <span class="badge badge-info">{{ __('Pending') }}</span>
+                            @elseif ($membership->status == 2)
+                              <span class="badge badge-purple">{{ __('Expired') }}</span>
+                            @endif
+                          </td>
                           <td>
                             @if (!empty($membership->receipt))
                               <a class="btn btn-sm btn-info" href="#" data-bs-toggle="modal"

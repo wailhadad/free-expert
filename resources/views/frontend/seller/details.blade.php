@@ -99,6 +99,9 @@
                   <span class="first">{{ __('Total Services') . ' : ' }}</span>
                   <span class="last font-sm">
                     {{ count($all_services) }}
+                    @if(isset($serviceLimit) && $serviceLimit > 0 && $totalServices > $serviceLimit)
+                      <span class="text-muted">({{ __('Limited to') }} {{ $serviceLimit }})</span>
+                    @endif
                   </span>
                 </li>
                 <li>
@@ -188,8 +191,12 @@
 
               <div class="btn-groups text-center mt-20">
                 @if ($seller->show_contact_form == 1)
-                  <button class="btn btn-lg btn-primary radius-sm w-100 mb-10" data-bs-toggle="modal" data-bs-target="#contactModal" type="button"
-                    aria-label="button">{{ __('Contact Now') }}</button>
+                  <button class="btn btn-lg btn-primary radius-sm w-100 mb-10" id="contact-now-btn" type="button"
+                    data-seller-id="{{ $seller->id }}"
+                    data-seller-username="{{ $seller->username ?? '' }}"
+                    data-seller-avatar="{{ !empty($seller->photo) ? asset('assets/admin/img/seller-photo/' . $seller->photo) : asset('assets/img/blank-user.jpg') }}"
+                    @if(!Auth::guard('web')->check()) data-login-required="true" @endif
+                    aria-label="button"><i class="fas fa-comments me-2"></i>{{ __('Contact Now') }}</button>
                 @endif
                 @php
                   if (Auth::guard('web')->check()) {
@@ -440,14 +447,34 @@
                 @php
                   if (request()->input('admin') == true) {
                       $seller_id = 0;
+                      $serviceLimit = 0;
                   } else {
                       $seller_id = $seller->id;
+                      $serviceLimit = $serviceLimit ?? 0;
                   }
+                  
+                  // Get all services for this category
                   $all_services = App\Models\ClientService\Service::join('service_contents', 'services.id', '=', 'service_contents.service_id')
                       ->where([['services.service_status', '=', 1], ['service_contents.language_id', '=', $language->id], ['service_contents.service_category_id', $category->id], ['services.seller_id', $seller_id]])
                       ->select('services.id', 'services.thumbnail_image', 'service_contents.title', 'service_contents.slug', 'services.average_rating', 'services.package_lowest_price', 'services.quote_btn_status')
                       ->orderByDesc('services.id')
                       ->get();
+                  
+                  // Apply service limits if needed
+                  if ($serviceLimit > 0 && $all_services->count() > $serviceLimit) {
+                      // Get services within limit using prioritization logic
+                      $servicesWithinLimit = \App\Http\Helpers\UserPermissionHelper::getSellerServicesWithinLimit($seller_id, $serviceLimit, $language->id);
+                      
+                      // Filter to only include services from this category
+                      $categoryServices = $servicesWithinLimit->filter(function($service) use ($category, $language) {
+                          return $service->content->where('service_category_id', $category->id)
+                              ->where('language_id', $language->id)
+                              ->count() > 0;
+                      });
+                      
+                      $all_services = $categoryServices;
+                  }
+                  
                   // review
                   $all_services->map(function ($service) {
                       $service['reviewCount'] = $service->review()->count();
@@ -625,8 +652,86 @@
       </div>
     </div>
   </div>
+
+@include('components.direct-chat-modal')
 @endsection
 @section('script')
   <script src="{{ asset('assets/js/seller-contact.js') }}"></script>
   <script src="{{ asset('assets/js/service.js') }}"></script>
+  <script src="{{ asset('assets/js/direct-chat.js') }}"></script>
+  <script>
+  // Wait for both DOM and scripts to be ready
+  function initializeChat() {
+    const contactBtn = document.getElementById('contact-now-btn');
+    if (contactBtn) {
+      contactBtn.addEventListener('click', function() {
+        console.log('Contact Now button clicked');
+        
+        if (this.getAttribute('data-login-required')) {
+          window.location.href = '{{ route('user.login') }}';
+          return;
+        }
+        
+        const sellerId = this.getAttribute('data-seller-id');
+        const sellerName = this.getAttribute('data-seller-username');
+        const sellerAvatar = this.getAttribute('data-seller-avatar');
+        
+        console.log('Starting chat with seller:', sellerId, sellerName);
+        
+        fetch('/direct-chat/start', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          },
+          body: JSON.stringify({ seller_id: sellerId })
+        })
+        .then(res => res.json())
+        .then(data => {
+          console.log('Chat response:', data);
+          if (data.chat && data.chat.id) {
+            // Existing chat found or new chat created - open modal with chat ID
+            if (typeof window.openDirectChatModal === 'function') {
+              window.openDirectChatModal(data.chat.id, sellerName, sellerAvatar, data.chat.seller_id);
+            } else {
+              console.error('openDirectChatModal function not found');
+              // Try to load the function again or show a more helpful error
+              setTimeout(() => {
+                if (typeof window.openDirectChatModal === 'function') {
+                  window.openDirectChatModal(data.chat.id, sellerName, sellerAvatar, data.chat.seller_id);
+                } else {
+                  alert('Chat functionality not available. Please refresh the page and try again.');
+                }
+              }, 1000);
+            }
+          } else if (data.error) {
+            alert(data.error);
+          } else {
+            // Unexpected response
+            console.error('Unexpected response from server:', data);
+            alert('Unexpected response from server. Please try again.');
+          }
+        })
+        .catch(error => {
+          console.error('Error starting chat:', error);
+          alert('Error starting chat. Please try again.');
+        });
+      });
+    } else {
+      console.error('Contact Now button not found');
+    }
+  }
+
+  // Try to initialize immediately if DOM is ready - only once
+  if (!window.chatInitialized) {
+    window.chatInitialized = true;
+    
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeChat);
+    } else {
+      // DOM is already ready, but wait a bit for scripts to load
+      setTimeout(initializeChat, 100);
+    }
+  }
+  </script>
 @endsection

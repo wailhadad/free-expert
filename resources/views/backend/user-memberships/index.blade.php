@@ -59,6 +59,7 @@
                         <th scope="col">{{ __('Amount') }}</th>
                         <th scope="col">{{ __('Payment Status') }}</th>
                         <th scope="col">{{ __('Payment Method') }}</th>
+                        <th scope="col">{{ __('Status') }}</th>
                         <th scope="col">{{ __('Receipt') }}</th>
                         <th scope="col">{{ __('Invoice') }}</th>
                         <th scope="col">{{ __('Actions') }}</th>
@@ -104,6 +105,22 @@
                             </form>
                           </td>
                           <td>{{ $membership->payment_method }}</td>
+                          <td>
+                            @php
+                              $now = \Carbon\Carbon::now();
+                              $expireDate = \Carbon\Carbon::parse($membership->expire_date);
+                              $isExpired = $expireDate->lt($now);
+                            @endphp
+                            @if ($membership->status == 1 && !$isExpired)
+                              <span class="badge badge-success">{{ __('Activated') }}</span>
+                            @elseif ($membership->status == 1 && $isExpired)
+                              <span class="badge badge-warning">{{ __('Expired') }}</span>
+                            @elseif ($membership->status == 0)
+                              <span class="badge badge-info">{{ __('Pending') }}</span>
+                            @elseif ($membership->status == 2)
+                              <span class="badge badge-secondary">{{ __('Expired') }}</span>
+                            @endif
+                          </td>
                           <td>
                             @if (!empty($membership->receipt_name))
                               <a class="btn btn-sm btn-info" href="#" data-bs-toggle="modal"

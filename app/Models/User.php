@@ -108,16 +108,26 @@ class User extends Authenticatable
 
   public function currentUserMembership()
   {
-    $currentDate = \App\Http\Helpers\UserPermissionHelper::getCurrentDate();
+    // First check for active membership (not expired)
+    $activeMembership = $this->hasOne(UserMembership::class, 'user_id')
+      ->where('status', '1')
+      ->where('start_date', '<=', \Carbon\Carbon::now())
+      ->where('expire_date', '>=', \Carbon\Carbon::now());
     
+    if ($activeMembership->exists()) {
+      return $activeMembership;
+    }
+    
+    // If no active membership, check for grace period membership
     return $this->hasOne(UserMembership::class, 'user_id')
       ->where('status', '1')
-      ->where('start_date', '<=', $currentDate)
-      ->where('expire_date', '>=', $currentDate);
+      ->where('in_grace_period', 1)
+      ->where('grace_period_until', '>', \Carbon\Carbon::now());
   }
 
   public function hasAgencyPrivileges()
   {
+    // Check for active membership (including grace period)
     $membership = $this->currentUserMembership;
     if (!$membership) {
       return false;
@@ -129,13 +139,8 @@ class User extends Authenticatable
 
   public function getMaxSubusersAttribute()
   {
-    $membership = $this->currentUserMembership;
-    if (!$membership) {
-      return 0;
-    }
-    
-    $package = $membership->package;
-    return $package ? $package->max_subusers : 0;
+    // Get total max subusers from all active memberships (including grace period)
+    return \App\Http\Helpers\UserPermissionHelper::totalMaxSubusers($this->id);
   }
 
   public function getCurrentSubusersCountAttribute()

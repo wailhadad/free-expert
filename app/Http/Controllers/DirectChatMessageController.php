@@ -28,6 +28,9 @@ class DirectChatMessageController extends Controller
             $senderId = Auth::id();
             $senderType = 'user';
             $sender = Auth::user();
+            
+            // Note: Message sending is now allowed regardless of membership status
+            // Membership status only affects profile dropdown visibility
         } elseif (Auth::guard('seller')->check()) {
             $senderId = Auth::guard('seller')->id();
             $senderType = 'seller';
@@ -50,7 +53,7 @@ class DirectChatMessageController extends Controller
                 return response()->json(['error' => 'Missing required parameters for new chat'], 422);
             }
             
-            // Check if chat already exists
+            // Check if chat already exists for this specific subuser
             $chat = DirectChat::where([
                 'user_id' => $userId,
                 'seller_id' => $sellerId,
@@ -58,7 +61,7 @@ class DirectChatMessageController extends Controller
             ])->first();
             
             if (!$chat) {
-                // Create new chat
+                // Create new chat for this specific subuser
                 $chat = DirectChat::create([
                     'user_id' => $userId,
                     'seller_id' => $sellerId,
@@ -75,8 +78,31 @@ class DirectChatMessageController extends Controller
             
             $chatId = $chat->id;
         } else {
-            // Existing chat
+            // Existing chat - but we need to ensure we're using the correct subuser_id from the request
             $chat = DirectChat::findOrFail($chatId);
+            
+            // If a subuser_id is provided in the request, we should use that specific subuser
+            // regardless of what's stored in the chat record
+            $requestSubuserId = $request->input('subuser_id');
+            if ($requestSubuserId !== null) {
+                // Check if there's a different chat for this subuser
+                $correctChat = DirectChat::where([
+                    'user_id' => $chat->user_id,
+                    'seller_id' => $chat->seller_id,
+                    'subuser_id' => $requestSubuserId,
+                ])->first();
+                
+                if ($correctChat && $correctChat->id !== $chat->id) {
+                    // Use the correct chat for this subuser
+                    $chat = $correctChat;
+                    $chatId = $chat->id;
+                    \Log::info('Switched to correct chat for subuser', [
+                        'original_chat_id' => $chatId,
+                        'correct_chat_id' => $correctChat->id,
+                        'subuser_id' => $requestSubuserId
+                    ]);
+                }
+            }
         }
 
 
@@ -89,7 +115,26 @@ class DirectChatMessageController extends Controller
             $fileOriginalName = $file->getClientOriginalName();
         }
 
-        $subuserId = $request->input('subuser_id') ?: ($chat->subuser_id ?? null);
+        $subuserId = $request->input('subuser_id');
+        
+        // For user messages, always use the subuser_id from the request
+        // For seller messages, use the chat's subuser_id if no request subuser_id
+        if ($senderType === 'user') {
+            // User messages should always use the subuser_id from the request
+            // This ensures messages go to the correct subuser's chat
+            $subuserId = $request->input('subuser_id');
+        } else {
+            // For seller messages, use request subuser_id or fall back to chat's subuser_id
+            $subuserId = $request->input('subuser_id') ?: ($chat->subuser_id ?? null);
+        }
+        
+        \Log::info('Subuser ID handling for message', [
+            'sender_type' => $senderType,
+            'request_subuser_id' => $request->input('subuser_id'),
+            'chat_subuser_id' => $chat->subuser_id ?? null,
+            'final_subuser_id' => $subuserId,
+            'chat_id' => $chatId
+        ]);
 
         // Check if this is the seller's first message BEFORE creating the message
         $isFirstSellerMessage = false;

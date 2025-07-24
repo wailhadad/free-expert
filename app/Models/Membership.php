@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class Membership extends Model
 {
@@ -19,6 +20,7 @@ class Membership extends Model
         'payment_method',
         'transaction_id',
         'status',
+        'processed_for_renewal',
         'is_trial',
         'trial_days',
         'receipt',
@@ -28,8 +30,13 @@ class Membership extends Model
         'seller_id',
         'start_date',
         'expire_date',
+        'grace_period_until',
+        'in_grace_period',
         'conversation_id',
-        'invoice'
+        'invoice',
+        'reminder_sent',
+        'pending_payment',
+        'original_balance'
     ];
 
     protected static function boot()
@@ -57,6 +64,62 @@ class Membership extends Model
     public function package()
     {
         return $this->belongsTo(Package::class, 'package_id');
+    }
+
+    /**
+     * Check if membership is in grace period
+     */
+    public function isInGracePeriod()
+    {
+        return $this->in_grace_period && $this->grace_period_until && Carbon::parse($this->grace_period_until) > Carbon::now();
+    }
+
+    /**
+     * Check if membership is truly expired (after grace period)
+     */
+    public function isTrulyExpired()
+    {
+        if ($this->grace_period_until) {
+            return Carbon::parse($this->grace_period_until) < Carbon::now();
+        }
+        return Carbon::parse($this->expire_date) < Carbon::now();
+    }
+
+    /**
+     * Get time remaining in grace period
+     */
+    public function getGracePeriodTimeRemaining()
+    {
+        if (!$this->grace_period_until) {
+            return null;
+        }
+
+        $now = Carbon::now();
+        $graceEnd = Carbon::parse($this->grace_period_until);
+        
+        if ($graceEnd <= $now) {
+            return null;
+        }
+
+        $diff = $graceEnd->diff($now);
+        
+        return [
+            'days' => $diff->days,
+            'hours' => $diff->h,
+            'minutes' => $diff->i,
+            'seconds' => $diff->s,
+            'total_seconds' => $graceEnd->diffInSeconds($now)
+        ];
+    }
+
+    /**
+     * Start grace period
+     */
+    public function startGracePeriod($gracePeriodMinutes = 2)
+    {
+        $this->grace_period_until = Carbon::parse($this->expire_date)->addMinutes($gracePeriodMinutes);
+        $this->in_grace_period = true;
+        $this->save();
     }
 
     /**

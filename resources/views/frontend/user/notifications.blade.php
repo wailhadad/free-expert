@@ -159,10 +159,7 @@
                             </div>
                             <div class="notif-actions">
                                 @if(!$notification->read_at)
-                                <form method="POST" action="{{ route('user.notifications.mark_as_read', $notification->id) }}">
-                                    @csrf
-                                    <button type="submit" class="notif-btn notif-btn-primary" title="Mark as Read"><i class="bi bi-check2"></i></button>
-                                </form>
+                                <button type="button" class="notif-btn notif-btn-primary mark-read-btn" data-id="{{ $notification->id }}" title="Mark as Read"><i class="bi bi-check2"></i></button>
                                 @endif
                                 <!-- <form method="POST" action="{{ route('user.notifications.destroy', $notification->id) }}">
                                     @csrf
@@ -212,6 +209,8 @@ function updateNotifBadge(change) {
     badge.textContent = count;
     badge.style.display = count > 0 ? 'inline-block' : 'none';
 }
+
+
 </script>
 <script src="/assets/js/notification.js"></script>
 @endpush 

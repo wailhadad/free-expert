@@ -113,7 +113,11 @@ class OrderProcessController extends Controller
     // get data of form input-fields
     $formId = $request->session()->get('form_id');
     $form = Form::query()->find($formId);
-    $inputFields = $form->input()->orderBy('order_no', 'asc')->get();
+    
+    $inputFields = collect(); // Initialize as empty collection
+    if ($form) {
+      $inputFields = $form->input()->orderBy('order_no', 'asc')->get();
+    }
 
     if (count($inputFields) > 0) {
       $infos = [];

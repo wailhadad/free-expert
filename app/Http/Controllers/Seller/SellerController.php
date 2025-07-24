@@ -274,25 +274,25 @@ class SellerController extends Controller
         //package start
         $nextPackageCount = Membership::query()->where([
             ['seller_id', Auth::guard('seller')->user()->id],
-            ['expire_date', '>=', Carbon::now()->toDateString()]
+            ['expire_date', '>=', Carbon::now()]
         ])->whereYear('start_date', '<>', '9999')->where('status', '<>', '2')->count();
         //current package
         $information['current_membership'] = Membership::query()->where([
             ['seller_id', Auth::guard('seller')->user()->id],
-            ['start_date', '<=', Carbon::now()->toDateString()],
-            ['expire_date', '>=', Carbon::now()->toDateString()]
+            ['start_date', '<=', Carbon::now()],
+            ['expire_date', '>=', Carbon::now()]
         ])->where('status', '1')->whereYear('start_date', '<>', '9999')->first();
         if ($information['current_membership'] != null) {
             $countCurrMem = Membership::query()->where([
                 ['seller_id', Auth::guard('seller')->user()->id],
-                ['start_date', '<=', Carbon::now()->toDateString()],
-                ['expire_date', '>=', Carbon::now()->toDateString()]
+                ['start_date', '<=', Carbon::now()],
+                ['expire_date', '>=', Carbon::now()]
             ])->where('status', '1')->whereYear('start_date', '<>', '9999')->count();
             if ($countCurrMem > 1) {
                 $information['next_membership'] = Membership::query()->where([
                     ['seller_id', Auth::guard('seller')->user()->id],
-                    ['start_date', '<=', Carbon::now()->toDateString()],
-                    ['expire_date', '>=', Carbon::now()->toDateString()]
+                    ['start_date', '<=', Carbon::now()],
+                    ['expire_date', '>=', Carbon::now()]
                 ])->where('status', '<>', '2')->whereYear('start_date', '<>', '9999')->orderBy('id', 'DESC')->first();
             } else {
                 $information['next_membership'] = Membership::query()->where([

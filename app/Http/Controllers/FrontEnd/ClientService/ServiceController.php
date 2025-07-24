@@ -88,11 +88,18 @@ class ServiceController extends Controller
       $services = Service::join('service_contents', 'services.id', '=', 'service_contents.service_id')
         ->join('memberships', 'services.seller_id', '=', 'memberships.seller_id')
         ->join('sellers', 'services.seller_id', '=', 'sellers.id')
+        ->join('packages', 'memberships.package_id', '=', 'packages.id')
         ->where([
           ['memberships.status', '=', 1],
-          ['memberships.start_date', '<=', Carbon::now()->format('Y-m-d')],
-          ['memberships.expire_date', '>=', Carbon::now()->format('Y-m-d')]
+          ['memberships.start_date', '<=', Carbon::now()]
         ])
+        ->where(function($query) {
+          $query->where('memberships.expire_date', '>=', Carbon::now())
+                ->orWhere(function($subQuery) {
+                  $subQuery->where('memberships.in_grace_period', '=', 1)
+                           ->where('memberships.grace_period_until', '>', Carbon::now());
+                });
+        })
         ->where([['services.service_status', '=', 1], ['sellers.status', '=', 1]])
         ->when($keyword, function (Builder $query) use ($s_serviceIds) {
           return $query->whereIn('services.id', $s_serviceIds);
@@ -127,7 +134,7 @@ class ServiceController extends Controller
             ->where('services.package_lowest_price', '<=', $max);
         })
         ->where('service_contents.language_id', '=', $language->id)
-        ->select('services.id', 'services.seller_id', 'services.thumbnail_image', 'service_contents.title', 'service_contents.slug', 'services.average_rating', 'services.package_lowest_price', 'services.quote_btn_status')
+        ->select('services.id', 'services.seller_id', 'services.thumbnail_image', 'service_contents.title', 'service_contents.slug', 'services.average_rating', 'services.package_lowest_price', 'services.quote_btn_status', 'packages.number_of_service_add')
         ->when($sort, function (Builder $query, $sort) {
           if ($sort == 'new') {
             return $query
@@ -151,7 +158,46 @@ class ServiceController extends Controller
                 ->orderByDesc('services.is_featured')
 		->orderByDesc('services.id');
         })
-        ->paginate($paginate_count);
+        ->get();
+      
+      // Apply limits per seller based on their package
+      $limitedServices = collect();
+      $sellerServiceCounts = [];
+      
+      foreach ($services as $service) {
+        $sellerId = $service->seller_id;
+        $serviceLimit = $service->number_of_service_add;
+        
+        if (!isset($sellerServiceCounts[$sellerId])) {
+          $sellerServiceCounts[$sellerId] = 0;
+        }
+        
+        // If limit is 0, skip all services for this seller
+        if ($serviceLimit == 0) {
+          continue;
+        }
+        
+        // If we haven't reached the limit for this seller, add the service
+        if ($sellerServiceCounts[$sellerId] < $serviceLimit) {
+          $limitedServices->push($service);
+          $sellerServiceCounts[$sellerId]++;
+        }
+      }
+      
+      // Convert back to pagination
+      $currentPage = request()->get('page', 1);
+      $perPage = $paginate_count;
+      $offset = ($currentPage - 1) * $perPage;
+      $paginatedServices = $limitedServices->slice($offset, $perPage);
+      
+      // Create a LengthAwarePaginator
+      $services = new \Illuminate\Pagination\LengthAwarePaginator(
+        $paginatedServices,
+        $limitedServices->count(),
+        $perPage,
+        $currentPage,
+        ['path' => request()->url(), 'query' => request()->query()]
+      );
       // review
       $services->map(function ($service) {
         $service['reviewCount'] = $service->review()->count();
@@ -268,11 +314,18 @@ class ServiceController extends Controller
     $services = Service::join('service_contents', 'services.id', '=', 'service_contents.service_id')
       ->join('memberships', 'services.seller_id', '=', 'memberships.seller_id')
       ->join('sellers', 'services.seller_id', '=', 'sellers.id')
+      ->join('packages', 'memberships.package_id', '=', 'packages.id')
       ->where([
         ['memberships.status', '=', 1],
-        ['memberships.start_date', '<=', Carbon::now()->format('Y-m-d')],
-        ['memberships.expire_date', '>=', Carbon::now()->format('Y-m-d')]
+        ['memberships.start_date', '<=', Carbon::now()]
       ])
+      ->where(function($query) {
+        $query->where('memberships.expire_date', '>=', Carbon::now())
+              ->orWhere(function($subQuery) {
+                $subQuery->where('memberships.in_grace_period', '=', 1)
+                         ->where('memberships.grace_period_until', '>', Carbon::now());
+              });
+      })
       ->where([['services.service_status', '=', 1], ['sellers.status', '=', 1]])
       ->when($keyword, function (Builder $query) use ($s_serviceIds) {
         return $query->whereIn('services.id', $s_serviceIds);
@@ -310,7 +363,7 @@ class ServiceController extends Controller
         return $query->whereIn('services.id', $d_serviceIds);
       })
       ->where('service_contents.language_id', '=', $language->id)
-      ->select('services.id', 'services.seller_id', 'services.thumbnail_image', 'service_contents.title', 'service_contents.slug', 'services.average_rating', 'services.package_lowest_price', 'services.quote_btn_status')
+      ->select('services.id', 'services.seller_id', 'services.thumbnail_image', 'service_contents.title', 'service_contents.slug', 'services.average_rating', 'services.package_lowest_price', 'services.quote_btn_status', 'packages.number_of_service_add')
       ->when($sort, function (Builder $query, $sort) {
         if ($sort == 'new') {
           return $query->orderBy('services.created_at', 'desc');
@@ -324,7 +377,46 @@ class ServiceController extends Controller
       }, function (Builder $query) {
         return $query->orderByDesc('services.id');
       })
-      ->paginate($paginate_count);
+      ->get();
+    
+    // Apply limits per seller based on their package
+    $limitedServices = collect();
+    $sellerServiceCounts = [];
+    
+    foreach ($services as $service) {
+      $sellerId = $service->seller_id;
+      $serviceLimit = $service->number_of_service_add;
+      
+      if (!isset($sellerServiceCounts[$sellerId])) {
+        $sellerServiceCounts[$sellerId] = 0;
+      }
+      
+      // If limit is 0, skip all services for this seller
+      if ($serviceLimit == 0) {
+        continue;
+      }
+      
+      // If we haven't reached the limit for this seller, add the service
+      if ($sellerServiceCounts[$sellerId] < $serviceLimit) {
+        $limitedServices->push($service);
+        $sellerServiceCounts[$sellerId]++;
+      }
+    }
+    
+    // Convert back to pagination
+    $currentPage = request()->get('page', 1);
+    $perPage = $paginate_count;
+    $offset = ($currentPage - 1) * $perPage;
+    $paginatedServices = $limitedServices->slice($offset, $perPage);
+    
+    // Create a LengthAwarePaginator
+    $services = new \Illuminate\Pagination\LengthAwarePaginator(
+      $paginatedServices,
+      $limitedServices->count(),
+      $perPage,
+      $currentPage,
+      ['path' => request()->url(), 'query' => request()->query()]
+    );
     // review
     $services->map(function ($service) {
       $service['reviewCount'] = $service->review()->count();
@@ -428,8 +520,8 @@ class ServiceController extends Controller
       ->join('sellers', 'services.seller_id', '=', 'sellers.id')
       ->where([
         ['memberships.status', '=', 1],
-        ['memberships.start_date', '<=', Carbon::now()->format('Y-m-d')],
-        ['memberships.expire_date', '>=', Carbon::now()->format('Y-m-d')]
+        ['memberships.start_date', '<=', Carbon::now()],
+        ['memberships.expire_date', '>=', Carbon::now()]
       ])
       ->where([['service_contents.language_id', '=', $language->id], ['services.id', '=', $serviceId], ['services.service_status', 1], ['sellers.status', '=', 1]])
       ->select('services.id', 'services.seller_id', 'services.slider_images', 'services.video_preview_link', 'services.average_rating', 'services.live_demo_link', 'services.quote_btn_status', 'service_contents.form_id', 'service_contents.title', 'service_contents.slug', 'service_contents.description', 'service_contents.skills', 'service_contents.meta_keywords', 'service_contents.meta_description', 'service_categories.slug as category_name', 'service_subcategories.slug as sub_category_name')

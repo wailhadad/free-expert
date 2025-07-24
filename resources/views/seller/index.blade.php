@@ -1,6 +1,61 @@
 @extends('seller.layout')
 
 @section('content')
+  <!-- Grace Period Countdown Alert -->
+  @php
+    $gracePeriodData = \App\Http\Helpers\GracePeriodHelper::getSellerGracePeriodCountdown(Auth::guard('seller')->id());
+  @endphp
+  @if($gracePeriodData)
+    <div class="alert alert-warning alert-dismissible fade show" role="alert" id="grace-period-alert">
+      <div class="d-flex align-items-center">
+        <i class="fas fa-clock me-2"></i>
+        <div class="flex-grow-1">
+          <strong>Insufficient Balance for Auto-Renewal!</strong>
+          <p class="mb-0">Your membership for package "{{ $gracePeriodData['package_title'] }}" is in grace period. 
+          Current balance: <span class="fw-bold text-warning">${{ number_format($gracePeriodData['current_balance'], 2) }}</span> | 
+          Required: <span class="fw-bold text-danger">${{ number_format($gracePeriodData['package_price'], 2) }}</span> | 
+          Shortfall: <span class="fw-bold text-danger">${{ number_format($gracePeriodData['balance_shortfall'], 2) }}</span><br>
+          Time remaining: <span id="grace-countdown" class="fw-bold text-danger">{{ $gracePeriodData['formatted_time'] }}</span></p>
+        </div>
+      </div>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <script>
+      // Grace period countdown
+      let totalSeconds = {{ $gracePeriodData['total_seconds'] }};
+      
+      function updateCountdown() {
+        if (totalSeconds <= 0) {
+          document.getElementById('grace-countdown').innerHTML = 'EXPIRED';
+          document.getElementById('grace-period-alert').classList.remove('alert-warning');
+          document.getElementById('grace-period-alert').classList.add('alert-danger');
+          return;
+        }
+        
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        
+        // Always show all units with leading zeros
+        const daysStr = days.toString().padStart(2, '0');
+        const hoursStr = hours.toString().padStart(2, '0');
+        const minutesStr = minutes.toString().padStart(2, '0');
+        const secondsStr = seconds.toString().padStart(2, '0');
+        
+        const timeString = `${daysStr}d ${hoursStr}h ${minutesStr}m ${secondsStr}s`;
+        
+        document.getElementById('grace-countdown').innerHTML = timeString;
+        totalSeconds--;
+      }
+      
+      // Update countdown every second
+      setInterval(updateCountdown, 1000);
+      updateCountdown(); // Initial call
+    </script>
+  @endif
+
   <div class="mt-2 mb-4">
     <h2 class="pb-2">{{ __('Welcome back,') }} {{ Auth::guard('seller')->user()->username . '!' }}</h2>
   </div>
@@ -16,16 +71,14 @@
           $data2['status'] == 'false' ||
           $data3['status'] == 'false' ||
           $data4['status'] == 'false')
-    <div class="alert alert-warning alert-block">
+    <div class="alert alert-info alert-block">
       @if ($data['status'] == 'false')
-        <strong
-          class="text-dark">{{ __('Currently, you have added ' . $data['total_form_added'] . ' forms. ' . 'Your current package supports ' . $data['package_support'] . ' forms. Please delete ' . $data['total_form_added'] - $data['package_support'] . ' forms to enable form management.') }}</strong>
+        <strong class="text-dark">{{ __('Your current package allows ' . $data['package_support'] . ' forms. You have ' . $data['total_form_added'] . ' forms total.') }}</strong>
         <br>
       @endif
 
       @if ($data2['status'] == 'false')
-        <strong
-          class="text-dark">{{ __('Currently, you have added ' . $data2['total_service_added'] . ' services. ' . 'Your current package supports ' . $data2['package_support'] . ' services. Please delete ' . $data2['total_service_added'] - $data2['package_support'] . ' services to enable service management.') }}</strong>
+        <strong class="text-dark">{{ __('Your current package allows ' . $data2['package_support'] . ' services. You have ' . $data2['total_service_added'] . ' services total.') }}</strong>
         <br>
       @endif
       @if ($data3['status'] == 'false')
@@ -55,7 +108,7 @@
     $package = \App\Http\Helpers\SellerPermissionHelper::currentPackagePermission($seller->id);
   @endphp
 
-  @if (is_null($package))
+  @if (is_null($package) && !$gracePeriodData)
     @php
       $pendingMemb = \App\Models\Membership::query()
           ->where([['seller_id', '=', $seller->id], ['status', 0]])
@@ -93,22 +146,40 @@
             @endif
           @endif
 
-          <strong>{{ __('Current Package') . ':' }} </strong> {{ $current_package->title }}
-          <span class="badge badge-secondary">{{ $current_package->term }}</span>
-          @if ($current_membership->is_trial == 1)
+          <strong>{{ __('Current Package') . ':' }} </strong>
+          @if($current_package)
+              {{ $current_package->title }}
+          @elseif($gracePeriodData)
+              {{ $gracePeriodData['package_title'] }}
+              <span class="badge badge-warning">{{ __('Grace Period') }}</span>
+          @else
+              <span class="text-danger">{{ __('No active package') }}</span>
+          @endif
+          @if($current_package)
+              <span class="badge badge-secondary">{{ $current_package->term }}</span>
+          @endif
+          @if ($current_membership && $current_membership->is_trial == 1)
             ({{ __('Expire Date') . ':' }}
-            {{ Carbon\Carbon::parse($current_membership->expire_date)->format('M-d-Y') }})
+            {{ \Carbon\Carbon::parse($current_membership->expire_date)->format('M-d-Y') }})
             <span class="badge badge-primary">{{ __('Trial') }}</span>
           @else
             ({{ __('Expire Date') . ':' }}
-            {{ $current_package->term === 'lifetime' ? 'Lifetime' : Carbon\Carbon::parse($current_membership->expire_date)->format('M-d-Y') }})
+            @if($current_package)
+                {{ $current_package->term === 'lifetime' ? 'Lifetime' : \Carbon\Carbon::parse($current_membership->expire_date)->format('M-d-Y') }}
+            @elseif($gracePeriodData)
+                {{ \Carbon\Carbon::parse($gracePeriodData['grace_period_until'])->format('M-d-Y H:i:s') }}
+                <span class="text-warning">(Grace Period)</span>
+            @else
+                <span class="text-danger">{{ __('No active package') }}</span>
+            @endif
+            )
           @endif
 
           @if ($package_count >= 2 && $next_package)
             <div>
               <strong>{{ __('Next Package To Activate') . ':' }} </strong> {{ $next_package->title }} <span
                 class="badge badge-secondary">{{ $next_package->term }}</span>
-              @if ($current_package->term != 'lifetime' && $current_membership->is_trial != 1)
+              @if ($current_package && $current_package->term != 'lifetime' && $current_membership && $current_membership->is_trial != 1)
                 (
                 {{ __('Activation Date') . ':' }}
                 {{ Carbon\Carbon::parse($next_membership->start_date)->format('M-d-Y') }},
@@ -129,7 +200,29 @@
   <div class="row dashboard-items">
     <div class="col-sm-6 col-md-4">
       <a href="{{ route('seller.monthly_income') }}">
-        <div class="card card-stats card-secondary card-round">
+        <div class="card card-stats card-secondary card-round position-relative">
+          @php
+            $seller = Auth::guard('seller')->user();
+            $currentMembership = \App\Models\Membership::query()
+              ->where('seller_id', $seller->id)
+              ->where('status', 1)
+              ->where('start_date', '<=', now())
+              ->where('expire_date', '>=', now())
+              ->first();
+            $pendingPaymentMembership = \App\Models\Membership::query()
+              ->where('seller_id', $seller->id)
+              ->where('pending_payment', true)
+              ->orderBy('id', 'DESC')
+              ->first();
+          @endphp
+          @if($seller->amount < 0)
+            <style>
+              .balance-negative { color: #ffffff !important; }
+            </style>
+          @endif
+          @if(($pendingPaymentMembership && !$currentMembership) || (!$currentMembership && $seller->amount < 0))
+            <a href="{{ route('seller.plan.extend.index') }}" class="btn btn-danger btn-sm position-absolute" style="bottom: 8px; right: 8px; z-index: 2; font-size: 11px; padding: 4px 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">{{ __('Buy Membership') }}</a>
+          @endif
           <div class="card-body">
             <div class="row">
               <div class="col-5">
@@ -137,14 +230,12 @@
                   <i class="fal fa-dollar-sign"></i>
                 </div>
               </div>
-
               <div class="col-7 col-stats">
                 <div class="numbers">
                   <p class="card-category">{{ __('My Balance') }}</p>
-                  <h4 class="card-title">
-                    {{ $settings->base_currency_symbol_position == 'left' ? $settings->base_currency_symbol : '' }}
+                  <h4 class="card-title @if($seller->amount < 0) balance-negative @endif">
                     {{ Auth::guard('seller')->user()->amount }}
-                    {{ $settings->base_currency_symbol_position == 'right' ? $settings->base_currency_symbol : '' }}</h4>
+                  </h4>
                 </div>
               </div>
             </div>

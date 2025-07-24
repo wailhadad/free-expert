@@ -46,6 +46,9 @@ class DirectChatController extends Controller
             return response()->json(['error' => 'user_id and seller_id required'], 422);
         }
         
+        // Note: Chat creation is now allowed regardless of membership status
+        // Membership status only affects profile dropdown visibility
+        
         // Validate seller exists
         $seller = \App\Models\Seller::find($sellerId);
         if (!$seller) {

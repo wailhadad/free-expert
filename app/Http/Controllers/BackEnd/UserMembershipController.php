@@ -69,8 +69,8 @@ class UserMembershipController extends Controller
 
         $membership->update([
             'status' => '1',
-            'start_date' => $startDate->format('Y-m-d'),
-            'expire_date' => $expireDate->format('Y-m-d'),
+            'start_date' => $startDate,
+            'expire_date' => $expireDate,
         ]);
 
         // Detect if this is an extension (user already has an active membership for this package)
@@ -179,6 +179,9 @@ class UserMembershipController extends Controller
         // Create transaction record for approved user membership
         storeUserPackageTransaction($membership, $membership->payment_method, $bs);
 
+        // Update subuser statuses based on new package limits
+        \App\Http\Helpers\UserPermissionHelper::updateSubuserStatuses($membership->user_id);
+
         Session::flash('success', 'User membership approved successfully!');
         return back();
     }
@@ -277,8 +280,8 @@ class UserMembershipController extends Controller
                     $expireDate = Carbon::maxValue();
                 }
                 $membership->status = '1';
-                $membership->start_date = $startDate->format('Y-m-d');
-                $membership->expire_date = $expireDate->format('Y-m-d');
+                $membership->start_date = $startDate;
+                $membership->expire_date = $expireDate;
                 // Generate invoice if not present
                 if (!$membership->invoice) {
                     $invoiceName = 'user-membership-' . $membership->id . '-' . time() . '.pdf';
@@ -374,6 +377,9 @@ class UserMembershipController extends Controller
                 
                 // Create transaction record for approved user membership
                 storeUserPackageTransaction($membership, $membership->payment_method, $bs);
+                
+                // Update subuser statuses based on new package limits
+                \App\Http\Helpers\UserPermissionHelper::updateSubuserStatuses($membership->user_id);
                 
                 Session::flash('success', 'Membership accepted, user notified and invoice sent.');
             } else { // Pending

@@ -6,8 +6,8 @@
 -- Generation Time: Jan 27, 2024 at 12:03 PM
 -- Server version: 8.0.30
 -- PHP Version: 8.1.10
-# DROP DATABASE free_expert;
-# CREATE DATABASE free_expert;
+-- DROP DATABASE free_expert;
+-- CREATE DATABASE free_expert;
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;

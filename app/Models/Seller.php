@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\ClientService\Service;
+use App\Models\ClientService\Form;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -51,9 +52,19 @@ class Seller extends Authenticatable
     {
         return $this->hasMany(Service::class, 'seller_id', 'id');
     }
+    
+    public function forms()
+    {
+        return $this->hasMany(Form::class, 'seller_id', 'id');
+    }
     public function ticket(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(SupportTicket::class, 'user_id', 'id');
+    }
+
+    public function membershipModificationRequests()
+    {
+        return $this->hasMany(MembershipModificationRequest::class);
     }
 
     public function getAvatarUrlAttribute()

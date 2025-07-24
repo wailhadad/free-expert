@@ -76,9 +76,15 @@ class SellerController extends Controller
             ->join('memberships', 'memberships.seller_id', 'sellers.id')
             ->where([
                 ['memberships.status', 1],
-                ['memberships.start_date', '<=', Carbon::now()->format('Y-m-d')],
-                ['memberships.expire_date', '>=', Carbon::now()->format('Y-m-d')],
+                ['memberships.start_date', '<=', Carbon::now()]
             ])
+            ->where(function($query) {
+                $query->where('memberships.expire_date', '>=', Carbon::now())
+                      ->orWhere(function($subQuery) {
+                          $subQuery->where('memberships.in_grace_period', '=', 1)
+                                   ->where('memberships.grace_period_until', '>', Carbon::now());
+                      });
+            })
 
             ->when($name, function ($query) use ($sellerIds) {
                 return $query->whereIn('sellers.id', $sellerIds);
@@ -109,13 +115,20 @@ class SellerController extends Controller
             $queryResult['total_service'] = Service::where('seller_id', 0)->count();
         } else {
             $seller = Seller::join('memberships', 'memberships.seller_id', 'sellers.id')
+                ->join('packages', 'memberships.package_id', '=', 'packages.id')
                 ->where([
                     ['memberships.status', 1],
-                    ['memberships.start_date', '<=', Carbon::now()->format('Y-m-d')],
-                    ['memberships.expire_date', '>=', Carbon::now()->format('Y-m-d')],
+                    ['memberships.start_date', '<=', Carbon::now()]
                 ])
+                ->where(function($query) {
+                    $query->where('memberships.expire_date', '>=', Carbon::now())
+                          ->orWhere(function($subQuery) {
+                              $subQuery->where('memberships.in_grace_period', '=', 1)
+                                       ->where('memberships.grace_period_until', '>', Carbon::now());
+                          });
+                })
                 ->where('sellers.username', $request->username)
-                ->select('sellers.*')
+                ->select('sellers.*', 'packages.number_of_service_add')
                 ->firstOrFail();
             $sellerInfo = SellerInfo::where([['seller_id', $seller->id], ['language_id', $language->id]])->first();
             $queryResult['skills'] = Skill::where([['language_id', $language->id], ['status', 1]])->get();
@@ -126,13 +139,28 @@ class SellerController extends Controller
 
         $queryResult['categories'] = ServiceCategory::where([['language_id', $language->id], ['status', 1]])->get();
 
+        // Get all services for the seller
         $all_services = Service::join('service_contents', 'services.id', '=', 'service_contents.service_id')
             ->where([['services.service_status', 1], ['service_contents.language_id', '=', $language->id], ['services.seller_id', $seller_id]])
             ->select('services.id', 'services.thumbnail_image', 'service_contents.title', 'service_contents.slug', 'services.average_rating', 'services.package_lowest_price', 'services.quote_btn_status')
             ->orderByDesc('services.id')
             ->get();
-        // review
 
+        // Apply service limits based on seller's package
+        if ($request->admin != true && isset($seller->number_of_service_add)) {
+            $serviceLimit = $seller->number_of_service_add;
+            
+            if ($serviceLimit > 0 && $all_services->count() > $serviceLimit) {
+                // Get services within limit using prioritization logic
+                $servicesWithinLimit = \App\Http\Helpers\UserPermissionHelper::getSellerServicesWithinLimit($seller_id, $serviceLimit, $language->id);
+                $all_services = $servicesWithinLimit;
+                
+                // Services from helper method already have content merged
+                // No additional processing needed
+            }
+        }
+
+        // review
         $all_services->map(function ($service) {
             $service['reviewCount'] = $service->review()->count();
         });
@@ -156,11 +184,54 @@ class SellerController extends Controller
         $queryResult['currencyInfo'] = $this->getCurrencyInfo();
         $queryResult['languageId'] = $language->id;
 
+        // Add service limit information for the view
+        if ($request->admin != true && isset($seller->number_of_service_add)) {
+            $queryResult['serviceLimit'] = $seller->number_of_service_add;
+            $queryResult['totalServices'] = Service::where('seller_id', $seller_id)->count();
+        } else {
+            $queryResult['serviceLimit'] = 0;
+            $queryResult['totalServices'] = 0;
+        }
+
         $queryResult['followers'] = Follower::where('following_id', $seller->id)->limit(10)->get();
         $queryResult['followings'] = Follower::where([['follower_id', $seller->id], ['type', 'seller']])->limit(10)->get();
         $queryResult['bs'] = Basic::query()->select('google_recaptcha_status', 'to_mail')->first();
 
         return view('frontend.seller.details', $queryResult);
+    }
+
+    /**
+     * Get category-specific services with limits applied
+     */
+    private function getCategoryServicesWithLimits($sellerId, $categoryId, $languageId, $serviceLimit)
+    {
+        $services = Service::join('service_contents', 'services.id', '=', 'service_contents.service_id')
+            ->where([
+                ['services.service_status', '=', 1], 
+                ['service_contents.language_id', '=', $languageId], 
+                ['service_contents.service_category_id', $categoryId], 
+                ['services.seller_id', $sellerId]
+            ])
+            ->select('services.id', 'services.thumbnail_image', 'service_contents.title', 'service_contents.slug', 'services.average_rating', 'services.package_lowest_price', 'services.quote_btn_status')
+            ->orderByDesc('services.id')
+            ->get();
+
+        // Apply service limits if needed
+        if ($serviceLimit > 0 && $services->count() > $serviceLimit) {
+            // Get services within limit using prioritization logic
+            $servicesWithinLimit = \App\Http\Helpers\UserPermissionHelper::getSellerServicesWithinLimit($sellerId, $serviceLimit, $languageId);
+            
+            // Filter to only include services from this category
+            $categoryServices = $servicesWithinLimit->filter(function($service) use ($categoryId) {
+                // Since we're now getting services with content joined, we need to check the category differently
+                // The service object should have the category information from the join
+                return $service->service_category_id == $categoryId;
+            });
+            
+            return $categoryServices;
+        }
+
+        return $services;
     }
     public function followers($username)
     {

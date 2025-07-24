@@ -615,8 +615,8 @@ window.currentUserId = '{{ $userId ?? '' }}';
 @push('scripts')
 <script src="{{ asset('assets/js/direct-chat.js') }}"></script>
 <script>
-// Wait for DOM to be ready
-document.addEventListener('DOMContentLoaded', function() {
+// Wait for both DOM and scripts to be ready
+function initializeChat() {
   const contactBtn = document.getElementById('contact-now-btn');
   if (contactBtn) {
     contactBtn.addEventListener('click', function() {
@@ -650,7 +650,14 @@ document.addEventListener('DOMContentLoaded', function() {
             window.openDirectChatModal(data.chat.id, sellerName, sellerAvatar, data.chat.seller_id);
           } else {
             console.error('openDirectChatModal function not found');
-            alert('Chat functionality not available. Please refresh the page and try again.');
+            // Try to load the function again or show a more helpful error
+            setTimeout(() => {
+              if (typeof window.openDirectChatModal === 'function') {
+                window.openDirectChatModal(data.chat.id, sellerName, sellerAvatar, data.chat.seller_id);
+              } else {
+                alert('Chat functionality not available. Please refresh the page and try again.');
+              }
+            }, 1000);
           }
         } else if (data.error) {
           alert(data.error);
@@ -668,6 +675,18 @@ document.addEventListener('DOMContentLoaded', function() {
   } else {
     console.error('Contact Now button not found');
   }
-});
+}
+
+// Try to initialize immediately if DOM is ready - only once
+if (!window.chatInitialized) {
+  window.chatInitialized = true;
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeChat);
+  } else {
+    // DOM is already ready, but wait a bit for scripts to load
+    setTimeout(initializeChat, 100);
+  }
+}
 </script>
 @endpush

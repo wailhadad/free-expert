@@ -354,7 +354,8 @@ li.notification-bell-wrapper .dropdown-menu .dropdown-divider {
                             <small class="text-secondary">{{ $notification->created_at->diffForHumans() }}</small>
                         </span>
                                 <button class="btn btn-icon btn-success btn-sm mark-read-btn ms-1" data-id="{{ $notification->id }}" title="Mark as Read"
-                                    style="border-radius:50%;width:2em;height:2em;display:flex;align-items:center;justify-content:center;transition:background 0.15s;margin-right:0.2em;background:#22c55e !important;color:#fff !important;border:none !important;">
+                                    style="border-radius:50%;width:2em;height:2em;display:flex;align-items:center;justify-content:center;transition:background 0.15s;margin-right:0.2em;background:#22c55e !important;color:#fff !important;border:none !important;"
+                                    onclick="markNotificationAsRead('{{ $notification->id }}')">
                                     <i class="bi bi-check2"></i>
                                 </button>
                     </div>
@@ -433,6 +434,67 @@ document.querySelectorAll('.notif-link-area').forEach(function(area) {
         }
     });
 });
+
+// Function to mark individual notification as read
+function markNotificationAsRead(notificationId) {
+    console.log('markNotificationAsRead called with notificationId:', notificationId);
+    
+    // Determine the correct route based on user type
+    let route = '';
+    const notifiableType = document.querySelector('meta[name="notifiable-type"]')?.getAttribute('content');
+    
+    if (notifiableType === 'Admin') {
+        route = `/admin/notifications/${notificationId}/mark-as-read`;
+    } else if (notifiableType === 'Seller') {
+        route = `/seller/notifications/${notificationId}/mark-as-read`;
+    } else {
+        route = `/user/notifications/${notificationId}/mark-as-read`;
+    }
+    
+    console.log('Using route:', route);
+
+    fetch(route, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        console.log('Mark as read response status:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('Mark as read response data:', data);
+        if (data.success) {
+            console.log('Mark as read successful, updating UI...');
+            // Update the notification in the UI
+            const notificationElement = document.querySelector(`[data-id="${notificationId}"]`);
+            if (notificationElement) {
+                notificationElement.classList.remove('fw-bold', 'bg-light');
+                const readButton = notificationElement.querySelector('.mark-read-btn');
+                if (readButton) {
+                    readButton.remove();
+                }
+            }
+            // Update count
+            if (data.unreadCount !== undefined) {
+                window.notifUnreadCount = data.unreadCount;
+                const badge = document.querySelector('.notif-unread-badge');
+                if (badge) {
+                    badge.textContent = data.unreadCount;
+                    badge.style.display = data.unreadCount > 0 ? 'inline-block' : 'none';
+                }
+            }
+        } else {
+            console.warn('Mark as read failed:', data);
+        }
+    })
+    .catch(error => {
+        console.error('Error marking notification as read:', error);
+    });
+}
 </script>
 <!-- Removed old notification.js to prevent conflicts with real-time-notifications.js -->
 @endpush 

@@ -21,9 +21,59 @@ class SubuserController extends Controller
         $breadcrumb = $misc->getBreadcrumb();
 
         $user = Auth::guard('web')->user();
+        
+        // Update subuser statuses to ensure they match the current membership limits
+        \App\Http\Helpers\UserPermissionHelper::updateSubuserStatuses($user->id);
+        
+        // Get all subusers (statuses are now synchronized)
         $subusers = $user->subusers()->orderBy('created_at', 'DESC')->get();
+        
+        // Get total count and prioritization status for display purposes
+        $totalSubusers = $subusers->count();
+        $totalMaxSubusers = \App\Http\Helpers\UserPermissionHelper::totalMaxSubusers($user->id);
+        $isPrioritized = $totalMaxSubusers < $totalSubusers;
 
-        return view('frontend.user.subusers.index', compact('breadcrumb', 'subusers', 'user'));
+        return view('frontend.user.subusers.index', compact('breadcrumb', 'subusers', 'user', 'totalSubusers', 'isPrioritized', 'totalMaxSubusers'));
+    }
+
+    /**
+     * Get prioritized subusers for dropdowns (API endpoint)
+     */
+    public function getPrioritizedSubusers()
+    {
+        $user = Auth::guard('web')->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        // Update subuser statuses to ensure they match the current membership limits
+        \App\Http\Helpers\UserPermissionHelper::updateSubuserStatuses($user->id);
+
+        // Get all subusers with their status information (now synchronized)
+        $allSubusers = $user->subusers()->orderBy('created_at', 'DESC')->get();
+        $totalMaxSubusers = \App\Http\Helpers\UserPermissionHelper::totalMaxSubusers($user->id);
+        $actualSubusersCount = $allSubusers->count();
+        $isPrioritized = $totalMaxSubusers < $actualSubusersCount;
+        
+        $subusersData = $allSubusers->map(function($subuser) {
+            return [
+                'id' => $subuser->id,
+                'username' => $subuser->username,
+                'full_name' => $subuser->full_name,
+                'image' => $subuser->image ? asset('assets/img/subusers/' . $subuser->image) : asset('assets/img/users/profile.jpeg'),
+                'status' => $subuser->status,
+                'created_at' => $subuser->created_at->format('M d, Y')
+            ];
+        });
+
+        return response()->json([
+            'subusers' => $subusersData,
+            'total_subusers' => $actualSubusersCount,
+            'total_max_subusers' => $totalMaxSubusers,
+            'is_prioritized' => $isPrioritized,
+            'showing_count' => $actualSubusersCount,
+            'actual_count' => $actualSubusersCount
+        ]);
     }
 
     public function create()
@@ -232,8 +282,23 @@ class SubuserController extends Controller
         $user = Auth::guard('web')->user();
         $subuser = $user->subusers()->findOrFail($id);
 
+        // Check if trying to activate a subuser that would exceed the limit
+        if (!$subuser->status) {
+            // Trying to activate - check if it would exceed the limit
+            $totalMaxSubusers = \App\Http\Helpers\UserPermissionHelper::totalMaxSubusers($user->id);
+            $activeSubusersCount = $user->subusers()->where('status', 1)->count();
+            
+            if ($activeSubusersCount >= $totalMaxSubusers) {
+                Session::flash('error', 'Cannot activate subuser - you have reached your maximum allowed subusers limit.');
+                return redirect()->route('user.subusers.index');
+            }
+        }
+
         $subuser->status = !$subuser->status;
         $subuser->save();
+
+        // Update all subuser statuses to ensure they match the current limits
+        \App\Http\Helpers\UserPermissionHelper::updateSubuserStatuses($user->id);
 
         $status = $subuser->status ? 'activated' : 'deactivated';
         Session::flash('success', "Subuser {$status} successfully!");
