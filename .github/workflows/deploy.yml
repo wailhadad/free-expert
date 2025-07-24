@@ -40,4 +40,5 @@ jobs:
 
             sudo chmod +x artisan
             sudo chmod +x run_scheduler.sh
-            sudo ./run_scheduler.sh
+            sudo nohup ./run_scheduler.sh > scheduler.log 2>&1 &
+            
