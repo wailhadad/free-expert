@@ -1494,7 +1494,7 @@ function renderDirectChatMessages(messages) {
                     ${isMe
                         ? `<div class='chat-bubble me-bubble d-flex align-items-end flex-row-reverse' style='gap:10px;max-width:80%;'>
                                 <img src='${msg.avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle ms-2' style='width:40px;height:40px;object-fit:cover;'>
-                                <div class='chat-text bg-primary text-white p-2 rounded' style='min-width:60px;max-width:350px;word-break:break-word;'>
+                                <div class='chat-text bg-success text-white p-2 rounded' style='min-width:60px;max-width:500px;word-break:break-word;background-color:#e6f7f0 !important;color:#1a2330 !important;border:1.5px solid #b3e6d4;'>
                                     <div>${escapeHtml(msg.message || '')}</div>
                                     ${msg.file_name ? renderDirectChatFile(msg, true) : ''}
                                     <div class='small text-end mt-1' style='color:#5c4848;'>${formatTime(msg.created_at)}</div>
@@ -1502,10 +1502,10 @@ function renderDirectChatMessages(messages) {
                            </div>`
                         : `<div class='chat-bubble other-bubble d-flex align-items-end' style='gap:10px;max-width:80%;'>
                                 <img src='${msg.avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle me-2' style='width:40px;height:40px;object-fit:cover;'>
-                                <div class='chat-text bg-light p-2 rounded text-dark' style='min-width:60px;max-width:350px;word-break:break-word;'>
+                                <div class='chat-text bg-light p-2 rounded text-dark' style='min-width:60px;max-width:500px;word-break:break-word;background-color:#d8d0ff !important;color:#333333 !important;border:1.5px solid #c4b5ff;'>
                                     <div>${escapeHtml(msg.message || '')}</div>
                                     ${msg.file_name ? renderDirectChatFile(msg, false) : ''}
-                                    <div class='small text-end mt-1' style='color:#5c4848;'>${formatTime(msg.created_at)}</div>
+                                    <div class='small text-end mt-1' style='color:#666666;'>${formatTime(msg.created_at)}</div>
                                 </div>
                            </div>`
                     }
@@ -2128,7 +2128,7 @@ function renderDirectChatMessage(msg) {
             ${isMe
                 ? `<div class='chat-bubble me-bubble d-flex align-items-end flex-row-reverse' style='gap:10px;max-width:80%;'>
                         <img src='${msg.avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle ms-2' style='width:40px;height:40px;object-fit:cover;'>
-                        <div class='chat-text bg-primary text-white p-2 rounded' style='min-width:60px;max-width:350px;word-break:break-word;'>
+                        <div class='chat-text bg-success text-white p-2 rounded' style='min-width:60px;max-width:500px;word-break:break-word;background-color:#e6f7f0 !important;color:#1a2330 !important;border:1.5px solid #b3e6d4;'>
                             <div>${escapeHtml(msg.message || '')}</div>
                             ${msg.file_name ? renderDirectChatFile(msg, true) : ''}
                             <div class='small text-end mt-1' style='color:#5c4848;'>${formatTime(msg.created_at)}</div>
@@ -2136,10 +2136,10 @@ function renderDirectChatMessage(msg) {
                    </div>`
                 : `<div class='chat-bubble other-bubble d-flex align-items-end' style='gap:10px;max-width:80%;'>
                         <img src='${msg.avatar || '/assets/img/users/profile.jpeg'}' class='rounded-circle me-2' style='width:40px;height:40px;object-fit:cover;'>
-                        <div class='chat-text bg-light p-2 rounded text-dark' style='min-width:60px;max-width:350px;word-break:break-word;'>
+                        <div class='chat-text bg-light p-2 rounded text-dark' style='min-width:60px;max-width:500px;word-break:break-word;background-color:#d8d0ff !important;color:#333333 !important;border:1.5px solid #c4b5ff;'>
                             <div>${escapeHtml(msg.message || '')}</div>
                             ${msg.file_name ? renderDirectChatFile(msg, false) : ''}
-                            <div class='small text-end mt-1' style='color:#5c4848;'>${formatTime(msg.created_at)}</div>
+                            <div class='small text-end mt-1' style='color:#666666;'>${formatTime(msg.created_at)}</div>
                         </div>
                    </div>`
             }
@@ -2557,9 +2557,20 @@ document.addEventListener('DOMContentLoaded', function() {
       font-size: 1rem;
     }
     .me-bubble .chat-text, .chat-bubble.me-bubble .chat-text {
-      background: #e6f0fa !important;
+      background: #e6f7f0 !important;
       color: #1a2330 !important;
-      border: 1.5px solid #b3d4fc;
+      border: 1.5px solid #b3e6d4;
+      box-shadow: 0 2px 8px rgba(40,167,69,0.08);
+    }
+    .other-bubble .chat-text, .chat-bubble.other-bubble .chat-text {
+      background: #d8d0ff !important;
+      color: #333333 !important;
+      border: 1.5px solid #c4b5ff;
+      box-shadow: 0 2px 8px rgba(147,112,219,0.2);
+    }
+    .other-bubble .chat-text .small {
+      color: #666666 !important;
+    }
       box-shadow: 0 2px 8px rgba(0,123,255,0.06);
     }
     .me-bubble .chat-text .small {

@@ -13,13 +13,13 @@
         <i class="flaticon-right-arrow"></i>
       </li>
       <li class="nav-item">
-        <a href="#">{{ __('Sellers Management') }}</a>
+        <a href="#">{{ __('Freelancers Management') }}</a>
       </li>
       <li class="separator">
         <i class="flaticon-right-arrow"></i>
       </li>
       <li class="nav-item">
-        <a href="#">{{ __('Registered Sellers') }}</a>
+        <a href="#">{{ __('Registered Freelancers') }}</a>
       </li>
     </ul>
   </div>
@@ -30,7 +30,7 @@
         <div class="card-header">
           <div class="row">
             <div class="col-lg-6">
-              <div class="card-title">{{ __('Registered Sellers') }}</div>
+              <div class="card-title">{{ __('Registered Freelancers') }}</div>
             </div>
 
             <div class="col-lg-3">

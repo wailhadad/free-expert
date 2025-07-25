@@ -343,43 +343,68 @@ $(document).ready(function () {
 
   //service details page and checkout page
   let data = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
-  // add checked addon price with package price
-  $('.service-addon').on('change', function () {
-    let addonPrice = $(this).data('addon_price');
-
+  
+  // Store original package prices to prevent cumulative calculations
+  let originalPackagePrices = {};
+  
+  // Initialize original prices when page loads
+  $('.service-addon').each(function() {
     let packageId = $(this).data('package_id');
+    if (!originalPackagePrices[packageId]) {
+      let packagePriceText = $('#package-' + packageId + '-price').text();
+      originalPackagePrices[packageId] = parseFloat(packagePriceText.replace(/[^\d.,]/g, '').replace(',', '.'));
+      
+      // Also store original previous price if it exists
+      if ($('#package-' + packageId + '-prev_price').length > 0) {
+        let packagePrevPriceText = $('#package-' + packageId + '-prev_price').text();
+        originalPackagePrices[packageId + '_prev'] = parseFloat(packagePrevPriceText.replace(/[^\d.,]/g, '').replace(',', '.'));
+      }
+    }
+  });
+  
+  // add checked addon price with package price
+  $('.service-addon').off('change').on('change', function () {
+    let addonPrice = $(this).data('addon_price');
+    let packageId = $(this).data('package_id');
+    
+    // Use the original package price instead of reading from DOM
+    let packagePrice = originalPackagePrices[packageId];
+    let packagePrevPrice = originalPackagePrices[packageId + '_prev'];
 
-    let packagePrice = $('#package-' + packageId + '-price').text();
+    console.log('=== ADDON CALCULATION DEBUG ===');
+    console.log('Addon price from data:', addonPrice, 'Type:', typeof addonPrice);
+    console.log('Package ID:', packageId);
+    console.log('Original package price:', packagePrice);
+    console.log('Checkbox checked:', $(this).prop('checked'));
 
     let newTotal;
-    let packagePrevPrice;
     let newPrevTotal;
-
-    if ($('#package-' + packageId + '-prev_price').length > 0) {
-      packagePrevPrice = $('#package-' + packageId + '-prev_price').text();
-    }
 
     if ($(this).prop('checked') == true) {
       // calculate new current total
-      newTotal = parseFloat(packagePrice) + parseFloat(addonPrice);
+      newTotal = packagePrice + parseFloat(addonPrice);
 
       // calculate new previous total
-      if ($('#package-' + packageId + '-prev_price').length > 0) {
-        newPrevTotal = parseFloat(packagePrevPrice) + parseFloat(addonPrice);
+      if (packagePrevPrice !== undefined) {
+        newPrevTotal = packagePrevPrice + parseFloat(addonPrice);
       }
     } else if ($(this).prop('checked') == false) {
       // calculate new current total
-      newTotal = parseFloat(packagePrice) - parseFloat(addonPrice);
+      newTotal = packagePrice;
 
       // calculate new previous total
-      if ($('#package-' + packageId + '-prev_price').length > 0) {
-        newPrevTotal = parseFloat(packagePrevPrice) - parseFloat(addonPrice);
+      if (packagePrevPrice !== undefined) {
+        newPrevTotal = packagePrevPrice;
       }
     }
 
+    console.log('New total calculated:', newTotal);
+    console.log('New previous total calculated:', newPrevTotal);
+    console.log('=== END DEBUG ===');
+
     $('#package-' + packageId + '-price').text(newTotal.toLocaleString(undefined, data));
 
-    if ($('#package-' + packageId + '-prev_price').length > 0) {
+    if (packagePrevPrice !== undefined) {
       $('#package-' + packageId + '-prev_price').text(newPrevTotal.toLocaleString(undefined, data));
     }
   });

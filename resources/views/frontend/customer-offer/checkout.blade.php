@@ -85,7 +85,7 @@
                     <h4 class="mb-2 text-success"><i class="fas fa-gift me-2"></i>{{ $offer->title }}</h4>
                     <p class="text-muted mb-2">{{ $offer->description }}</p>
                     <div class="d-flex align-items-center mb-2">
-                      <span class="badge bg-primary me-2">{{ __('Seller') }}: {{ $offer->seller->username }}</span>
+                      <span class="badge bg-primary me-2">{{ __('Freelancer') }}: {{ $offer->seller->username }}</span>
                       @if($offer->form)
                         <span class="badge bg-info me-2">{{ __('Form Required') }}</span>
                       @endif

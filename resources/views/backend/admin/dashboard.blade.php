@@ -234,7 +234,7 @@
       </div>
     @endif
 
-    @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Sellers Management', $rolePermissions)))
+    @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Freelancers Management', $rolePermissions)))
       <div class="col-sm-6 col-md-3">
         <a href="{{ route('admin.seller_management.registered_seller') }}">
           <div class="card card-stats card-warning card-round">

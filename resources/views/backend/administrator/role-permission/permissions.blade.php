@@ -143,9 +143,9 @@
                       <span class="selectgroup-button">{{ __('Support Tickets') }}</span>
                     </label>
                     <label class="selectgroup-item">
-                      <input type="checkbox" class="selectgroup-input" name="permissions[]" value="Sellers Management"
-                        @if (is_array($rolePermissions) && in_array('Sellers Management', $rolePermissions)) checked @endif>
-                      <span class="selectgroup-button">{{ __('Sellers Management') }}</span>
+                      <input type="checkbox" class="selectgroup-input" name="permissions[]" value="Freelancers Management"
+                        @if (is_array($rolePermissions) && in_array('Freelancers Management', $rolePermissions)) checked @endif>
+                      <span class="selectgroup-button">{{ __('Freelancers Management') }}</span>
                     </label>
                     <label class="selectgroup-item">
                       <input type="checkbox" class="selectgroup-input" name="permissions[]" value="User Management"

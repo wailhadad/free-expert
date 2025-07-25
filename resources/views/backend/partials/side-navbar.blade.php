@@ -506,7 +506,7 @@
         @endif
 
         {{-- seller --}}
-        @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Sellers Management', $rolePermissions)))
+        @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Freelancers Management', $rolePermissions)))
           <li
             class="nav-item @if (request()->routeIs('admin.seller_management.registered_seller')) active
             @elseif (request()->routeIs('admin.seller_management.add_seller')) active
@@ -516,7 +516,7 @@
             @elseif (request()->routeIs('admin.seller_management.seller.change_password')) active @endif">
             <a data-toggle="collapse" href="#seller">
               <i class="la flaticon-users"></i>
-              <p>Sellers Management</p>
+              <p>Freelancers Management</p>
               <span class="caret"></span>
             </a>
 
@@ -540,7 +540,7 @@
                   @elseif (request()->routeIs('admin.edit_management.seller_edit')) active
                   @elseif (request()->routeIs('admin.seller_management.seller.change_password')) active @endif">
                   <a href="{{ route('admin.seller_management.registered_seller') }}">
-                    <span class="sub-item">Registered Sellers</span>
+                    <span class="sub-item">Registered Freelancers</span>
                   </a>
                 </li>
                 <li class="@if (request()->routeIs('admin.seller_management.add_seller')) active @endif">

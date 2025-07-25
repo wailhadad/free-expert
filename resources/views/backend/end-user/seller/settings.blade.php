@@ -13,7 +13,7 @@
         <i class="flaticon-right-arrow"></i>
       </li>
       <li class="nav-item">
-        <a href="#">{{ __('Sellers Management') }}</a>
+        <a href="#">{{ __('Freelancers Management') }}</a>
       </li>
       <li class="separator">
         <i class="flaticon-right-arrow"></i>

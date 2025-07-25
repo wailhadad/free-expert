@@ -19,7 +19,7 @@
         <i class="flaticon-right-arrow"></i>
       </li>
       <li class="nav-item">
-        <a href="{{ route('admin.seller_management.registered_seller') }}">{{ __('Registered Sellers') }}</a>
+        <a href="{{ route('admin.seller_management.registered_seller') }}">{{ __('Registered Freelancers') }}</a>
       </li>
       <li class="separator">
         <i class="flaticon-right-arrow"></i>

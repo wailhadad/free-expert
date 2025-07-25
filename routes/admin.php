@@ -793,7 +793,7 @@ Route::prefix('/admin')->middleware('auth:admin', 'Demo')->group(function () {
       Route::post('/{id}/delete', 'BackEnd\User\SubuserController@destroy')->name('admin.user_management.subuser.destroy');
   });
   // seller management route start
-  Route::prefix('/seller-management')->middleware('permission:Sellers Management')->group(function () {
+  Route::prefix('/seller-management')->middleware('permission:Freelancers Management')->group(function () {
     Route::get('/settings', 'BackEnd\SellerManagementController@settings')->name('admin.seller_management.settings');
     Route::post('/settings/update', 'BackEnd\SellerManagementController@update_setting')->name('admin.seller_management.setting.update');
 

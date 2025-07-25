@@ -173,7 +173,7 @@
               <div class="col-md-6">
                 <div class="form-group">
                   <label for="price">{{ __('Price') }} ({{ $bs->base_currency_text }})*</label>
-                  <input id="price" type="number" class="form-control" name="price" placeholder="{{ __('Enter Package price') }}" value="">
+                  <input id="price" type="number" class="form-control" name="price" placeholder="{{ __('Enter Package price') }}" value="" step="0.01">
                   <p id="err_price" class="mb-0 text-danger em"></p>
                 </div>
               </div>

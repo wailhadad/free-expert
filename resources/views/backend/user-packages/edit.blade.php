@@ -40,7 +40,7 @@
             <div class="col-md-6">
               <div class="form-group">
                 <label for="price">{{ __('Price') }} ({{ $bs->base_currency_text }})*</label>
-                <input id="price" type="number" class="form-control" name="price" value="{{ $package->price }}" min="0" required>
+                <input id="price" type="number" class="form-control" name="price" value="{{ $package->price }}" min="0" step="0.01" required>
               </div>
             </div>
             <div class="col-md-6">
