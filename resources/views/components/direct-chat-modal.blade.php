@@ -48,7 +48,7 @@ window.currentUserAvatar = @json($userAvatar);
 .chat-bubble.me-bubble .chat-text {
   background:rgb(136, 157, 249) !important; /* Light blue background */
   color: #333333 !important;
-  border: 1.5px solidrgb(84, 85, 85) !important; /* Light blue border */
+  border: 1.5px solid rgb(84, 85, 85) !important; /* Light blue border */
   box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1) !important; /* Light blue shadow */
 }
 
