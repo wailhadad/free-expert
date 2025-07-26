@@ -224,17 +224,16 @@
                     </div>
                   </div>
                 </div>
+                
+                <!-- Update Button -->
+                <div class="row">
+                  <div class="col-12 text-center">
+                    <button type="submit" id="updateBtn" class="btn btn-success">
+                      {{ __('Update') }}
+                    </button>
+                  </div>
+                </div>
               </form>
-            </div>
-          </div>
-        </div>
-
-        <div class="card-footer">
-          <div class="row">
-            <div class="col-12 text-center">
-              <button type="submit" id="updateBtn" class="btn btn-success">
-                {{ __('Update') }}
-              </button>
             </div>
           </div>
         </div>

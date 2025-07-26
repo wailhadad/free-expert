@@ -465,18 +465,22 @@ class SellerController extends Controller
         ];
 
         if ($request->hasFile('photo')) {
-            $rules['photo'] = 'image|mimes:jpeg,png,jpg,gif,svg|max:2048';
+            $rules['photo'] = 'image|mimes:jpeg,png,jpg,gif,svg';
         }
 
-        $languages = Language::get();
+        $languages = Language::where('code', '!=', 'ar')->get();
         $message = [];
         foreach ($languages as $language) {
             $rules[$language->code . '_name'] = 'required';
-            $message[$language->code . '_name.required'] = 'The Name feild is required.';
+            $message[$language->code . '_name.required'] = 'The Name field is required.';
         }
 
         $validator = Validator::make($request->all(), $rules, $message);
         if ($validator->fails()) {
+            \Log::info('Seller profile validation failed', [
+                'errors' => $validator->errors()->toArray(),
+                'request_data' => $request->all()
+            ]);
             return response()->json([
                 'errors' => $validator->getMessageBag()
             ], 400);

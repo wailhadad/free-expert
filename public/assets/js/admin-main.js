@@ -398,8 +398,13 @@ $(function ($) {
           $(this).html('');
         });
 
-        for (let x in error.responseJSON.errors) {
-          document.getElementById('editErr_' + x).innerHTML = error.responseJSON.errors[x][0];
+        if (error.responseJSON && error.responseJSON.errors) {
+          for (let x in error.responseJSON.errors) {
+            const errorElement = document.getElementById('editErr_' + x);
+            if (errorElement) {
+              errorElement.innerHTML = error.responseJSON.errors[x][0];
+            }
+          }
         }
 
         $('.request-loader').removeClass('show');

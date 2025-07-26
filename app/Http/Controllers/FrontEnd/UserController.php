@@ -436,9 +436,9 @@ class UserController extends Controller
 
     if ($request->hasFile('image')) {
         $file = $request->file('image');
-        // Validate file type and size (max 2MB)
+        // Validate file type only
         $request->validate([
-            'image' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'image' => 'image|mimes:jpeg,png,jpg,gif,svg',
         ]);
 
         $imageName = uniqid() . '.' . $file->getClientOriginalExtension();
