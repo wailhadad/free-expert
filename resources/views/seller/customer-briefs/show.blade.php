@@ -217,15 +217,15 @@ function initializeContactButton() {
                 // Store brief context for the next seller message
                 window.pendingBriefContext = {
                     brief_id: {{ $brief->id }},
-                    brief_title: '{{ addslashes($brief->title) }}',
-                    brief_description: '{{ addslashes($brief->description) }}',
+                    brief_title: @json($brief->title),
+                    brief_description: @json($brief->description),
                     brief_delivery_time: {{ $brief->delivery_time }},
-                    brief_tags: '{{ addslashes($brief->tags) }}',
+                    brief_tags: @json($brief->tags),
                     brief_price: {{ $brief->price ?? 'null' }},
                     brief_request_quote: {{ $brief->request_quote ? 'true' : 'false' }},
-                    brief_created_at: '{{ $brief->created_at->format('M d, Y') }}',
-                    user_name: '@if($brief->subuser){{ addslashes($brief->subuser->username) }}@else{{ addslashes($brief->user->username) }}@endif',
-                    user_avatar: '@if($brief->subuser){{ $brief->subuser->image ? asset("assets/img/subusers/" . $brief->subuser->image) : asset("assets/img/users/profile.jpeg") }}@else{{ $brief->user->image ? asset("assets/img/users/" . $brief->user->image) : asset("assets/img/users/profile.jpeg") }}@endif',
+                    brief_created_at: @json($brief->created_at->format('M d, Y')),
+                    user_name: @json($brief->subuser ? $brief->subuser->username : $brief->user->username),
+                    user_avatar: @json($brief->subuser ? ($brief->subuser->image ? asset('assets/img/subusers/' . $brief->subuser->image) : asset('assets/img/users/profile.jpeg')) : ($brief->user->image ? asset('assets/img/users/' . $brief->user->image) : asset('assets/img/users/profile.jpeg'))),
                     brief_attachments: @json($brief->getAttachmentsArray()),
                     brief_attachment_names: @json($brief->getAttachmentNamesArray())
                 };
