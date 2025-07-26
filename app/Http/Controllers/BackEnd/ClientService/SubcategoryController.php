@@ -31,7 +31,7 @@ class SubcategoryController extends Controller
 
     $information['subcategories'] = $subcategories;
 
-    $information['langs'] = Language::all();
+    $information['langs'] = Language::where('code', '!=', 'ar')->get();
 
     $information['categories'] = $language->serviceCategory()->where('status', 1)->orderBy('serial_number', 'asc')->get();
 

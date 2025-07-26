@@ -21,7 +21,7 @@ class AddonController extends Controller
         $information['service'] = $service;
         $information['serviceTitle'] = $service->content()->where('language_id', $language->id)->pluck('title')->first();
         $information['addons'] = $service->addon()->where('language_id', $language->id)->orderByDesc('id')->get();
-        $information['langs'] = Language::all();
+        $information['langs'] = Language::where('code', '!=', 'ar')->get();
         $information['currencyInfo'] = $this->getCurrencyInfo();
         return view('seller.addon.index', $information);
     }

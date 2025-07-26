@@ -34,7 +34,7 @@ class FormController extends Controller
       })
       ->orderByDesc('id')->get();
 
-    $information['langs'] = Language::all();
+    $information['langs'] = Language::where('code', '!=', 'ar')->get();
 
     return view('backend.client-service.form.index', $information);
   }

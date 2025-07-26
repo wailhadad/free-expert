@@ -23,7 +23,7 @@ class FaqController extends Controller
 
         $information['faqs'] = $service->faq()->where('language_id', $language->id)->orderByDesc('id')->get();
 
-        $information['langs'] = Language::all();
+        $information['langs'] = Language::where('code', '!=', 'ar')->get();
 
         return view('seller.faq.index', $information);
     }

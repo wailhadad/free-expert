@@ -60,12 +60,12 @@
                                     };
                                 @endphp
                                 <div class="col-12">
-                                    <div class="d-flex align-items-center p-2 rounded" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);">
+                                    <div class="d-flex align-items-start p-2 rounded" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);">
                                         <div class="flex-shrink-0 me-3">
                                             <i class="{{ $iconClass }}" style="font-size: 1.5rem;"></i>
                                         </div>
-                                        <div class="flex-grow-1 min-w-0">
-                                            <div class="text-light fw-semibold text-truncate" style="font-size: 0.9rem;">{{ $attachmentName }}</div>
+                                        <div class="flex-grow-1 min-w-0" style="overflow: hidden;">
+                                            <div class="text-light fw-semibold text-truncate" style="font-size: 0.9rem; word-break: break-word; overflow-wrap: break-word;">{{ $attachmentName }}</div>
                                             <div class="text-muted" style="font-size: 0.8rem;">{{ strtoupper($fileExt) }} File</div>
                                         </div>
                                         <div class="flex-shrink-0">

@@ -29,8 +29,13 @@ class CustomerOfferController extends Controller
         }
 
         $seller = Auth::guard('seller')->user();
-        $forms = Form::where('seller_id', $seller->id)
-            ->orWhere('seller_id', null) // Admin forms
+        $forms = Form::join('languages', 'forms.language_id', '=', 'languages.id')
+            ->where(function($query) use ($seller) {
+                $query->where('forms.seller_id', $seller->id)
+                      ->orWhere('forms.seller_id', null); // Admin forms
+            })
+            ->where('languages.code', '!=', 'ar') // Exclude Arabic forms
+            ->select('forms.*')
             ->with('input')
             ->get();
 

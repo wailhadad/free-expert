@@ -4,7 +4,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="exampleModalLongTitle">{{ __('Add Form') }}</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -18,7 +18,9 @@
             <select name="language_id" class="form-control">
               <option selected disabled>{{ __('Select a Language') }}</option>
               @foreach ($langs as $lang)
+                @if ($lang->code !== 'ar')
                 <option value="{{ $lang->id }}">{{ $lang->name }}</option>
+                @endif
               @endforeach
             </select>
             <p id="err_language_id" class="mt-2 mb-0 text-danger em"></p>
@@ -33,7 +35,7 @@
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
           {{ __('Close') }}
         </button>
         <button id="submitBtn" type="button" class="btn btn-primary btn-sm">

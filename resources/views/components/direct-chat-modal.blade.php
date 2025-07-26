@@ -24,6 +24,44 @@ window.currentUserAvatar = @json($userAvatar);
 </script>
 @push('styles')
 <style>
+/* Left-side chat messages styling - Light Purple */
+.other-bubble .chat-text, 
+.chat-bubble.other-bubble .chat-text {
+  background: #faf5ff !important; /* Very light purple background */
+  color: #333333 !important;
+  border: 1.5px solid #f3e8ff !important; /* Very light purple border */
+  box-shadow: 0 2px 8px rgba(156, 39, 176, 0.05) !important; /* Very light purple shadow */
+}
+
+.other-bubble .chat-text .small {
+  color: #666666 !important;
+}
+
+/* Customer offer cards on left side should also be very light purple */
+.other-bubble .customer-offer-card {
+  background:rgb(208, 189, 227) !important; /* Very light purple background */
+  border-color: #f3e8ff !important; /* Very light purple border */
+}
+
+/* Right-side chat messages styling - Light Blue */
+.me-bubble .chat-text, 
+.chat-bubble.me-bubble .chat-text {
+  background:rgb(136, 157, 249) !important; /* Light blue background */
+  color: #333333 !important;
+  border: 1.5px solidrgb(84, 85, 85) !important; /* Light blue border */
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1) !important; /* Light blue shadow */
+}
+
+.me-bubble .chat-text .small {
+  color:rgb(52, 52, 52) !important;
+}
+
+/* Customer offer cards on right side should also be light blue */
+.me-bubble .customer-offer-card {
+  background: #f0f8ff !important; /* Light blue background */
+  border-color: #e6f3ff !important; /* Light blue border */
+}
+
 #direct-chat-subuser-dropdown .dropdown-menu {
   min-width: 200px;
   max-width: 260px;
@@ -76,10 +114,21 @@ window.currentUserAvatar = @json($userAvatar);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   transition: all 0.3s ease;
+  width: 100%;
+  max-width: 450px;
+  min-width: 280px;
 }
 
 .customer-offer-card:hover {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.customer-offer-card .offer-description {
+  text-align: justify;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .customer-offer-card.accepted {
@@ -145,6 +194,16 @@ window.currentUserAvatar = @json($userAvatar);
   #directChatModal .modal-body {
     height: 400px !important;
   }
+  
+  .customer-offer-card {
+    max-width: 100% !important;
+    min-width: 240px !important;
+  }
+  
+  .customer-offer-card .offer-description {
+    text-align: left;
+    line-height: 1.4;
+  }
 }
 
 @media (max-width: 576px) {
@@ -156,6 +215,18 @@ window.currentUserAvatar = @json($userAvatar);
   
   #directChatModal .modal-body {
     height: 350px !important;
+  }
+  
+  .customer-offer-card {
+    max-width: 100% !important;
+    min-width: 200px !important;
+    padding: 0.75rem !important;
+  }
+  
+  .customer-offer-card .offer-description {
+    text-align: left;
+    line-height: 1.3;
+    font-size: 0.9rem;
   }
 }
 

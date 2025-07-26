@@ -46,7 +46,7 @@ class ServiceController extends Controller
         
         // Get all services (no limit applied)
         $information['services'] = $query->get();
-        $information['langs'] = Language::all();
+        $information['langs'] = Language::where('code', '!=', 'ar')->get();
         $information['serviceLimit'] = $serviceLimit;
         $information['totalServices'] = Service::where('seller_id', Auth::guard('seller')->user()->id)->count();
         
@@ -65,7 +65,7 @@ class ServiceController extends Controller
      */
     public function create()
     {
-        $languages = Language::all();
+        $languages = Language::where('code', '!=', 'ar')->get();
 
         $languages->map(function ($language) {
             $language['forms'] = $language->form()->where('seller_id', Auth::guard('seller')->user()->id)->orderByDesc('id')->get();
@@ -195,7 +195,7 @@ class ServiceController extends Controller
             'video_preview_link' => $link
         ]);
 
-        $languages = Language::all();
+        $languages = Language::where('code', '!=', 'ar')->get();
 
         foreach ($languages as $language) {
             // Only create service content if the language has required data
@@ -266,7 +266,7 @@ class ServiceController extends Controller
         $information['service'] = $service;
 
         // get all the languages from db
-        $languages = Language::all();
+        $languages = Language::where('code', '!=', 'ar')->get();
 
         $languages->map(function ($language) use ($service) {
             // get service content information of each language from db
@@ -358,7 +358,7 @@ class ServiceController extends Controller
             'video_preview_link' => $link
         ]);
 
-        $languages = Language::all();
+        $languages = Language::where('code', '!=', 'ar')->get();
 
         foreach ($languages as $language) {
             // Only update/create service content if the language has required data

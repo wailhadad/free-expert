@@ -36,7 +36,9 @@
                                 <select name="language_id" class="form-control">
                                     <option selected disabled>{{ __('Select a Language') }}</option>
                                     @foreach ($langs as $lang)
+                                        @if ($lang->code !== 'ar')
                                         <option value="{{ $lang->id }}">{{ $lang->name }}</option>
+                                        @endif
                                     @endforeach
                                 </select>
                                 <p id="err_language_id" class="mt-2 mb-0 text-danger em"></p>

@@ -187,6 +187,7 @@
 
                 <div id="accordion" class="mt-3">
                   @foreach ($languages as $language)
+                    @if ($language->code !== 'ar')
                     @php $serviceData = $language->serviceData; @endphp
 
                     <div class="version">
@@ -393,6 +394,7 @@
                         </div>
                       </div>
                     </div>
+                    @endif
                   @endforeach
                 </div>
               </form>

@@ -1470,7 +1470,7 @@ function renderDirectChatMessages(messages) {
                                             color: #495057;
                                         '>
                                             <i class='fas fa-paperclip' style='font-size: 10px; color: #6c757d;'></i>
-                                            <span>${escapeHtml(attachment.name)}</span>
+                                            <span style='word-break: break-word; overflow-wrap: break-word; max-width: 300px;'>${escapeHtml(attachment.name)}</span>
                                         </div>
                                     `).join('')}
                                 </div>
@@ -2104,7 +2104,7 @@ function renderDirectChatMessage(msg) {
                                         color: #495057;
                                     '>
                                         <i class='${iconClass}' style='font-size: 10px;'></i>
-                                        <span>${escapeHtml(attachmentName)}</span>
+                                        <span style='word-break: break-word; overflow-wrap: break-word; max-width: 300px;'>${escapeHtml(attachmentName)}</span>
                                         <a href='/assets/file/customer-briefs/${attachment}' target='_blank' style='
                                             color: #007bff;
                                             text-decoration: none;

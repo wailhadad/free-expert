@@ -43,7 +43,7 @@ class FormController extends Controller
         $isPrioritized = $totalForms > $formLimit;
         
         $information['forms'] = $allForms;
-        $information['langs'] = Language::all();
+        $information['langs'] = Language::where('code', '!=', 'ar')->get();
         $information['formLimit'] = $formLimit;
         $information['totalForms'] = $totalForms;
         $information['formsWithinLimit'] = $formsWithinLimit;

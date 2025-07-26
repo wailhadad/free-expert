@@ -19,7 +19,7 @@ class SkillController extends Controller
 
         $information['skills'] = $language->skill()->orderByDesc('id')->get();
 
-        $information['langs'] = Language::all();
+        $information['langs'] = Language::where('code', '!=', 'ar')->get();
 
         return view('backend.client-service.skills.index', $information);
     }

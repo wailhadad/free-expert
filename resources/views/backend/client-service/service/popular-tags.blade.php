@@ -58,9 +58,11 @@
                       onchange="window.location='{{ url()->current() . '?language=' }}'+this.value">
                       <option value="" selected disabled>{{ __('Select a Language') }}</option>
                       @foreach ($langs as $lang)
+                        @if ($lang->code !== 'ar')
                         <option value="{{ $lang->code }}"
                           {{ $lang->code == request()->input('language') ? 'selected' : '' }}>
                           {{ $lang->name }}</option>
+                        @endif
                       @endforeach
                     </select>
                   @endif

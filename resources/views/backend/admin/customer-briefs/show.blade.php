@@ -46,12 +46,12 @@
                                 <div class="col-md-6 col-lg-4">
                                     <div class="card border h-100">
                                         <div class="card-body p-3">
-                                            <div class="d-flex align-items-center">
+                                            <div class="d-flex align-items-start">
                                                 <div class="flex-shrink-0 me-3">
                                                     <i class="{{ $iconClass }}" style="font-size: 2rem;"></i>
                                                 </div>
-                                                <div class="flex-grow-1 min-w-0">
-                                                    <h6 class="card-title mb-1 text-truncate" style="font-size: 0.9rem;">{{ $attachmentName }}</h6>
+                                                <div class="flex-grow-1 min-w-0" style="overflow: hidden;">
+                                                    <h6 class="card-title mb-1 text-truncate" style="font-size: 0.9rem; word-break: break-word; overflow-wrap: break-word;">{{ $attachmentName }}</h6>
                                                     <p class="card-text text-muted mb-2" style="font-size: 0.8rem;">{{ strtoupper($fileExt) }} File</p>
                                                     <a href="{{ asset('assets/file/customer-briefs/' . $attachment) }}" target="_blank" class="btn btn-sm btn-outline-primary">
                                                         <i class="fas fa-download me-1"></i> Download

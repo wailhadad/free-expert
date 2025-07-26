@@ -145,6 +145,7 @@
                   <div class="col-lg-12">
                     <div id="accordion" class="mt-5">
                       @foreach ($languages as $language)
+                        @if ($language->code !== 'ar')
                         <div class="version">
                           <div class="version-header" id="heading{{ $language->id }}">
                             <h5 class="mb-0">
@@ -261,6 +262,7 @@
                             </div>
                           </div>
                         </div>
+                        @endif
                       @endforeach
                     </div>
                   </div>

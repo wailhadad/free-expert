@@ -68,6 +68,7 @@
 
                 <div id="accordion" class="mt-3">
                   @foreach ($languages as $language)
+                    @if ($language->code !== 'ar')
                     @php
                       $pageData = $language
                           ->customPageInfo()
@@ -135,6 +136,7 @@
                         </div>
                       </div>
                     </div>
+                    @endif
                   @endforeach
                 </div>
               </form>

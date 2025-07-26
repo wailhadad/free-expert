@@ -24,7 +24,7 @@ class PackageController extends Controller
 
         $information['packages'] = $service->package()->where('language_id', $language->id)->orderByDesc('id')->get();
 
-        $information['langs'] = Language::all();
+        $information['langs'] = Language::where('code', '!=', 'ar')->get();
 
         $information['currencyInfo'] = $this->getCurrencyInfo();
 

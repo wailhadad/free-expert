@@ -325,7 +325,7 @@
                           <td>
                             <a href="{{ route('seller.service_management.form.input', ['id' => $form->id, 'language' => request()->input('language')]) }}"
                               class="btn btn-sm btn-info {{ $disabledClass }}"
-                              data-toggle="tooltip" data-placement="top"
+                              data-bs-toggle="tooltip" data-bs-placement="top"
                               title="{{ $isWithinLimit ? __('Manage Form Inputs') : __('Cannot manage - exceeds package limit') }}"
                               {{ $disabledAttr }}>
                               {{ __('Manage') }}
@@ -341,9 +341,9 @@
                           </td>
                           <td>
                             <a class="btn btn-secondary btn-sm editBtn mb-1 {{ $disabledClass }}"
-                              href="#" data-toggle="modal" data-target="#editModal" data-id="{{ $form->id }}"
+                              href="#" data-bs-toggle="modal" data-bs-target="#editModal" data-id="{{ $form->id }}"
                               data-name="{{ $form->name }}"
-                              data-toggle="tooltip" data-placement="top"
+                              data-bs-placement="top"
                               title="{{ $isWithinLimit ? __('Edit') : __('Cannot edit - exceeds package limit') }}"
                               {{ $disabledAttr }}>
                               <span class="btn-label">
@@ -356,7 +356,7 @@
                               method="post">
                               @csrf
                               <button type="submit" class="btn btn-danger btn-sm deleteBtn mb-1 {{ $disabledClass }}"
-                                data-toggle="tooltip" data-placement="top"
+                                data-bs-toggle="tooltip" data-bs-placement="top"
                                 title="{{ $isWithinLimit ? __('Delete') : __('Cannot delete - exceeds package limit') }}"
                                 {{ $disabledAttr }}>
                                 <span class="btn-label">

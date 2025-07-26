@@ -107,7 +107,7 @@ class ServiceController extends Controller
    */
   public function create()
   {
-    $languages = Language::all();
+    $languages = Language::where('code', '!=', 'ar')->get();
 
     $languages->map(function ($language) {
       $language['forms'] = $language->form()->where('seller_id', null)->orderByDesc('id')->get();
@@ -267,7 +267,7 @@ class ServiceController extends Controller
       'video_preview_link' => $link
     ]);
 
-    $languages = Language::all();
+    $languages = Language::where('code', '!=', 'ar')->get();
 
     foreach ($languages as $language) {
       $serviceContent = new ServiceContent();
@@ -370,7 +370,7 @@ class ServiceController extends Controller
     $information['service'] = $service;
 
     // get all the languages from db
-    $languages = Language::all();
+    $languages = Language::where('code', '!=', 'ar')->get();
 
     $languages->map(function ($language) use ($service) {
       // get service content information of each language from db
@@ -464,7 +464,7 @@ class ServiceController extends Controller
       'video_preview_link' => $link
     ]);
 
-    $languages = Language::all();
+    $languages = Language::where('code', '!=', 'ar')->get();
 
     foreach ($languages as $language) {
       $serviceContent = ServiceContent::query()->where('service_id', '=', $id)
@@ -730,7 +730,7 @@ class ServiceController extends Controller
     $lang_id = $lang->id;
 
     $information['language'] = $lang;
-    $information['langs'] = Language::all();
+    $information['langs'] = Language::where('code', '!=', 'ar')->get();
     $information['data'] =  BasicExtends::where('language_id', $lang_id)->first();
     if (is_null($information['data'])) {
       $information['data'] = BasicExtends::create([
